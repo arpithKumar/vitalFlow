@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingVertical="4dp">
+
+    <ImageView
+        android:id="@+id/imgBotAvatar"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginEnd="8dp"
+        android:src="@drawable/ic_robot_face"
+        app:tint="@null"
+        app:layout_constraintBottom_toBottomOf="@id/tvMessageBody"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/tvMessageBody"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_chat_bubble_bot"
+        android:maxWidth="260dp"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textSize="14sp"
+        android:lineSpacingExtra="2dp"
+        app:layout_constraintStart_toEndOf="@id/imgBotAvatar"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/lottieLoading"
+        android:layout_width="40dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="8dp"
+        android:visibility="gone"
+        app:lottie_autoPlay="true"
+        app:lottie_loop="true"
+        app:lottie_rawRes="@raw/live_dots"
+        app:layout_constraintBottom_toBottomOf="@id/tvMessageBody"
+        app:layout_constraintStart_toEndOf="@id/imgBotAvatar"
+        app:layout_constraintTop_toTopOf="@id/tvMessageBody" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

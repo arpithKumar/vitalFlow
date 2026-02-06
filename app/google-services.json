@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "924609692550",
+    "project_id": "vitalflow-d8915",
+    "storage_bucket": "vitalflow-d8915.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:924609692550:android:55222c198724fbb5b6e207",
+        "android_client_info": {
+          "package_name": "com.vitalflow.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "924609692550-oduiohp0oo5qd7v21k1scihvsi5r1irs.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vitalflow.app",
+            "certificate_hash": "cd91cc8c06fcd275d6a1cfcee22f1bf38031201c"
+          }
+        },
+        {
+          "client_id": "924609692550-585eu2ubfmuu1e85v2vvstahjkhgm0s1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1HxoSCesdg7m7-XXnbPJ-wqM58I2bCuw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "924609692550-585eu2ubfmuu1e85v2vvstahjkhgm0s1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

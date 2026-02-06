@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/homeFragment"
+        android:title="Home"
+        android:icon="@drawable/ic_water_drop" />
+
+    <item
+        android:id="@+id/medsFragment"
+        android:title="Meds"
+        android:icon="@drawable/ic_medicine_pro" />
+
+    <item
+        android:id="@+id/vitalsFragment"
+        android:title="Vitals"
+        android:icon="@drawable/ic_heart" />
+
+    <item
+        android:id="@+id/periodFragment"
+        android:title="Cycle"
+        android:icon="@drawable/ic_period" />
+</menu>

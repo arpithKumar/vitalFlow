@@ -1,0 +1,439 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_bottom_sheet"
+    android:paddingTop="24dp">
+
+    <View
+        android:id="@+id/dragHandle"
+        android:layout_width="50dp"
+        android:layout_height="6dp"
+        android:background="@drawable/shape_drag_handle"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tvSheetTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="24dp"
+        android:text="Log Symptoms"
+        android:textColor="#263238"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/dragHandle" />
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scrollContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constrainedHeight="true"
+        android:layout_marginTop="16dp"
+        android:fillViewport="true"
+        app:layout_constraintBottom_toTopOf="@id/btnSaveLog"
+        app:layout_constraintTop_toBottomOf="@id/tvSheetTitle">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="24dp"
+            android:paddingBottom="16dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Flow Intensity"
+                        android:textColor="#90A4AE"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/chipGroupFlow"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        app:selectionRequired="true"
+                        app:singleSelection="true">
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipNone"
+                            style="@style/Widget.MaterialComponents.Chip.Choice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true"
+                            android:text="No Flow"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipLight"
+                            style="@style/Widget.MaterialComponents.Chip.Choice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Light"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipMedium"
+                            style="@style/Widget.MaterialComponents.Chip.Choice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Medium"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipHeavy"
+                            style="@style/Widget.MaterialComponents.Chip.Choice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Heavy"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector" />
+                    </com.google.android.material.chip.ChipGroup>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:cardBackgroundColor="#FFFFFF"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Symptoms"
+                        android:textColor="#90A4AE"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="12dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Pain &amp; Physical"
+                        android:textColor="#546E7A"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/groupPhysical"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="16dp"
+                        app:chipSpacing="8dp">
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Cramps"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Headache"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Back Pain"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Breast Pain"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Pelvic Pain"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Fatigue"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+                    </com.google.android.material.chip.ChipGroup>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Mood &amp; Sleep"
+                        android:textColor="#546E7A"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/groupMood"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="16dp"
+                        app:chipSpacing="8dp">
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Mood Swings"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Anxiety"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Insomnia"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Brain Fog"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Cravings"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+                    </com.google.android.material.chip.ChipGroup>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Digestive"
+                        android:textColor="#546E7A"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/groupDigestive"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="16dp"
+                        app:chipSpacing="8dp">
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Bloating"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Nausea"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Constipation"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Diarrhea"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+                    </com.google.android.material.chip.ChipGroup>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Skin &amp; PCOD Signs"
+                        android:textColor="#546E7A"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/groupPCOS"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        app:chipSpacing="8dp">
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Acne"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Oily Skin"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Excess Hair Growth"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Hair Loss"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Rapid Weight Gain"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+
+                        <com.google.android.material.chip.Chip
+                            style="@style/Widget.MaterialComponents.Chip.Filter"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Spotting"
+                            app:chipBackgroundColor="@color/bg_chip_selector"
+                            android:textColor="@color/text_chip_selector"
+                            app:checkedIconTint="@color/text_chip_selector"
+                            app:checkedIconVisible="true" />
+                    </com.google.android.material.chip.ChipGroup>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnSaveLog"
+        android:layout_height="60dp"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="24dp"
+        android:layout_width="match_parent"
+        android:text="Save Log"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:backgroundTint="#C2185B"
+        app:cornerRadius="16dp"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
