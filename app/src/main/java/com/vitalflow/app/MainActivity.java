@@ -111,6 +111,10 @@ public class MainActivity extends AppCompatActivity {
         chatManager = new FloatingChatManager(this, geminiRepository);
         binding.getRoot().post(() -> chatManager.attachToActivity());
 
+        setupNavigation();
+    }
+
+    private void setupNavigation() {
         NavHostFragment navHostFragment = (NavHostFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.nav_host_fragment);
 
@@ -119,64 +123,52 @@ public class MainActivity extends AppCompatActivity {
         if (navHostFragment != null) {
             NavController navController = navHostFragment.getNavController();
 
-            // 1. Manual Bottom Navigation Setup (To enable smooth animations)
+            // Bottom Navigation Logic
             binding.bottomNav.setOnItemSelectedListener(item -> {
                 int destId = item.getItemId();
-
-                // Don't reload if we are already on this tab
                 if (destId == currentTabId) return false;
 
-                // 2. Determine Direction (Slide Left or Right?)
                 NavOptions.Builder builder = new NavOptions.Builder()
                         .setLaunchSingleTop(true)
                         .setRestoreState(true)
                         .setPopUpTo(navController.getGraph().getStartDestinationId(), false);
 
+                // Animation Direction Logic
                 if (getTabIndex(destId) > getTabIndex(currentTabId)) {
-                    // Going Right (e.g. Home -> Meds)
                     builder.setEnterAnim(R.anim.slide_in_right)
                             .setExitAnim(R.anim.slide_out_left)
                             .setPopEnterAnim(R.anim.slide_in_left)
                             .setPopExitAnim(R.anim.slide_out_right);
                 } else {
-                    // Going Left (e.g. Meds -> Home)
                     builder.setEnterAnim(R.anim.slide_in_left)
                             .setExitAnim(R.anim.slide_out_right)
                             .setPopEnterAnim(R.anim.slide_in_right)
                             .setPopExitAnim(R.anim.slide_out_left);
                 }
 
-                // 3. Navigate
                 navController.navigate(destId, null, builder.build());
                 currentTabId = destId;
                 return true;
             });
 
-            // 4. Sync Selection (If user clicks Back button, update the bottom bar)
+            // Visibility Logic (Hide Nav/Chat on specific screens)
             navController.addOnDestinationChangedListener((controller, destination, arguments) -> {
                 int id = destination.getId();
+                boolean isMainScreen = (id == R.id.homeFragment || id == R.id.medsFragment ||
+                        id == R.id.vitalsFragment || id == R.id.periodFragment);
 
-                // Toggle Bottom Bar Visibility
-                if (id == R.id.homeFragment || id == R.id.medsFragment || id == R.id.vitalsFragment || id == R.id.periodFragment) {
-                    binding.bottomNav.setVisibility(View.VISIBLE);
-                    // Update current tab ID variable to keep sync
+                binding.bottomNav.setVisibility(isMainScreen ? View.VISIBLE : View.GONE);
+
+                if (isMainScreen) {
                     currentTabId = id;
-                    // Visually check the correct item in bottom bar
                     if (binding.bottomNav.getSelectedItemId() != id) {
                         binding.bottomNav.getMenu().findItem(id).setChecked(true);
                     }
-                } else {
-                    binding.bottomNav.setVisibility(View.GONE);
                 }
 
-                // --- B. Chatbot Visibility ---
-                // Hide chat on Splash, Login, or Register screens
-                if (id == R.id.onboardingFragment || id == R.id.splashFragment || id == R.id.loginFragment) {
-                    if (chatManager != null) chatManager.setVisibility(false);
-                } else {
-                    // Show on all other screens (Home, Profile, etc.)
-                    if (chatManager != null) chatManager.setVisibility(true);
-                }
+                // Chatbot Visibility
+                boolean hideChat = (id == R.id.onboardingFragment || id == R.id.splashFragment || id == R.id.loginFragment);
+                if (chatManager != null) chatManager.setVisibility(!hideChat);
             });
         }
     }

@@ -1,14 +1,24 @@
 package com.vitalflow.app.ui.home;
 
+import android.Manifest;
 import android.animation.Animator;
 import android.animation.ObjectAnimator;
 import android.animation.PropertyValuesHolder;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -22,12 +32,16 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
+import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.Navigation;
+import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.bumptech.glide.Glide;
 import com.github.mikephil.charting.charts.BarChart;
@@ -42,6 +56,7 @@ import com.google.firebase.auth.FirebaseUser;
 import com.vitalflow.app.R;
 import com.vitalflow.app.data.dao.AppDao;
 import com.vitalflow.app.data.entity.DailyHealth;
+import com.vitalflow.app.data.entity.FoodLog;
 import com.vitalflow.app.data.entity.Medication;
 import com.vitalflow.app.data.entity.Vital;
 import com.vitalflow.app.data.repository.GeminiRepository;
@@ -53,6 +68,9 @@ import com.vitalflow.app.utils.NotificationHelper;
 import com.vitalflow.app.utils.PdfReportManager;
 import com.vitalflow.app.utils.WidgetUpdateHelper;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -62,15 +80,16 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import javax.inject.Inject;
 
 import dagger.hilt.android.AndroidEntryPoint;
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 
 @AndroidEntryPoint
-public class HomeFragment extends Fragment {
+public class HomeFragment extends Fragment implements SensorEventListener {
 
     @Inject
     AppDao appDao;
@@ -81,7 +100,8 @@ public class HomeFragment extends Fragment {
     ReportViewModel reportViewModel;
 
     private FragmentHomeBinding binding;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+
+    private final CompositeDisposable disposables = new CompositeDisposable();
 
     // Data State
     private DailyHealth currentDayData;
@@ -95,6 +115,27 @@ public class HomeFragment extends Fragment {
     private HealthConnectManager healthConnectManager;
     private ActivityResultLauncher<String[]> permissionLauncher;
 
+    private SensorManager sensorManager;
+    private Sensor stepSensor;
+    private boolean isSensorPresent = false;
+    private int sensorStepsToday = 0;
+
+    // Food Lens
+    private FoodLogAdapter foodAdapter;
+    private Uri currentPhotoUri; // To store the camera photo URI temporarily
+    private AlertDialog loadingDialog;
+
+    // Launcher for Gallery Picker
+    private ActivityResultLauncher<PickVisualMediaRequest> pickMediaLauncher;
+    // Launcher for Camera
+    private ActivityResultLauncher<Uri> takePictureLauncher;
+    // Launcher for Camera Permission
+    private ActivityResultLauncher<String> requestCameraPermissionLauncher;
+
+    private ActivityResultLauncher<String> requestStepPermissionLauncher;
+    private ActivityResultLauncher<String[]> requestHealthConnectLauncher;
+
+
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -102,8 +143,44 @@ public class HomeFragment extends Fragment {
         NotificationHelper.createNotificationChannel(requireContext());
         healthConnectManager = new HealthConnectManager(requireContext());
 
-        // FIX: Used standard RequestMultiplePermissions to avoid "Contract" errors
-        permissionLauncher = registerForActivityResult(
+        sensorManager = (SensorManager) requireContext().getSystemService(Context.SENSOR_SERVICE);
+        if (sensorManager != null) {
+            stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
+            isSensorPresent = (stepSensor != null);
+        }
+
+        initLaunchers();
+    }
+
+    private void initLaunchers() {
+        // Media Picker
+        pickMediaLauncher = registerForActivityResult(new ActivityResultContracts.PickVisualMedia(), uri -> {
+            if (uri != null) analyzeFood(uri);
+        });
+
+        // Camera Launcher
+        takePictureLauncher = registerForActivityResult(new ActivityResultContracts.TakePicture(), success -> {
+            if (success && currentPhotoUri != null) analyzeFood(currentPhotoUri);
+        });
+
+        // --- SPECIFIC CAMERA PERMISSION LAUNCHER ---
+        requestCameraPermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+            if (isGranted) {
+                launchCamera();
+            } else {
+                Toast.makeText(getContext(), "Camera permission needed to scan food", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // --- SPECIFIC STEP PERMISSION LAUNCHER ---
+        requestStepPermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+            if (isGranted) {
+                // Permission granted, sensor will start working in onResume
+            }
+        });
+
+        // Health Connect Permissions
+        requestHealthConnectLauncher = registerForActivityResult(
                 new ActivityResultContracts.RequestMultiplePermissions(),
                 result -> {
                     boolean allGranted = true;
@@ -113,10 +190,7 @@ public class HomeFragment extends Fragment {
                             break;
                         }
                     }
-
-                    if (allGranted) fetchHealthConnectData(); // Fetch Steps AND Heart Rate
-                    else
-                        Toast.makeText(getContext(), "Permissions required for auto-sync", Toast.LENGTH_SHORT).show();
+                    if (allGranted) fetchHealthConnectData();
                 });
     }
 
@@ -141,6 +215,18 @@ public class HomeFragment extends Fragment {
         // 2. CHECK & REQUEST HEALTH PERMISSIONS (Auto-Sync Steps & HR)
         checkHealthConnectPermissions();
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACTIVITY_RECOGNITION)
+                    != PackageManager.PERMISSION_GRANTED) {
+                requestStepPermissionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION);
+            }
+        }
+
+        setupButtons();
+        setupAdditionalView(view);
+    }
+
+    private void setupButtons() {
         binding.btnExportPdf.setOnClickListener(v -> {
             Toast.makeText(getContext(), "Gathering data & AI Insights...", Toast.LENGTH_SHORT).show();
             NotificationHelper.showDownloadProgress(requireContext());
@@ -149,8 +235,12 @@ public class HomeFragment extends Fragment {
 
         reportViewModel.getReportData().observe(getViewLifecycleOwner(), reportData -> {
             if (reportData != null) {
-                PdfReportManager.createReport(requireContext(), reportData);
-                NotificationHelper.showDownloadComplete(requireContext());
+                Uri pdfUri = PdfReportManager.createReport(requireContext(), reportData);
+                if (pdfUri != null) {
+                    NotificationHelper.showDownloadComplete(requireContext(), pdfUri);
+                } else {
+                    Toast.makeText(getContext(), "Failed to save report.", Toast.LENGTH_SHORT).show();
+                }
             }
         });
 
@@ -159,19 +249,92 @@ public class HomeFragment extends Fragment {
                 Toast.makeText(getContext(), errorMsg, Toast.LENGTH_LONG).show();
             }
         });
+    }
 
-        setupAdditionalView(view);
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (isSensorPresent) {
+            sensorManager.registerListener(this, stepSensor, SensorManager.SENSOR_DELAY_UI);
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (isSensorPresent) {
+            sensorManager.unregisterListener(this);
+        }
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() == Sensor.TYPE_STEP_COUNTER) {
+            float totalStepsSinceReboot = event.values[0];
+
+            SharedPreferences prefs = requireContext().getSharedPreferences("step_prefs", Context.MODE_PRIVATE);
+            String savedDate = prefs.getString("date", "");
+            float stepsAtMidnight = prefs.getFloat("steps_at_midnight", -1);
+
+            if (!savedDate.equals(todayDateKey)) {
+                stepsAtMidnight = totalStepsSinceReboot;
+                prefs.edit().putString("date", todayDateKey).putFloat("steps_at_midnight", stepsAtMidnight).apply();
+            } else if (stepsAtMidnight == -1) {
+                stepsAtMidnight = totalStepsSinceReboot;
+                prefs.edit().putFloat("steps_at_midnight", stepsAtMidnight).apply();
+            }
+
+            if (totalStepsSinceReboot < stepsAtMidnight) {
+                stepsAtMidnight = 0;
+                prefs.edit().putFloat("steps_at_midnight", 0).apply();
+            }
+
+            int nativeSteps = (int) (totalStepsSinceReboot - stepsAtMidnight);
+            if (nativeSteps < 0) nativeSteps = 0;
+
+            sensorStepsToday = nativeSteps;
+
+            // Sync Logic: Only update if Native is larger (or similar), or simply trust Native for real-time
+            // We update UI immediately for responsiveness
+            updateStepsIfHigher(nativeSteps);
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+    }
+
+    private void updateStepsIfHigher(int newStepCount) {
+        if (currentDayData != null) {
+            // Logic: Update if new count is higher than current DB count
+            // This ensures we capture the maximum value from either source
+            if (newStepCount > currentDayData.getStepCount()) {
+                currentDayData.setStepCount(newStepCount);
+                updateStatsUI();
+                saveToDb();
+            } else if (Math.abs(newStepCount - currentDayData.getStepCount()) < 5) {
+                currentDayData.setStepCount(newStepCount);
+                updateStatsUI();
+            }
+        }
     }
 
     private void setupAdditionalView(View view) {
-
         appDao.getDailyHealth(todayDateKey).observe(getViewLifecycleOwner(), dailyHealth -> {
             if (dailyHealth == null) {
                 DailyHealth newEntry = new DailyHealth(todayDateKey, 0, 2000, 0, "0h 0m", 0);
-                executor.execute(() -> appDao.insertDailyHealth(newEntry));
+                disposables.add(appDao.insertDailyHealth(newEntry)
+                        .subscribeOn(Schedulers.io())
+                        .subscribe());
                 return;
             }
             currentDayData = dailyHealth;
+
+            if (sensorStepsToday > currentDayData.getStepCount()) {
+                currentDayData.setStepCount(sensorStepsToday);
+                saveToDb();
+            }
+
             boolean shouldAnimate = displayedWaterAmount != 0;
             if (displayedWaterAmount == 0 && dailyHealth.getWaterIntakeMl() == 0)
                 shouldAnimate = true;
@@ -181,15 +344,13 @@ public class HomeFragment extends Fragment {
             loadWeeklyData();
             generateGeminiTip();
 
-            executor.execute(() -> {
-                List<DailyHealth> history = appDao.getLastSevenDaysSync();
-                String tip = InsightEngine.getInsight(currentDayData, history);
-                if (isAdded() && getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
-                        if (binding != null) binding.tvTipText.setText(tip);
-                    });
-                }
-            });
+            disposables.add(appDao.getLastSevenDaysSync()
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(history -> {
+                        String tip = InsightEngine.getInsight(currentDayData, history);
+                        if (isAdded() && binding != null) binding.tvTipText.setText(tip);
+                    }, Throwable::printStackTrace));
         });
 
         appDao.getLatestVital("Heart Rate").observe(getViewLifecycleOwner(), vital -> {
@@ -214,6 +375,158 @@ public class HomeFragment extends Fragment {
         setupWeeklyGraph();
         setupMoodTracker();
         startHeartPulseAnimation();
+        setupNutritionSection();
+    }
+
+    private void setupNutritionSection() {
+        foodAdapter = new FoodLogAdapter();
+        binding.rvFoodLogs.setLayoutManager(new LinearLayoutManager(getContext()));
+        binding.rvFoodLogs.setAdapter(foodAdapter);
+
+        // 1. Load Logs
+        appDao.getFoodLogsForDate(todayDateKey).observe(getViewLifecycleOwner(), logs -> {
+            foodAdapter.submitList(logs);
+            binding.rvFoodLogs.setVisibility(logs.isEmpty() ? View.GONE : View.VISIBLE);
+        });
+
+        // 2. Load Total Calories
+        appDao.getTotalCaloriesForDate(todayDateKey).observe(getViewLifecycleOwner(), total -> {
+            int cal = total != null ? total : 0;
+            binding.tvCaloriesTotal.setText(cal + " kcal");
+        });
+
+        // 3. Scan Button Action
+        binding.btnScanFood.setOnClickListener(v -> showImageSourceDialog());
+
+        setupSwipeToDelete();
+    }
+
+    private void showImageSourceDialog() {
+        String[] options = {"Take Photo 📸", "Choose from Gallery 🖼️"};
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Log Nutrition")
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) {
+                        checkCameraPermissionAndLaunch();
+                    } else {
+                        pickMediaLauncher.launch(new PickVisualMediaRequest.Builder()
+                                .setMediaType(ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE)
+                                .build());
+                    }
+                })
+                .show();
+    }
+
+    private void checkCameraPermissionAndLaunch() {
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            launchCamera();
+        } else {
+            requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+        }
+    }
+
+    private void launchCamera() {
+        try {
+            // Create a temporary file
+            File photoFile = File.createTempFile("food_scan_", ".jpg", requireContext().getExternalCacheDir());
+
+            // Get URI using FileProvider
+            currentPhotoUri = FileProvider.getUriForFile(
+                    requireContext(),
+                    requireContext().getPackageName() + ".provider",
+                    photoFile
+            );
+
+            takePictureLauncher.launch(currentPhotoUri);
+        } catch (IOException e) {
+            Toast.makeText(getContext(), "Error creating image file", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void analyzeFood(Uri imageUri) {
+        showLoadingDialog();
+
+        try {
+            InputStream is = requireContext().getContentResolver().openInputStream(imageUri);
+            Bitmap bitmap = BitmapFactory.decodeStream(is);
+
+            geminiRepository.analyzeFoodImage(bitmap, new GeminiRepository.FoodAnalysisCallback() {
+                @Override
+                public void onSuccess(GeminiRepository.FoodAnalysisResult result) {
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            dismissLoadingDialog();
+                            showConfirmFoodDialog(result);
+                        });
+                    }
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            dismissLoadingDialog();
+                            Toast.makeText(getContext(), "AI Error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                }
+            });
+        } catch (Exception e) {
+            dismissLoadingDialog();
+            Toast.makeText(getContext(), "Failed to load image", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showLoadingDialog() {
+        if (loadingDialog != null && loadingDialog.isShowing()) return;
+
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext());
+        View view = getLayoutInflater().inflate(R.layout.dialog_loading, null);
+        builder.setView(view);
+        builder.setCancelable(false);
+
+        loadingDialog = builder.create();
+        if (loadingDialog.getWindow() != null) {
+            loadingDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        loadingDialog.show();
+    }
+
+    private void dismissLoadingDialog() {
+        if (loadingDialog != null && loadingDialog.isShowing()) {
+            loadingDialog.dismiss();
+        }
+    }
+
+    private void showConfirmFoodDialog(GeminiRepository.FoodAnalysisResult result) {
+        String summary = "Calories: " + result.calories + "\n" + result.macros;
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(result.food_name)
+                .setMessage("Is this correct?\n\n" + summary)
+                .setIcon(R.drawable.ic_check_circle) // Ensure you have this icon
+                .setPositiveButton("Add to Log", (dialog, which) -> {
+
+                    String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
+
+                    FoodLog log = new FoodLog(
+                            todayDateKey,
+                            time,
+                            result.food_name,
+                            result.calories,
+                            result.macros
+                    );
+
+                    disposables.add(appDao.insertFoodLog(log)
+                            .subscribeOn(Schedulers.io())
+                            .subscribe());
+
+                    Toast.makeText(getContext(), "Food Logged! ✅", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Retake", (dialog, which) -> {
+                    showImageSourceDialog();
+                })
+                .show();
     }
 
     private void calculateNextMedicationSmart(List<Medication> meds) {
@@ -230,27 +543,20 @@ public class HomeFragment extends Fragment {
         boolean hasActiveMeds = false;
 
         for (Medication m : meds) {
-            // 1. Filter Expired (EndDate < Today)
             if (m.getEndDate() != null && !m.getEndDate().equalsIgnoreCase("Forever") && m.getEndDate().compareTo(today) < 0) {
                 continue;
             }
             hasActiveMeds = true;
 
-            // 2. Logic Check: Has this med been reset in DB today?
-            // If the date in DB isn't today, it means the user hasn't opened MedsFragment yet.
-            // For display purposes, we assume 0 taken today.
             int takenCount = 0;
             if (m.getLastActionDate() != null && m.getLastActionDate().equals(today)) {
                 takenCount = m.getTimesTakenToday();
             }
 
-            // 3. Check Completion
             if (takenCount >= m.getFrequencyPerDay()) {
-                continue; // Done for today
+                continue;
             }
 
-            // 4. Calculate Target Time based on Frequency
-            // Logic: StartTime + (TakenCount * 6 hours)
             try {
                 SimpleDateFormat sdfTime = new SimpleDateFormat("hh:mm a", Locale.getDefault());
                 Date startTime = sdfTime.parse(m.getTime());
@@ -265,13 +571,9 @@ public class HomeFragment extends Fragment {
                     target.set(Calendar.MINUTE, doseTime.get(Calendar.MINUTE));
                     target.set(Calendar.SECOND, 0);
 
-                    // Add Interval (Standard 6 hours spacing for next dose)
-                    // If user took 1 dose, the next one is 6 hours after Start Time.
                     int intervalHours = 6;
                     target.add(Calendar.HOUR_OF_DAY, takenCount * intervalHours);
 
-                    // We prioritize the *earliest time today* that isn't done.
-                    // Even if it's in the past (overdue), it's the next thing to do.
                     long timeOfDayMillis = target.getTimeInMillis();
 
                     if (timeOfDayMillis < minDiffMillis) {
@@ -318,8 +620,6 @@ public class HomeFragment extends Fragment {
         }
     }
 
-    // --- HEALTH CONNECT LOGIC ---
-
     private void checkHealthConnectPermissions() {
         if (healthConnectManager.isAvailable()) {
             Set<String> perms = healthConnectManager.getRequiredPermissions();
@@ -346,12 +646,7 @@ public class HomeFragment extends Fragment {
             @Override
             public void onStepsRead(long steps) {
                 if (isAdded() && getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
-                        if (currentDayData != null && steps > 0) {
-                            currentDayData.setStepCount((int) steps);
-                            executor.execute(() -> appDao.insertDailyHealth(currentDayData));
-                        }
-                    });
+                    getActivity().runOnUiThread(() -> updateStepsIfHigher((int) steps));
                 }
             }
 
@@ -368,7 +663,26 @@ public class HomeFragment extends Fragment {
                     getActivity().runOnUiThread(() -> {
                         String date = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
                         Vital hrVital = new Vital("Heart Rate", String.valueOf(avgBpm), null, "bpm", date, System.currentTimeMillis(), "Health Connect", null);
-                        executor.execute(() -> appDao.insertVital(hrVital));
+                        disposables.add(appDao.insertVital(hrVital)
+                                .subscribeOn(Schedulers.io())
+                                .subscribe());
+                    });
+                }
+            }
+
+            @Override
+            public void onError(Throwable t) {
+            }
+        });
+
+        healthConnectManager.readSleepAndCalories(new HealthConnectManager.OnDeepDataReadListener() {
+            @Override
+            public void onDataRead(long calories, String sleepDuration) {
+                if (getActivity() != null && currentDayData != null) {
+                    getActivity().runOnUiThread(() -> {
+                        currentDayData.setSleepDuration(sleepDuration);
+                        saveToDb();
+                        updateStatsUI();
                     });
                 }
             }
@@ -563,41 +877,28 @@ public class HomeFragment extends Fragment {
     }
 
     private void loadWeeklyData() {
-        executor.execute(() -> {
-            List<DailyHealth> history = appDao.getLastSevenDaysSync();
-
-            // Reverse list so oldest day is first (Left to Right)
-            if (history != null) Collections.reverse(history);
-
-            ArrayList<BarEntry> entries = new ArrayList<>();
-            ArrayList<String> labels = new ArrayList<>();
-
-            int index = 0;
-            if (history != null && !history.isEmpty()) {
-                for (DailyHealth day : history) {
-                    // Y-Value: Water Intake
-                    entries.add(new BarEntry(index, day.getWaterIntakeMl()));
-
-                    // X-Label: Day Name (e.g., "Mon")
-                    try {
-                        SimpleDateFormat inFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-                        SimpleDateFormat outFormat = new SimpleDateFormat("EEE", Locale.getDefault());
-                        Date date = inFormat.parse(day.getDate());
-                        if (date != null) {
-                            labels.add(outFormat.format(date));
+        disposables.add(appDao.getLastSevenDaysSync()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(history -> {
+                    Collections.reverse(history);
+                    ArrayList<BarEntry> entries = new ArrayList<>();
+                    ArrayList<String> labels = new ArrayList<>();
+                    int index = 0;
+                    for (DailyHealth day : history) {
+                        entries.add(new BarEntry(index, day.getWaterIntakeMl()));
+                        try {
+                            SimpleDateFormat inFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                            SimpleDateFormat outFormat = new SimpleDateFormat("EEE", Locale.getDefault());
+                            Date date = inFormat.parse(day.getDate());
+                            if (date != null) labels.add(outFormat.format(date));
+                        } catch (Exception e) {
+                            labels.add("?");
                         }
-                    } catch (Exception e) {
-                        labels.add("?");
+                        index++;
                     }
-                    index++;
-                }
-            }
-
-            // Update UI
-            if (getActivity() != null) {
-                getActivity().runOnUiThread(() -> updateChartUI(entries, labels));
-            }
-        });
+                    updateChartUI(entries, labels);
+                }, Throwable::printStackTrace));
     }
 
     private void updateChartUI(ArrayList<BarEntry> entries, ArrayList<String> labels) {
@@ -647,12 +948,13 @@ public class HomeFragment extends Fragment {
 
     private void saveToDb() {
         if (currentDayData != null) {
-            executor.execute(() -> {
-                appDao.insertDailyHealth(currentDayData);
-                if (getContext() != null) {
-                    WidgetUpdateHelper.updateWidgets(getContext());
-                }
-            });
+            disposables.add(appDao.insertDailyHealth(currentDayData)
+                    .subscribeOn(Schedulers.io())
+                    .subscribe(() -> {
+                        if (getContext() != null) {
+                            WidgetUpdateHelper.updateWidgets(getContext());
+                        }
+                    }, Throwable::printStackTrace));
         }
     }
 
@@ -747,12 +1049,6 @@ public class HomeFragment extends Fragment {
         binding.cardHydration.startAnimation(shake);
     }
 
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        binding = null;
-    }
-
     private void generateGeminiTip() {
         if (currentDayData == null) return;
 
@@ -764,7 +1060,6 @@ public class HomeFragment extends Fragment {
         String savedTip = prefs.getString("daily_tip_content", "");
 
         if (savedDate.equals(todayDateKey) && !savedTip.isEmpty()) {
-            // Use cached tip (Instant, no API call)
             binding.tvTipText.setText(savedTip);
             return;
         }
@@ -805,5 +1100,151 @@ public class HomeFragment extends Fragment {
                 }
             }
         });
+    }
+
+    private void showCustomSnackbar(String message, int backgroundColor, int actionTextColor, int iconResId, View.OnClickListener onUndo) {
+        if (binding == null) return;
+
+        com.google.android.material.snackbar.Snackbar snackbar = com.google.android.material.snackbar.Snackbar.make(binding.getRoot(), message, 4000);
+
+        // 1. Background Styling
+        View view = snackbar.getView();
+        view.setBackgroundTintList(null);
+        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+        // Convert dp to px for corner radius
+        bg.setCornerRadius(28f * getResources().getDisplayMetrics().density);
+        bg.setColor(backgroundColor);
+        view.setBackground(bg);
+
+        // 2. Positioning (Anchored to the Scan FAB)
+        if (binding.btnScanFood != null) {
+            snackbar.setAnchorView(binding.btnScanFood);
+        }
+
+        // 3. Text & Colors
+        snackbar.setTextColor(Color.WHITE);
+        snackbar.setActionTextColor(actionTextColor);
+
+        // 4. Message Icon
+        TextView tvMessage = view.findViewById(com.google.android.material.R.id.snackbar_text);
+        // Using ContextCompat.getDrawable is safer
+        android.graphics.drawable.Drawable icon = androidx.core.content.ContextCompat.getDrawable(requireContext(), iconResId);
+        float d = getResources().getDisplayMetrics().density;
+
+        if (icon != null) {
+            int iconSize = (int) (24 * d);
+            icon.setBounds(0, 0, iconSize, iconSize);
+            androidx.core.graphics.drawable.DrawableCompat.setTint(icon, Color.WHITE);
+            tvMessage.setCompoundDrawables(icon, null, null, null);
+            tvMessage.setCompoundDrawablePadding((int) (12 * d));
+        }
+
+        // 5. Action Arrow Icon (Optional, check if you have ic_arrow_right, otherwise standard text is fine)
+        TextView btnAction = view.findViewById(com.google.android.material.R.id.snackbar_action);
+        // Using a standard android icon as fallback if you don't have ic_arrow_right locally
+        android.graphics.drawable.Drawable arrowIcon = androidx.core.content.ContextCompat.getDrawable(requireContext(), android.R.drawable.ic_media_play);
+        // OR use R.drawable.ic_arrow_right if you have it from MedsFragment
+
+        if (arrowIcon != null) {
+            int arrowSize = (int) (14 * d); // Slightly smaller for arrow
+            arrowIcon.setBounds(0, 0, arrowSize, arrowSize);
+            androidx.core.graphics.drawable.DrawableCompat.setTint(arrowIcon, actionTextColor);
+            btnAction.setCompoundDrawables(null, null, arrowIcon, null); // Uncomment if you want the arrow
+            btnAction.setCompoundDrawablePadding((int) (4 * d));
+        }
+
+        snackbar.setAction("UNDO", onUndo);
+        snackbar.show();
+    }
+
+    private void setupSwipeToDelete() {
+        androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback simpleItemTouchCallback =
+                new androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(0, androidx.recyclerview.widget.ItemTouchHelper.LEFT) {
+
+                    @Override
+                    public boolean onMove(@NonNull androidx.recyclerview.widget.RecyclerView r, @NonNull androidx.recyclerview.widget.RecyclerView.ViewHolder v, @NonNull androidx.recyclerview.widget.RecyclerView.ViewHolder t) {
+                        return false;
+                    }
+
+                    @Override
+                    public void onSwiped(@NonNull androidx.recyclerview.widget.RecyclerView.ViewHolder viewHolder, int direction) {
+                        int position = viewHolder.getBindingAdapterPosition();
+                        if (position == androidx.recyclerview.widget.RecyclerView.NO_POSITION)
+                            return;
+
+                        // Get item safely from ListAdapter
+                        if (foodAdapter.getCurrentList().size() <= position) return;
+                        final FoodLog deletedItem = foodAdapter.getCurrentList().get(position);
+
+                        // 1. Delete from DB
+                        if (deletedItem != null) {
+                            deleteFoodLogInternal(deletedItem);
+                        }
+                    }
+
+                    @Override
+                    public void onChildDraw(@NonNull android.graphics.Canvas c, @NonNull androidx.recyclerview.widget.RecyclerView r, @NonNull androidx.recyclerview.widget.RecyclerView.ViewHolder v, float dX, float dY, int action, boolean isActive) {
+                        if (action == androidx.recyclerview.widget.ItemTouchHelper.ACTION_STATE_SWIPE && dX < 0) {
+                            View itemView = v.itemView;
+
+                            // Draw Red Background
+                            ColorDrawable bg = new ColorDrawable(Color.parseColor("#FFEBEE")); // Light Red
+                            bg.setBounds(itemView.getRight() + (int) dX, itemView.getTop(), itemView.getRight(), itemView.getBottom());
+                            bg.draw(c);
+
+                            // Draw Trash Icon
+                            // Ensure you have R.drawable.ic_trash_can or use android.R.drawable.ic_menu_delete
+                            android.graphics.drawable.Drawable icon = androidx.core.content.ContextCompat.getDrawable(requireContext(), android.R.drawable.ic_menu_delete);
+
+                            if (icon != null) {
+                                icon.setTint(Color.parseColor("#C62828")); // Dark Red
+                                int h = itemView.getBottom() - itemView.getTop();
+                                int m = (h - icon.getIntrinsicHeight()) / 2;
+                                int top = itemView.getTop() + m;
+                                int left = itemView.getRight() - m - icon.getIntrinsicWidth();
+
+                                // Prevent icon from going too far if swipe is small
+                                if (left > itemView.getRight() + (int) dX) {
+                                    icon.setBounds(left, top, itemView.getRight() - m, top + icon.getIntrinsicHeight());
+                                    icon.draw(c);
+                                }
+                            }
+                        }
+                        super.onChildDraw(c, r, v, dX, dY, action, isActive);
+                    }
+                };
+
+        androidx.recyclerview.widget.ItemTouchHelper itemTouchHelper = new androidx.recyclerview.widget.ItemTouchHelper(simpleItemTouchCallback);
+        itemTouchHelper.attachToRecyclerView(binding.rvFoodLogs);
+    }
+
+    // Internal delete method that triggers the Snack bar
+    private void deleteFoodLogInternal(FoodLog log) {
+        disposables.add(appDao.deleteFoodLog(log)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(() -> {
+                    // Show Custom Snackbar
+                    showCustomSnackbar(
+                            "Food log deleted",
+                            Color.parseColor("#EF5350"), // Red
+                            Color.parseColor("#B71C1C"), // Dark Red
+                            android.R.drawable.ic_menu_delete, // Icon
+                            v -> {
+                                // Undo Logic: Re-insert
+                                disposables.add(appDao.insertFoodLog(log)
+                                        .subscribeOn(Schedulers.io())
+                                        .subscribe());
+                            }
+                    );
+                }, Throwable::printStackTrace));
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        disposables.clear();
+        binding = null;
     }
 }

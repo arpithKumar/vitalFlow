@@ -24,12 +24,13 @@ import com.vitalflow.app.databinding.BottomSheetAddMedBinding;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import javax.inject.Inject;
 
 import dagger.hilt.android.AndroidEntryPoint;
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 
 @AndroidEntryPoint
 public class AddMedBottomSheet extends BottomSheetDialogFragment {
@@ -43,7 +44,7 @@ public class AddMedBottomSheet extends BottomSheetDialogFragment {
     private BottomSheetAddMedBinding binding;
     private OnMedicationAddedListener listener;
     private Medication medToEdit = null;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final CompositeDisposable disposables = new CompositeDisposable();
 
     private int frequency = 1;
 
@@ -131,47 +132,43 @@ public class AddMedBottomSheet extends BottomSheetDialogFragment {
         binding.btnSaveMed.setText("Checking Interactions...");
 
         // 2. Fetch Existing Meds in Background
-        executor.execute(() -> {
-            List<Medication> existingMeds = appDao.getAllMedicationsSync();
+        disposables.add(appDao.getAllMedicationsSync()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(existingMeds -> {
+                    if (existingMeds.isEmpty()) {
+                        finalizeSave(name, dosage);
+                    } else {
+                        checkInteractionsWithGemini(existingMeds, name, dosage);
+                    }
+                }, throwable -> {
+                    finalizeSave(name, dosage);
+                }));
+    }
 
-            // If user has no other meds, just save
-            if (existingMeds == null || existingMeds.isEmpty()) {
+    private void checkInteractionsWithGemini(List<Medication> existingMeds, String name, String dosage) {
+        List<String> medNames = existingMeds.stream().map(Medication::getName).toList();
+
+        String prompt = "I am currently taking: " + medNames.toString() +
+                ". I am about to add: " + name + " (" + dosage + "). " +
+                "Are there any known severe drug interactions? " +
+                "Answer strictly in this format: " +
+                "YES/NO: [Short explanation of why]. Keep it under 2 sentences.";
+
+        geminiRepository.sendMessage(prompt, null, new GeminiRepository.GeminiCallback() {
+            @Override
+            public void onSuccess(String response) {
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> handleAiResponse(response, name, dosage));
+                }
+            }
+
+            @Override
+            public void onError(Throwable t) {
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> finalizeSave(name, dosage));
                 }
-                return;
             }
-
-            // 3. Build AI Prompt
-            List<String> medNames = existingMeds.stream()
-                    .map(Medication::getName)
-                    .toList();
-
-            String prompt = "I am currently taking: " + medNames.toString() +
-                    ". I am about to add: " + name + " (" + dosage + "). " +
-                    "Are there any known severe drug interactions? " +
-                    "Answer strictly in this format: " +
-                    "YES/NO: [Short explanation of why]. Keep it under 2 sentences.";
-
-            // 4. Call Gemini
-            geminiRepository.sendMessage(prompt, null, new GeminiRepository.GeminiCallback() {
-                @Override
-                public void onSuccess(String response) {
-                    if (getActivity() != null) {
-                        getActivity().runOnUiThread(() -> {
-                            handleAiResponse(response, name, dosage);
-                        });
-                    }
-                }
-
-                @Override
-                public void onError(Throwable t) {
-                    // If AI fails (offline), just save safely
-                    if (getActivity() != null) {
-                        getActivity().runOnUiThread(() -> finalizeSave(name, dosage));
-                    }
-                }
-            });
         });
     }
 
@@ -305,7 +302,7 @@ public class AddMedBottomSheet extends BottomSheetDialogFragment {
 
     private void showDatePicker(String type) {
         Calendar c = Calendar.getInstance();
-        new DatePickerDialog(getContext(), (view, year, month, day) -> {
+        new DatePickerDialog(requireContext(), (view, year, month, day) -> {
             Calendar selected = Calendar.getInstance();
             selected.set(year, month, day);
             updateDateLabel(type, selected);
@@ -322,5 +319,12 @@ public class AddMedBottomSheet extends BottomSheetDialogFragment {
             binding.tvStartDate.setText(dateStr);
             binding.tvEndDate.setText("Forever");
         }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        disposables.clear();
+        binding = null;
     }
 }

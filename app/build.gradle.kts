@@ -105,4 +105,8 @@ dependencies {
     implementation(libs.rxandroid)
     // Room RxJava Support (CRITICAL)
     implementation(libs.androidx.room.rxjava3)
+
+    implementation(libs.androidx.biometric)
+
+//    debugImplementation(libs.leakcanary.android)
 }

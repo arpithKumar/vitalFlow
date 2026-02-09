@@ -12,6 +12,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -27,19 +28,21 @@ import com.vitalflow.app.R;
 import com.vitalflow.app.data.dao.AppDao;
 import com.vitalflow.app.data.entity.Medication;
 import com.vitalflow.app.databinding.FragmentMedsBinding;
+import com.vitalflow.app.utils.NotificationHelper;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
 import dagger.hilt.android.AndroidEntryPoint;
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 
 @AndroidEntryPoint
 public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedicationAddedListener {
@@ -50,7 +53,8 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
     private FragmentMedsBinding binding;
     private MedsAdapter adapter;
     private List<Medication> allMeds = new ArrayList<>();
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+
+    private final CompositeDisposable disposables = new CompositeDisposable();
 
     @Nullable
     @Override
@@ -87,8 +91,9 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
             m.checkDailyReset();
             // If the date changed, it means the logic ran and reset the counters
             if (!m.getLastActionDate().equals(previousDate)) {
-                final Medication toUpdate = m;
-                executor.execute(() -> appDao.insertMedication(toUpdate));
+                disposables.add(appDao.insertMedication(m)
+                        .subscribeOn(Schedulers.io())
+                        .subscribe());
             }
         }
     }
@@ -102,7 +107,17 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
 
     @Override
     public void onMedicationAdded(Medication medication) {
-        executor.execute(() -> appDao.insertMedication(medication));
+        disposables.add(appDao.insertMedication(medication)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread()) // Observe on Main for Toast
+                .subscribe(() -> {
+                    // 1. Show Feedback
+                    Toast.makeText(getContext(), "Medication Saved", Toast.LENGTH_SHORT).show();
+
+                    // 2. FORCE WORKER CHECK (The Fix)
+                    NotificationHelper.triggerImmediateMedicationCheck(requireContext());
+
+                }, Throwable::printStackTrace));
     }
 
     private void applyFilters() {
@@ -189,7 +204,9 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
                     med.setDbStatus("PENDING");
                 }
 
-                executor.execute(() -> appDao.insertMedication(med));
+                disposables.add(appDao.insertMedication(med)
+                        .subscribeOn(Schedulers.io())
+                        .subscribe());
 
                 // NEW: Use the helper to show success snackbar
                 if ("TAKEN".equals(newStatus)) {
@@ -202,7 +219,9 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
                                 med.setDbStatus(oldStatus);
                                 med.setTimesTakenToday(oldTaken);
                                 med.setPillsLeft(oldStock);
-                                executor.execute(() -> appDao.insertMedication(med));
+                                disposables.add(appDao.insertMedication(med)
+                                        .subscribeOn(Schedulers.io())
+                                        .subscribe());
                             }
                     );
                 }
@@ -232,7 +251,9 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
 
                 final Medication deletedItem = adapter.getItem(position);
                 if (deletedItem != null) {
-                    executor.execute(() -> appDao.deleteMedication(deletedItem));
+                    disposables.add(appDao.deleteMedication(deletedItem)
+                            .subscribeOn(Schedulers.io())
+                            .subscribe());
                 }
 
                 // NEW: Use the helper to show delete snackbar
@@ -243,7 +264,9 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
                         android.R.drawable.ic_menu_delete, // Trash Icon
                         v -> {
                             if (deletedItem != null) {
-                                executor.execute(() -> appDao.insertMedication(deletedItem));
+                                disposables.add(appDao.insertMedication(deletedItem)
+                                        .subscribeOn(Schedulers.io())
+                                        .subscribe());
                             }
                         }
                 );
@@ -330,6 +353,7 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        disposables.clear();
         binding = null;
     }
 }

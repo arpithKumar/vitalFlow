@@ -13,6 +13,7 @@ import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.view.animation.LinearInterpolator;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -25,6 +26,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.vitalflow.app.R;
 import com.vitalflow.app.enums.AppState;
+import com.vitalflow.app.utils.BiometricAuthListener;
 
 import dagger.hilt.android.AndroidEntryPoint;
 
@@ -52,30 +54,50 @@ public class SplashFragment extends Fragment {
             tvTagline.startAnimation(popBounce);
         }
 
-        // DELAY AND CHECK AUTH
-
         SharedPreferences prefs = requireContext().getSharedPreferences("vital_prefs", Context.MODE_PRIVATE);
         boolean isFirstRun = prefs.getBoolean("IS_FIRST_RUN", true);
+        boolean isBiometricEnabled = prefs.getBoolean("biometric_enabled", false); // Lock Setting
 
         Runnable navigationRunnable = () -> {
-            NavController navController = Navigation.findNavController(view);
-
             int destination = getDestination(isFirstRun);
-            // Still good practice to check the destination
-            if (navController.getCurrentDestination() != null &&
-                    navController.getCurrentDestination().getId() == R.id.splashFragment) {
-
-                NavOptions navOptions = new NavOptions.Builder()
-                        .setPopUpTo(R.id.splashFragment, true)
-                        .setEnterAnim(android.R.anim.fade_in)
-                        .setExitAnim(android.R.anim.fade_out)
-                        .build();
-
-                navController.navigate(destination, null, navOptions);
+            if (destination == R.id.action_splash_to_home && isBiometricEnabled) {
+                showBiometricPrompt(view);
+            } else {
+                navigate(view, destination);
             }
         };
 
         getViewLifecycleOwner().getLifecycle().addObserver(new SplashTimer(3000, navigationRunnable));
+    }
+
+    private void showBiometricPrompt(View view) {
+        new BiometricAuthListener(requireActivity(), new BiometricAuthListener.OnAuthListener() {
+            @Override
+            public void onSuccess() {
+                Toast.makeText(requireContext(), "Unlocked! 🔓", Toast.LENGTH_SHORT).show();
+                navigate(view, R.id.action_splash_to_home);
+            }
+
+            @Override
+            public void onError(String error) {
+                requireActivity().finishAffinity();
+            }
+        }).startAuth();
+    }
+
+    private void navigate(View view, int destinationId) {
+        NavController navController = Navigation.findNavController(view);
+        if (navController.getCurrentDestination() == null || navController.getCurrentDestination().getId() != R.id.splashFragment) {
+            return;
+        }
+
+        NavOptions navOptions = new NavOptions.Builder()
+                .setPopUpTo(R.id.splashFragment, true)
+                .setEnterAnim(android.R.anim.fade_in)
+                .setExitAnim(android.R.anim.fade_out)
+                .build();
+
+        navController.navigate(destinationId, null, navOptions);
     }
 
     private int getDestination(boolean isFirstRun) {
@@ -91,7 +113,6 @@ public class SplashFragment extends Fragment {
         };
     }
 
-    // ... (animateTextSmoothly method remains the same) ...
     private void animateTextSmoothly(TextView textView, String fullText) {
         SpannableString spannableString = new SpannableString(fullText);
         ForegroundColorSpan transparentSpan = new ForegroundColorSpan(Color.TRANSPARENT);

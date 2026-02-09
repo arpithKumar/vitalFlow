@@ -40,6 +40,15 @@ public class ReminderWorker extends Worker {
             manager.createNotificationChannel(channel);
         }
 
+        Intent appIntent = new Intent(context, com.vitalflow.app.MainActivity.class);
+        appIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        PendingIntent appPendingIntent = PendingIntent.getActivity(
+                context,
+                0,
+                appIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
         // 2. Create the "Drink 250ml" Action Intent
         Intent actionIntent = new Intent(context, WaterActionReceiver.class);
         actionIntent.setAction("ACTION_ADD_WATER");
@@ -48,7 +57,7 @@ public class ReminderWorker extends Worker {
 
         PendingIntent actionPendingIntent = PendingIntent.getBroadcast(
                 context,
-                0,
+                1,
                 actionIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
@@ -61,7 +70,7 @@ public class ReminderWorker extends Worker {
                 .setColor(context.getResources().getColor(R.color.primary, null))
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setAutoCancel(true)
-                // --- THE ACTION BUTTON ---
+                .setContentIntent(appPendingIntent)
                 .addAction(R.drawable.ic_add, "Drink +250ml", actionPendingIntent);
 
         manager.notify(notificationId, builder.build());

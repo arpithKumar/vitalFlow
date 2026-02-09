@@ -1,7 +1,9 @@
 package com.vitalflow.app.data.repository;
 
+import android.annotation.SuppressLint;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
@@ -11,22 +13,22 @@ import com.google.firebase.firestore.WriteBatch;
 import com.vitalflow.app.data.dao.AppDao;
 import com.vitalflow.app.data.entity.DailyHealth;
 import com.vitalflow.app.data.entity.Medication;
+import com.vitalflow.app.data.entity.PeriodLog;
 import com.vitalflow.app.data.entity.Vital;
 
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.inject.Inject;
+
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.core.Single;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class SyncRepository {
 
     private final FirebaseFirestore db;
     private final AppDao appDao;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     @Inject
@@ -35,72 +37,71 @@ public class SyncRepository {
         this.appDao = appDao;
     }
 
+    @SuppressLint("CheckResult")
     public void syncDataToCloud(OnSyncListener listener) {
         if (FirebaseAuth.getInstance().getCurrentUser() == null) {
-            postComplete(listener, false, "User not logged in");
+            notifyComplete(listener, false, "User not logged in");
             return;
         }
 
         String userId = FirebaseAuth.getInstance().getCurrentUser().getUid();
 
-        executor.execute(() -> {
-            try {
-                // 1. Fetch all local data
-                List<Medication> meds = appDao.getAllMedicationsSync();
-                List<Vital> vitals = appDao.getAllVitalsSync();
-                List<DailyHealth> dailyHealth = appDao.getAllDailyHealthSync();
+        Single.zip(
+                        appDao.getAllMedicationsSync(),
+                        appDao.getAllVitalsSync(),
+                        appDao.getAllDailyHealthSync(),
+                        appDao.getAllLogsSync(), // Added Period Logs
+                        (meds, vitals, daily, logs) -> new SyncData(meds, vitals, daily, logs)
+                )
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread()) // Perform UI callbacks on Main
+                .subscribe(data -> {
 
-                int totalItems = meds.size() + vitals.size() + dailyHealth.size();
+                    int totalItems = data.meds.size() + data.vitals.size() + data.daily.size() + data.logs.size();
 
-                if (totalItems == 0) {
-                    postComplete(listener, true, "Nothing to sync");
-                    return;
-                }
+                    if (totalItems == 0) {
+                        notifyComplete(listener, true, "Nothing to sync");
+                        return;
+                    }
 
-                // Notify Total Size
-                postProgress(listener, 0, totalItems);
+                    // Notify Start
+                    notifyProgress(listener, 0, totalItems);
+                    AtomicInteger syncedCount = new AtomicInteger(0);
 
-                AtomicInteger syncedCount = new AtomicInteger(0);
+                    // --- BATCH 1: Medications ---
+                    WriteBatch batchMeds = db.batch();
+                    for (Medication m : data.meds) {
+                        batchMeds.set(db.collection("users").document(userId).collection("medications").document(m.getId()), m);
+                    }
+                    Task<Void> taskMeds = batchMeds.commit().addOnSuccessListener(v -> notifyProgress(listener, syncedCount.addAndGet(data.meds.size()), totalItems));
 
-                // --- Meds ---
-                WriteBatch batchMeds = db.batch();
-                for (Medication m : meds) {
-                    batchMeds.set(db.collection("users").document(userId).collection("medications").document(String.valueOf(m.getId())), m);
-                }
-                Task<Void> taskMeds = batchMeds.commit().addOnSuccessListener(v -> {
-                    int current = syncedCount.addAndGet(meds.size());
-                    postProgress(listener, current, totalItems);
-                });
+                    // --- BATCH 2: Vitals ---
+                    WriteBatch batchVitals = db.batch();
+                    for (Vital v : data.vitals) {
+                        batchVitals.set(db.collection("users").document(userId).collection("vitals").document(v.getId()), v);
+                    }
+                    Task<Void> taskVitals = batchVitals.commit().addOnSuccessListener(v -> notifyProgress(listener, syncedCount.addAndGet(data.vitals.size()), totalItems));
 
-                // --- Vitals ---
-                WriteBatch batchVitals = db.batch();
-                for (Vital v : vitals) {
-                    batchVitals.set(db.collection("users").document(userId).collection("vitals").document(v.getId()), v);
-                }
-                Task<Void> taskVitals = batchVitals.commit().addOnSuccessListener(v -> {
-                    int current = syncedCount.addAndGet(vitals.size());
-                    postProgress(listener, current, totalItems);
-                });
+                    // --- BATCH 3: Daily Health ---
+                    WriteBatch batchDaily = db.batch();
+                    for (DailyHealth d : data.daily) {
+                        batchDaily.set(db.collection("users").document(userId).collection("daily_health").document(d.getDate()), d);
+                    }
+                    Task<Void> taskDaily = batchDaily.commit().addOnSuccessListener(v -> notifyProgress(listener, syncedCount.addAndGet(data.daily.size()), totalItems));
 
-                // --- Daily ---
-                WriteBatch batchDaily = db.batch();
-                for (DailyHealth d : dailyHealth) {
-                    batchDaily.set(db.collection("users").document(userId).collection("daily_health").document(d.getDate()), d);
-                }
-                Task<Void> taskDaily = batchDaily.commit().addOnSuccessListener(v -> {
-                    int current = syncedCount.addAndGet(dailyHealth.size());
-                    postProgress(listener, current, totalItems);
-                });
+                    // --- BATCH 4: Period Logs ---
+                    WriteBatch batchLogs = db.batch();
+                    for (PeriodLog p : data.logs) {
+                        batchLogs.set(db.collection("users").document(userId).collection("period_logs").document(p.date), p);
+                    }
+                    Task<Void> taskLogs = batchLogs.commit().addOnSuccessListener(v -> notifyProgress(listener, syncedCount.addAndGet(data.logs.size()), totalItems));
 
-                // Wait for all
-                Tasks.whenAll(taskMeds, taskVitals, taskDaily)
-                        .addOnSuccessListener(aVoid -> postComplete(listener, true, "Synced " + totalItems + " items"))
-                        .addOnFailureListener(e -> postComplete(listener, false, "Sync failed: " + e.getMessage()));
+                    // Wait for ALL batches to finish
+                    Tasks.whenAll(taskMeds, taskVitals, taskDaily, taskLogs)
+                            .addOnSuccessListener(aVoid -> notifyComplete(listener, true, "Synced " + totalItems + " items"))
+                            .addOnFailureListener(e -> notifyComplete(listener, false, "Sync failed: " + e.getMessage()));
 
-            } catch (Exception e) {
-                postComplete(listener, false, "Local DB Error: " + e.getMessage());
-            }
-        });
+                }, error -> notifyComplete(listener, false, "Local DB Error: " + error.getMessage()));
     }
 
     /**
@@ -108,36 +109,69 @@ public class SyncRepository {
      */
     public boolean syncDataBlocking() {
         if (FirebaseAuth.getInstance().getCurrentUser() == null) return false;
-
-        final CountDownLatch latch = new CountDownLatch(1);
-        final boolean[] result = {false};
-
-        syncDataToCloud(new OnSyncListener() {
-            @Override
-            public void onProgress(int current, int total) {
-            }
-
-            @Override
-            public void onComplete(boolean success, String message) {
-                result[0] = success;
-                latch.countDown();
-            }
-        });
+        String userId = FirebaseAuth.getInstance().getCurrentUser().getUid();
 
         try {
-            latch.await(60, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
+            // 1. Fetch Data Synchronously (on background thread)
+            SyncData data = Single.zip(
+                    appDao.getAllMedicationsSync(),
+                    appDao.getAllVitalsSync(),
+                    appDao.getAllDailyHealthSync(),
+                    appDao.getAllLogsSync(),
+                    SyncData::new
+            ).blockingGet(); // Blocks until DB reads are done
+
+            if (data == null) return false;
+
+            // 2. Prepare Batches
+            WriteBatch batch = db.batch(); // Combine into one big batch for background sync
+
+            for (Medication m : data.meds)
+                batch.set(db.collection("users").document(userId).collection("medications").document(m.getId()), m);
+
+            for (Vital v : data.vitals)
+                batch.set(db.collection("users").document(userId).collection("vitals").document(v.getId()), v);
+
+            for (DailyHealth d : data.daily)
+                batch.set(db.collection("users").document(userId).collection("daily_health").document(d.getDate()), d);
+
+            for (PeriodLog p : data.logs)
+                batch.set(db.collection("users").document(userId).collection("period_logs").document(p.date), p);
+
+            // 3. Execute Blocking Upload
+            Tasks.await(batch.commit());
+            return true;
+
+        } catch (Exception e) {
+            Log.e("SyncRepository", "Background sync failed", e);
             return false;
         }
-        return result[0];
     }
 
-    private void postProgress(OnSyncListener listener, int current, int total) {
-        if (listener != null) mainHandler.post(() -> listener.onProgress(current, total));
+    private static class SyncData {
+        List<Medication> meds;
+        List<Vital> vitals;
+        List<DailyHealth> daily;
+        List<PeriodLog> logs;
+
+        SyncData(List<Medication> meds, List<Vital> vitals, List<DailyHealth> daily, List<PeriodLog> logs) {
+            this.meds = meds;
+            this.vitals = vitals;
+            this.daily = daily;
+            this.logs = logs;
+        }
     }
 
-    private void postComplete(OnSyncListener listener, boolean success, String message) {
-        if (listener != null) mainHandler.post(() -> listener.onComplete(success, message));
+    private void notifyProgress(OnSyncListener listener, int current, int total) {
+        if (listener != null) {
+            mainHandler.post(() -> listener.onProgress(current, total));
+        }
+    }
+
+    private void notifyComplete(OnSyncListener listener, boolean success, String message) {
+        if (listener != null) {
+            mainHandler.post(() -> listener.onComplete(success, message));
+        }
     }
 
     public interface OnSyncListener {

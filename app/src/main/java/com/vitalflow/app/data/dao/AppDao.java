@@ -6,21 +6,25 @@ import androidx.room.Delete;
 import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
-import androidx.room.Update;
 
 import com.vitalflow.app.data.entity.DailyHealth;
+import com.vitalflow.app.data.entity.FoodLog;
 import com.vitalflow.app.data.entity.Medication;
 import com.vitalflow.app.data.entity.PeriodLog;
 import com.vitalflow.app.data.entity.Vital;
 
 import java.util.List;
 
+import io.reactivex.rxjava3.core.Completable;
+import io.reactivex.rxjava3.core.Maybe;
+import io.reactivex.rxjava3.core.Single;
+
 @Dao
 public interface AppDao {
 
     // --- VITALS ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insertVital(Vital vital);
+    Completable insertVital(Vital vital);
 
     @Query("SELECT * FROM vitals ORDER BY timestamp DESC")
     LiveData<List<Vital>> getAllVitals();
@@ -31,57 +35,69 @@ public interface AppDao {
 
     // --- MEDICATIONS ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insertMedication(Medication medication);
+    Completable insertMedication(Medication medication);
 
     @Query("SELECT * FROM medications")
     LiveData<List<Medication>> getAllMedications();
 
     @Delete
-    void deleteMedication(Medication medication);
-
-    @Update
-    void updateMedication(Medication medication);
+    Completable deleteMedication(Medication medication);
 
     // --- DAILY HEALTH (Water/Steps) ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insertDailyHealth(DailyHealth health);
+    Completable insertDailyHealth(DailyHealth health);
 
     @Query("SELECT * FROM daily_health WHERE date = :date")
     LiveData<DailyHealth> getDailyHealth(String date);
 
     // --- RAW QUERIES FOR SYNC (Non-LiveData) ---
     @Query("SELECT * FROM medications")
-    List<Medication> getAllMedicationsSync();
+    Single<List<Medication>> getAllMedicationsSync();
 
     @Query("SELECT * FROM vitals")
-    List<Vital> getAllVitalsSync();
+    Single<List<Vital>> getAllVitalsSync();
 
     @Query("SELECT * FROM daily_health")
-    List<DailyHealth> getAllDailyHealthSync();
+    Single<List<DailyHealth>> getAllDailyHealthSync();
 
     @Query("SELECT * FROM daily_health WHERE date = :date LIMIT 1")
-    DailyHealth getDailyHealthSync(String date);
+    Maybe<DailyHealth> getDailyHealthSync(String date);
 
     @Query("SELECT * FROM daily_health ORDER BY date DESC LIMIT 7")
-    List<DailyHealth> getLastSevenDaysSync();
+    Single<List<DailyHealth>> getLastSevenDaysSync();
 
     @Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
-    void insertPeriodLog(PeriodLog log);
-
-    @Query("SELECT * FROM period_logs WHERE isFlow = 1 ORDER BY date DESC")
-    List<PeriodLog> getAllFlowDaysSync();
+    Completable insertPeriodLog(PeriodLog log);
 
     @Query("SELECT * FROM period_logs WHERE isFlow = 1 ORDER BY date DESC LIMIT 1")
-    PeriodLog getLastPeriodLogSync();
+    Maybe<PeriodLog> getLastPeriodLogSync();
 
     @Query("SELECT * FROM period_logs ORDER BY date DESC")
-    List<PeriodLog> getAllLogsSync();
+    Single<List<PeriodLog>> getAllLogsSync();
 
     @Query("SELECT * FROM daily_health ORDER BY date DESC LIMIT 30")
-    List<DailyHealth> getLast30DaysSync();
+    Single<List<DailyHealth>> getLast30DaysSync();
 
     // Fetch the last 3 periods for the Cycle History Table
     // We assume 'date' is the start date of the period
     @Query("SELECT * FROM period_logs ORDER BY date DESC LIMIT 3")
-    List<PeriodLog> getLast3CyclesSync();
+    Single<List<PeriodLog>> getLast3CyclesSync();
+
+    @Insert
+    Completable insertFoodLog(FoodLog log);
+
+    @Delete
+    Completable deleteFoodLog(FoodLog log);
+
+    @Query("SELECT * FROM food_logs WHERE date = :date ORDER BY time DESC")
+    LiveData<List<FoodLog>> getFoodLogsForDate(String date);
+
+    @Query("SELECT SUM(calories) FROM food_logs WHERE date = :date")
+    LiveData<Integer> getTotalCaloriesForDate(String date);
+
+    @Query("SELECT * FROM food_logs WHERE date = :date")
+    Single<List<FoodLog>> getFoodLogsSync(String date);
+
+    @Query("SELECT * FROM daily_health WHERE date = :date")
+    Single<List<DailyHealth>> getDailyHealthListSync(String date);
 }

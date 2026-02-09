@@ -19,6 +19,8 @@ import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.widget.Toast;
 
+import androidx.core.content.FileProvider;
+
 import com.vitalflow.app.R;
 import com.vitalflow.app.data.entity.DailyHealth;
 import com.vitalflow.app.data.entity.Medication;
@@ -26,6 +28,8 @@ import com.vitalflow.app.data.entity.PeriodLog;
 import com.vitalflow.app.data.entity.Report;
 import com.vitalflow.app.data.entity.Vital;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.util.Comparator;
 import java.util.List;
@@ -45,7 +49,7 @@ public class PdfReportManager {
     private static final int COLOR_TEXT_LIGHT = Color.DKGRAY;
     private static final int COLOR_WARNING = Color.parseColor("#C62828"); // Red for alerts
 
-    public static void createReport(Context context, Report data) {
+    public static Uri createReport(Context context, Report data) {
         PdfDocument document = new PdfDocument();
         Paint paint = new Paint();
         Paint titlePaint = new Paint();
@@ -294,7 +298,9 @@ public class PdfReportManager {
             document.finishPage(page3);
         }
 
-        savePdf(context, document);
+        Uri savedUri = savePdf(context, document);
+        document.close();
+        return savedUri;
     }
 
     // --- CUSTOM GRAPH DRAWER (Vector based) ---
@@ -395,7 +401,7 @@ public class PdfReportManager {
         canvas.drawText(value, x + 10, y + 45, textPaint);
     }
 
-    private static void savePdf(Context context, PdfDocument doc) {
+    private static Uri savePdf(Context context, PdfDocument doc) {
         String fileName = "VitalFlow_Report_" + System.currentTimeMillis() + ".pdf";
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -404,14 +410,33 @@ public class PdfReportManager {
                 values.put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf");
                 values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
                 Uri uri = context.getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
-                try (OutputStream fos = context.getContentResolver().openOutputStream(uri)) {
+                if (uri != null) {
+                    try (OutputStream fos = context.getContentResolver().openOutputStream(uri)) {
+                        doc.writeTo(fos);
+                    }
+                    Toast.makeText(context, "Full Report Saved to Downloads!", Toast.LENGTH_LONG).show();
+                    return uri; // Return MediaStore URI
+                }
+            } else {
+                File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                if (!dir.exists()) dir.mkdirs();
+
+                File file = new File(dir, fileName);
+                try (FileOutputStream fos = new FileOutputStream(file)) {
                     doc.writeTo(fos);
                 }
+
+                Toast.makeText(context, "Full Report Saved to Downloads!", Toast.LENGTH_LONG).show();
+                // Return URI via FileProvider
+                return FileProvider.getUriForFile(
+                        context,
+                        context.getPackageName() + ".provider",
+                        file
+                );
             }
-            doc.close();
-            Toast.makeText(context, "Full Report Saved to Downloads!", Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             Toast.makeText(context, "Error saving PDF: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
+        return null;
     }
 }

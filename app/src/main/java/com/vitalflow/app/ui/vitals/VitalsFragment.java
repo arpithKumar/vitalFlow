@@ -28,12 +28,12 @@ import com.vitalflow.app.databinding.FragmentVitalsBinding;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import javax.inject.Inject;
 
 import dagger.hilt.android.AndroidEntryPoint;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 
 @AndroidEntryPoint
 public class VitalsFragment extends Fragment {
@@ -44,7 +44,7 @@ public class VitalsFragment extends Fragment {
     private FragmentVitalsBinding binding;
     private VitalsAdapter adapter;
     private List<Vital> vitalsList = new ArrayList<>();
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final CompositeDisposable disposables = new CompositeDisposable();
 
     @Nullable
     @Override
@@ -122,7 +122,6 @@ public class VitalsFragment extends Fragment {
             binding.chartVitals.setNoDataText("No data for this time range");
             return;
         }
-        ;
 
         LineDataSet dataSet = new LineDataSet(entries, "Heart Rate");
 
@@ -248,8 +247,9 @@ public class VitalsFragment extends Fragment {
     private void showAddVitalSheet() {
         AddVitalBottomSheet sheet = new AddVitalBottomSheet();
         sheet.setListener(vital -> {
-            // Save logic remains the same (Background Thread)
-            executor.execute(() -> appDao.insertVital(vital));
+            disposables.add(appDao.insertVital(vital)
+                    .subscribeOn(Schedulers.io())
+                    .subscribe());
         });
         sheet.show(getParentFragmentManager(), "AddVitalSheet");
     }

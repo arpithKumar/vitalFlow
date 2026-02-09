@@ -123,6 +123,7 @@ public class ProfileFragment extends Fragment {
         // 10. Preferences (Dark Mode/Notifs) & Logout
         setupPreferences();
         binding.btnLogout.setOnClickListener(v -> {
+            prefs.edit().putBoolean("biometric_enabled", false).apply();
             FirebaseAuth.getInstance().signOut();
             NavController navController = Navigation.findNavController(view);
             navController.navigate(R.id.action_profile_to_login);
@@ -374,17 +375,31 @@ public class ProfileFragment extends Fragment {
     // ------------------------------------------------------------------------
 
     private void setupPreferences() {
+        // Dark Mode
         binding.switchDarkMode.setChecked(prefs.getBoolean("dark_mode", false));
         binding.switchDarkMode.setOnCheckedChangeListener((buttonView, isChecked) -> {
             prefs.edit().putBoolean("dark_mode", isChecked).apply();
             AppCompatDelegate.setDefaultNightMode(isChecked ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
         });
 
+        // 2. Notifications
         binding.switchNotifications.setChecked(prefs.getBoolean("notifications", true));
         binding.switchNotifications.setOnCheckedChangeListener((buttonView, isChecked) -> {
             prefs.edit().putBoolean("notifications", isChecked).apply();
             if (isChecked) NotificationHelper.scheduleDailyReminder(requireContext());
             else NotificationHelper.cancelReminders(requireContext());
+        });
+
+        // 3. Biometric Lock
+        binding.switchBiometric.setChecked(prefs.getBoolean("biometric_enabled", false));
+        binding.switchBiometric.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            prefs.edit().putBoolean("biometric_enabled", isChecked).apply();
+
+            if (isChecked) {
+                Toast.makeText(getContext(), "App Lock Enabled 🔒", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(getContext(), "App Lock Disabled 🔓", Toast.LENGTH_SHORT).show();
+            }
         });
     }
 

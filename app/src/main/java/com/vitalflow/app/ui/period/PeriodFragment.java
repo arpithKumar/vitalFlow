@@ -36,7 +36,9 @@ import com.google.android.material.chip.Chip;
 import com.vitalflow.app.R;
 import com.vitalflow.app.data.dao.AppDao;
 import com.vitalflow.app.data.entity.CycleHistory;
+import com.vitalflow.app.data.entity.FoodLog;
 import com.vitalflow.app.data.entity.HealthPlan;
+import com.vitalflow.app.data.entity.Medication;
 import com.vitalflow.app.data.entity.PeriodLog;
 import com.vitalflow.app.data.repository.GeminiRepository;
 import com.vitalflow.app.databinding.FragmentPeriodBinding;
@@ -54,13 +56,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
 
 import dagger.hilt.android.AndroidEntryPoint;
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.core.Completable;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 
 @AndroidEntryPoint
 public class PeriodFragment extends Fragment {
@@ -70,8 +74,10 @@ public class PeriodFragment extends Fragment {
     @Inject
     GeminiRepository geminiRepository;
 
+    private int dragStartPosition = -1;
+
     private FragmentPeriodBinding binding;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final CompositeDisposable disposables = new CompositeDisposable();
 
     private final Calendar currentMonth = Calendar.getInstance();
     private final List<Date> daysInMonth = new ArrayList<>();
@@ -88,7 +94,6 @@ public class PeriodFragment extends Fragment {
     // --- DRAG SELECTION STATE ---
     // Dates selected during the current drag/click gesture
     private final Set<String> tempSelectedDates = new HashSet<>();
-    private boolean isDragging = false;
 
     // HISTORY LIST ADAPTER
     private HistoryAdapter historyAdapter;
@@ -134,7 +139,6 @@ public class PeriodFragment extends Fragment {
         binding.recyclerCalendar.setOnTouchListener((v, event) -> {
             int action = event.getAction();
 
-            // Find cell under finger
             View child = binding.recyclerCalendar.findChildViewUnder(event.getX(), event.getY());
             int pos = -1;
             if (child != null) pos = binding.recyclerCalendar.getChildAdapterPosition(child);
@@ -143,6 +147,7 @@ public class PeriodFragment extends Fragment {
                 case MotionEvent.ACTION_DOWN:
                     isSelectionMode = false;
                     tempSelectedDates.clear();
+                    dragStartPosition = pos;
 
                     // Long press
                     final int finalPos = pos;
@@ -154,7 +159,7 @@ public class PeriodFragment extends Fragment {
                                 v.performHapticFeedback(LONG_PRESS);
                             } catch (Exception e) {
                             }
-                            selectDateAtPosition(finalPos);
+                            updateSelectionRange(finalPos);
                         }
                     };
                     handler.postDelayed(longPressRunnable, 500);
@@ -162,7 +167,7 @@ public class PeriodFragment extends Fragment {
 
                 case MotionEvent.ACTION_MOVE:
                     if (isSelectionMode && pos != -1) {
-                        selectDateAtPosition(pos);
+                        updateSelectionRange(pos);
                         return true;
                     }
                     return false;
@@ -181,21 +186,36 @@ public class PeriodFragment extends Fragment {
                     // Cleanup visual selection
                     tempSelectedDates.clear();
                     adapter.notifyDataSetChanged();
+                    dragStartPosition = -1;
                     break;
             }
             return false;
         });
     }
 
-    private void selectDateAtPosition(int pos) {
-        if (pos >= 0 && pos < daysInMonth.size()) {
-            Date date = daysInMonth.get(pos);
-            String key = getKey(date);
+    private void updateSelectionRange(int currentPos) {
+        if (dragStartPosition == -1 || currentPos == -1) return;
 
-            if (!tempSelectedDates.contains(key)) {
-                tempSelectedDates.add(key);
-                adapter.notifyItemChanged(pos);
+        // 1. Calculate min and max to handle dragging backwards
+        int start = Math.min(dragStartPosition, currentPos);
+        int end = Math.max(dragStartPosition, currentPos);
+
+        // 2. Clear previous temp selection to avoid artifacts
+        // (This fixes the "random selection" issue)
+        Set<String> newSelection = new HashSet<>();
+
+        for (int i = start; i <= end; i++) {
+            if (i < daysInMonth.size()) {
+                Date date = daysInMonth.get(i);
+                newSelection.add(getKey(date));
             }
+        }
+
+        // 3. Only notify changes if selection is different
+        if (!newSelection.equals(tempSelectedDates)) {
+            tempSelectedDates.clear();
+            tempSelectedDates.addAll(newSelection);
+            adapter.notifyDataSetChanged(); // Refresh grid
         }
     }
 
@@ -209,68 +229,143 @@ public class PeriodFragment extends Fragment {
     }
 
     private void saveBatchLogs(List<String> keys, boolean isFlow, int intensity, String symptoms) {
-        executor.execute(() -> {
-            keys.forEach(key -> appDao.insertPeriodLog(new PeriodLog(key, isFlow, intensity, symptoms)));
-            loadFlowData(); // Refresh UI
-        });
+        List<Completable> tasks = new ArrayList<>();
+        for (String key : keys) {
+            tasks.add(appDao.insertPeriodLog(new PeriodLog(key, isFlow, intensity, symptoms)));
+        }
+
+        disposables.add(Completable.merge(tasks) // Run all inserts
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(this::loadFlowData, Throwable::printStackTrace)); // Refresh on complete
     }
 
     // --- 3. DATA & UI LOADING ---
     private void loadFlowData() {
-        executor.execute(() -> {
-            List<PeriodLog> allLogs = appDao.getAllLogsSync();
-            logMap.clear();
-            predictedDateKeys.clear();
-            fertileDateKeys.clear();
-            ovulationDateKey = "";
-            List<PeriodLog> flowLogs = new ArrayList<>();
-
-            if (allLogs != null) {
-                for (PeriodLog log : allLogs) {
-                    logMap.put(log.date, log);
-                    if (log.isFlow) flowLogs.add(log);
-                }
-            }
-
-            List<CycleHistory> historyList = CycleHelper.analyzeCycles(flowLogs != null ? flowLogs : new ArrayList<>());
-
-            // C. Calculate Prediction (NEW)
-            if (!historyList.isEmpty()) {
-                calculatePrediction(historyList);
-            } else {
-                // Initial State
-                if (getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
-                        binding.tvDayCount.setText("Day\n--");
-                        binding.tvCycleStatus.setText("Log your first period");
-                        binding.progressCycle.setProgress(0);
-                    });
-                }
-            }
-
-            if (getActivity() != null) {
-                getActivity().runOnUiThread(() -> {
-                    updateCalendar();
-                    updateChart(flowLogs);
-                    updateSymptomChart(allLogs);
-
-                    // Note: updatePrediction is now handled inside calculatePrediction/UI update
-                    // but we keep the old one as fallback for text if history is empty
-                    if (historyList.isEmpty()) {
-                        binding.tvHistoryTitleCycle.setVisibility(View.GONE); // Make sure ID matches XML
-                        binding.recyclerHistory.setVisibility(View.GONE);
-                        updatePredictionFallback(flowLogs);
-                    } else {
-                        binding.tvHistoryTitleCycle.setVisibility(View.VISIBLE); // Make sure ID matches XML
-                        binding.recyclerHistory.setVisibility(View.VISIBLE);
+        disposables.add(appDao.getAllLogsSync()
+                .subscribeOn(Schedulers.io())
+                .map(allLogs -> {
+                    // --- BACKGROUND CALCULATIONS ---
+                    // 1. Populate Maps
+                    logMap.clear();
+                    List<PeriodLog> flowLogs = new ArrayList<>();
+                    if (allLogs != null) {
+                        for (PeriodLog log : allLogs) {
+                            logMap.put(log.date, log);
+                            if (log.isFlow) flowLogs.add(log);
+                        }
                     }
 
-                    // Force AI call if logs exist, or send empty list prompt
-                    askAiForInsights(allLogs != null ? allLogs : new ArrayList<>());
-                    historyAdapter.setData(historyList);
-                });
-            }
-        });
+                    // 2. Analyze Cycles
+                    List<CycleHistory> historyList = CycleHelper.analyzeCycles(flowLogs);
+
+                    // 3. Calculate Predictions (Updates member variables safe for next step)
+                    calculatePredictionInternal(historyList);
+
+                    // Pass data bundle to Main Thread
+                    return new DataBundle(allLogs, flowLogs, historyList);
+                })
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(data -> {
+                    // --- UI UPDATES ---
+                    updateCalendar();
+                    updateChart(data.flowLogs);
+                    updateSymptomChart(data.allLogs);
+
+                    // Update Prediction UI Cards
+                    if (data.historyList.isEmpty()) {
+                        binding.tvHistoryTitleCycle.setVisibility(View.GONE);
+                        binding.recyclerHistory.setVisibility(View.GONE);
+                        updatePredictionFallback(data.flowLogs);
+                    } else {
+                        binding.tvHistoryTitleCycle.setVisibility(View.VISIBLE);
+                        binding.recyclerHistory.setVisibility(View.VISIBLE);
+                        updatePredictionUI(data.historyList);
+                    }
+
+                    historyAdapter.setData(data.historyList);
+
+                    // Trigger AI
+                    askAiForInsights(data.allLogs != null ? data.allLogs : new ArrayList<>());
+
+                }, Throwable::printStackTrace));
+    }
+
+    private static class DataBundle {
+        List<PeriodLog> allLogs;
+        List<PeriodLog> flowLogs;
+        List<CycleHistory> historyList;
+
+        DataBundle(List<PeriodLog> allLogs, List<PeriodLog> flowLogs, List<CycleHistory> historyList) {
+            this.allLogs = allLogs;
+            this.flowLogs = flowLogs;
+            this.historyList = historyList;
+        }
+    }
+
+    private void calculatePredictionInternal(List<CycleHistory> history) {
+        predictedDateKeys.clear();
+        fertileDateKeys.clear();
+        ovulationDateKey = "";
+
+        if (history.isEmpty()) return;
+
+        CycleHistory lastCycle = history.get(0);
+        int avgCycle = CycleHelper.calculateAverageCycleLength(history);
+
+        Calendar c = Calendar.getInstance();
+        c.setTime(lastCycle.startDate);
+        c.add(Calendar.DAY_OF_YEAR, avgCycle);
+        Date nextPeriodStart = c.getTime();
+
+        Date ovulationDate = CycleHelper.calculateOvulationDate(nextPeriodStart);
+        List<Date> fertileWindow = CycleHelper.calculateFertileWindow(ovulationDate);
+        ovulationDateKey = this.sdf.format(ovulationDate);
+
+        fertileWindow.forEach(fd -> fertileDateKeys.add(sdf.format(fd)));
+
+        Calendar predCal = Calendar.getInstance();
+        predCal.setTime(nextPeriodStart);
+        for (int i = 0; i < 5; i++) {
+            predictedDateKeys.add(sdf.format(predCal.getTime()));
+            predCal.add(Calendar.DAY_OF_YEAR, 1);
+        }
+    }
+
+    private void updatePredictionUI(List<CycleHistory> history) {
+        if (history.isEmpty()) {
+            binding.tvDayCount.setText("Day\n--");
+            binding.tvCycleStatus.setText("Log your first period");
+            binding.progressCycle.setProgress(0);
+            return;
+        }
+
+        CycleHistory lastCycle = history.get(0);
+        int avgCycle = CycleHelper.calculateAverageCycleLength(history);
+
+        Calendar c = Calendar.getInstance();
+        c.setTime(lastCycle.startDate);
+        c.add(Calendar.DAY_OF_YEAR, avgCycle);
+
+        long diff = new Date().getTime() - lastCycle.startDate.getTime();
+        long currentDay = TimeUnit.MILLISECONDS.toDays(diff) + 1;
+        int progressDay = Math.min((int) currentDay, avgCycle);
+
+        String nextDateText = new SimpleDateFormat("MMM dd", Locale.getDefault()).format(c.getTime());
+        binding.tvPrediction.setText("Next Period: ~" + nextDateText + " (Avg " + avgCycle + " days)");
+
+        if (currentDay > avgCycle) {
+            binding.tvCycleStatus.setText("Cycle Day " + currentDay + " (Late)");
+        } else {
+            binding.tvCycleStatus.setText("Period in " + (avgCycle - currentDay) + " days");
+        }
+        binding.tvDayCount.setText("Day\n" + currentDay);
+
+        binding.progressCycle.setMax(avgCycle);
+        ObjectAnimator animation = ObjectAnimator.ofInt(binding.progressCycle, "progress", 0, progressDay);
+        animation.setDuration(1000);
+        animation.setInterpolator(new DecelerateInterpolator());
+        animation.start();
     }
 
     private void updateSymptomChart(List<PeriodLog> logs) {
@@ -334,64 +429,6 @@ public class PeriodFragment extends Fragment {
             chip.setClickable(false);
             chip.setCheckable(false);
             binding.chipGroupSymptoms.addView(chip);
-        }
-    }
-
-    private void calculatePrediction(List<CycleHistory> history) {
-        CycleHistory lastCycle = history.get(0);
-        int avgCycle = CycleHelper.calculateAverageCycleLength(history);
-
-        Calendar c = Calendar.getInstance();
-        c.setTime(lastCycle.startDate);
-        c.add(Calendar.DAY_OF_YEAR, avgCycle);
-        Date nextPeriodStart = c.getTime();
-
-        Date ovulationDate = CycleHelper.calculateOvulationDate(nextPeriodStart);
-        List<Date> fertileWindow = CycleHelper.calculateFertileWindow(ovulationDate);
-        ovulationDateKey = this.sdf.format(ovulationDate);
-
-        fertileDateKeys.clear();
-        fertileWindow.forEach(fd -> fertileDateKeys.add(sdf.format(fd)));
-
-        predictedDateKeys.clear();
-        Calendar predCal = Calendar.getInstance();
-        predCal.setTime(nextPeriodStart);
-        for (int i = 0; i < 5; i++) {
-            predictedDateKeys.add(sdf.format(predCal.getTime()));
-            predCal.add(Calendar.DAY_OF_YEAR, 1);
-        }
-
-        long diff = new Date().getTime() - lastCycle.startDate.getTime();
-        long currentDay = TimeUnit.MILLISECONDS.toDays(diff) + 1; // +1 because start date is Day 1
-
-        int progressDay = Math.min((int) currentDay, avgCycle);
-
-        // 1. Update Text UI
-        String nextDateText = new SimpleDateFormat("MMM dd", Locale.getDefault()).format(c.getTime());
-        if (getActivity() != null) {
-            getActivity().runOnUiThread(() -> {
-                binding.tvPrediction.setText(new StringBuilder().append("Next Period: ~")
-                        .append(nextDateText)
-                        .append(" (Avg ").append(avgCycle)
-                        .append(" days)").toString());
-                if (currentDay > avgCycle) {
-                    binding.tvCycleStatus.setText(new StringBuilder().append("Cycle Day ").append(currentDay).append(" (Late)").toString());
-                } else {
-                    binding.tvCycleStatus.setText(new StringBuilder().append("Period in ").append(avgCycle - currentDay).append(" days").toString());
-                }
-                binding.tvDayCount.setText(new StringBuilder().append("Day\n").append(currentDay).toString());
-
-                binding.progressCycle.setMax(avgCycle);
-                ObjectAnimator animation = ObjectAnimator.ofInt(
-                        binding.progressCycle,
-                        "progress",
-                        0,
-                        progressDay
-                );
-                animation.setDuration(1000);
-                animation.setInterpolator(new DecelerateInterpolator());
-                animation.start();
-            });
         }
     }
 
@@ -544,13 +581,13 @@ public class PeriodFragment extends Fragment {
         // A. Show Loading
         if (getActivity() != null) {
             getActivity().runOnUiThread(() -> {
-                binding.tvAiText.setText("Analyzing cycle trends... ✨");
+                binding.tvAiText.setText("Analyzing cycle, diet & sleep... ✨");
                 binding.tvAiText.setOnClickListener(null);
             });
         }
 
-        // B. Calculate Cycle Day
-        int cycleDay = 1;
+        // B. Calculate Cycle Day (Existing Logic)
+        int calculatedCycleDay = 1;
         if (logs != null && !logs.isEmpty()) {
             try {
                 Date latestFlow = null;
@@ -563,15 +600,16 @@ public class PeriodFragment extends Fragment {
                 }
                 if (latestFlow != null) {
                     long diff = new Date().getTime() - latestFlow.getTime();
-                    cycleDay = (int) TimeUnit.MILLISECONDS.toDays(diff) + 1;
-                    if (cycleDay < 1) cycleDay = 1;
+                    calculatedCycleDay = (int) TimeUnit.MILLISECONDS.toDays(diff) + 1;
+                    if (calculatedCycleDay < 1) calculatedCycleDay = 1;
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
+        final int cycleDay = calculatedCycleDay;
 
-        // C. Get Recent Context (Last 5 days)
+        // C. Get Recent Context (Last 5 days) (Existing Logic)
         List<PeriodLog> recentLogs = new ArrayList<>();
         if (logs != null) {
             int limit = Math.min(logs.size(), 5);
@@ -580,41 +618,112 @@ public class PeriodFragment extends Fragment {
             }
         }
 
-        // D. Call New Repo Method
-        geminiRepository.getDailyHealthPlan(recentLogs, cycleDay, new GeminiRepository.HealthPlanCallback() {
-            @Override
-            public void onSuccess(HealthPlan plan) {
-                if (getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
-                        // Display Summary
-                        binding.tvAiText.setText(plan.daySummary + " \n(Tap for full plan 🧘‍♀️)");
+        // --- NEW: FETCH FOOD & SLEEP DATA ---
+        String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
 
-                        // Add Click Listener -> Open Sheet
-                        binding.tvAiText.setOnClickListener(v -> {
-                            HealthPlanBottomSheet sheet = new HealthPlanBottomSheet();
-                            sheet.setHealthPlan(plan);
-                            sheet.show(getParentFragmentManager(), "HealthPlan");
-                        });
-                    });
-                }
-            }
+        disposables.add(
+                io.reactivex.rxjava3.core.Single.zip(
+                                appDao.getFoodLogsSync(todayKey),
+                                appDao.getDailyHealthListSync(todayKey),
+                                appDao.getAllMedicationsSync(),
+                                (foodLogs, dailyHealthList, meds) -> {
+                                    String sleep = "Unknown";
+                                    if (!dailyHealthList.isEmpty()) {
+                                        sleep = dailyHealthList.get(0).getSleepDuration();
+                                    }
+                                    return new ContextBundle(foodLogs, sleep, meds);
+                                }
+                        )
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(bundle -> {
+                            // D. Call Repo Method (WITH NEW FOOD & SLEEP DATA)
+                            geminiRepository.getDailyHealthPlan(
+                                    recentLogs,
+                                    cycleDay,
+                                    bundle.foodLogs,
+                                    bundle.meds,
+                                    bundle.sleep,
+                                    new GeminiRepository.HealthPlanCallback() {
+                                        @Override
+                                        public void onSuccess(HealthPlan plan) {
+                                            if (getActivity() != null) {
+                                                getActivity().runOnUiThread(() -> {
+                                                    // Display Summary
+                                                    binding.tvAiText.setText(plan.daySummary + " \n(Tap for full plan 🧘‍♀️)");
 
-            @Override
-            public void onError(Throwable t) {
-                if (getActivity() == null) return;
-                getActivity().runOnUiThread(() -> {
-                    if (t.getMessage() != null && t.getMessage().contains("API_KEY_MISSING")) {
-                        binding.tvAiText.setText("Tap to activate AI Coach ✨");
-                        binding.tvAiText.setOnClickListener(v -> {
-                            GeminiKeyBottomSheet sheet = new GeminiKeyBottomSheet();
-                            sheet.setListener(() -> askAiForInsights(logs));
-                            sheet.show(getParentFragmentManager(), "GeminiKey");
-                        });
-                    } else {
-                        binding.tvAiText.setText("Plan currently unavailable.");
-                        binding.tvAiText.setOnClickListener(null);
-                    }
+                                                    // Add Click Listener -> Open Sheet
+                                                    binding.tvAiText.setOnClickListener(v -> {
+                                                        HealthPlanBottomSheet sheet = new HealthPlanBottomSheet();
+                                                        sheet.setHealthPlan(plan);
+                                                        sheet.show(getParentFragmentManager(), "HealthPlan");
+                                                    });
+                                                });
+                                            }
+                                        }
+
+                                        @Override
+                                        public void onError(Throwable t) {
+                                            handleAiError(t, logs);
+                                        }
+                                    });
+                        }, throwable -> {
+                            // Fallback: If DB fetch fails, call AI without food/sleep (Robustness)
+                            geminiRepository.getDailyHealthPlan(
+                                    recentLogs,
+                                    cycleDay,
+                                    new ArrayList<>(),
+                                    new ArrayList<>(),
+                                    "Unknown",
+                                    new GeminiRepository.HealthPlanCallback() {
+                                        @Override
+                                        public void onSuccess(HealthPlan plan) {
+                                            if (getActivity() != null) {
+                                                getActivity().runOnUiThread(() -> {
+                                                    binding.tvAiText.setText(plan.daySummary + " \n(Tap for full plan 🧘‍♀️)");
+                                                    binding.tvAiText.setOnClickListener(v -> {
+                                                        HealthPlanBottomSheet sheet = new HealthPlanBottomSheet();
+                                                        sheet.setHealthPlan(plan);
+                                                        sheet.show(getParentFragmentManager(), "HealthPlan");
+                                                    });
+                                                });
+                                            }
+                                        }
+
+                                        @Override
+                                        public void onError(Throwable t) {
+                                            handleAiError(t, logs);
+                                        }
+                                    });
+                        })
+        );
+    }
+
+    private static class ContextBundle {
+        List<FoodLog> foodLogs;
+        String sleep;
+        List<Medication> meds;
+
+        ContextBundle(List<FoodLog> foodLogs, String sleep, List<Medication> meds) {
+            this.foodLogs = foodLogs;
+            this.sleep = sleep;
+            this.meds = meds;
+        }
+    }
+
+    private void handleAiError(Throwable t, List<PeriodLog> logs) {
+        if (getActivity() == null) return;
+        getActivity().runOnUiThread(() -> {
+            if (t.getMessage() != null && t.getMessage().contains("API_KEY_MISSING")) {
+                binding.tvAiText.setText("Tap to activate AI Coach ✨");
+                binding.tvAiText.setOnClickListener(v -> {
+                    GeminiKeyBottomSheet sheet = new GeminiKeyBottomSheet();
+                    sheet.setListener(() -> askAiForInsights(logs));
+                    sheet.show(getParentFragmentManager(), "GeminiKey");
                 });
+            } else {
+                binding.tvAiText.setText("Plan currently unavailable.");
+                binding.tvAiText.setOnClickListener(null);
             }
         });
     }

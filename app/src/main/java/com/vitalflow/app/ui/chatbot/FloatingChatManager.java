@@ -4,8 +4,6 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.view.MotionEvent;
 import android.view.View;
@@ -34,8 +32,6 @@ import com.vitalflow.app.R;
 import com.vitalflow.app.data.entity.gemini.ChatMessage;
 import com.vitalflow.app.data.repository.GeminiRepository;
 import com.vitalflow.app.enums.UploadType;
-
-import java.io.InputStream;
 
 public class FloatingChatManager {
 
@@ -206,63 +202,47 @@ public class FloatingChatManager {
     }
 
     private void sendMessage(String text, Uri imageUri) {
-        // 1. Add User Message to UI
         ChatMessage userMsg = new ChatMessage(text, true, imageUri != null ? UploadType.IMAGE : UploadType.TEXT);
         if (imageUri != null) userMsg.setImageUri(imageUri);
         adapter.addMessage(userMsg);
         rvChat.smoothScrollToPosition(adapter.getItemCount() - 1);
 
-        // 2. Clear Input
         etInput.setText("");
         clearAttachment();
         hideKeyboard();
 
-        // 3. Add Loading Indicator
         ChatMessage loadingMsg = new ChatMessage("", false, UploadType.TEXT);
         loadingMsg.setLoading(true);
         adapter.addMessage(loadingMsg);
 
-        // 4. Send to Gemini
-        activity.runOnUiThread(() -> {
-            Bitmap bitmap = null;
-            if (imageUri != null) {
-                try {
-                    InputStream is = activity.getContentResolver().openInputStream(imageUri);
-                    bitmap = BitmapFactory.decodeStream(is);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+        geminiRepository.sendMessage(text, imageUri, new GeminiRepository.GeminiCallback() {
+            @Override
+            public void onSuccess(String response) {
+                activity.runOnUiThread(() -> {
+                    adapter.removeLoading();
+                    adapter.addMessage(new ChatMessage(response, false, UploadType.TEXT));
+                    rvChat.smoothScrollToPosition(adapter.getItemCount() - 1);
+                });
             }
 
-            geminiRepository.sendMessage(text, bitmap, new GeminiRepository.GeminiCallback() {
-                @Override
-                public void onSuccess(String response) {
-                    activity.runOnUiThread(() -> {
-                        adapter.removeLoading();
-                        adapter.addMessage(new ChatMessage(response, false, UploadType.TEXT));
-                        rvChat.smoothScrollToPosition(adapter.getItemCount() - 1);
-                    });
-                }
+            @Override
+            public void onError(Throwable t) {
+                activity.runOnUiThread(() -> {
+                    adapter.removeLoading();
+                    String msg = t.getMessage();
+                    if (t instanceof SecurityException ||
+                            (msg != null && msg.contains("API_KEY_MISSING"))) {
 
-                @Override
-                public void onError(Throwable t) {
-                    activity.runOnUiThread(() -> {
-                        adapter.removeLoading();
-                        if (t instanceof SecurityException ||
-                                (t.getMessage() != null && t.getMessage().contains("API_KEY_MISSING"))) {
+                        Toast.makeText(activity, "Gemini Key Required!", Toast.LENGTH_SHORT).show();
 
-                            Toast.makeText(activity, "Gemini Key Required!", Toast.LENGTH_SHORT).show();
+                        GeminiKeyBottomSheet sheet = new GeminiKeyBottomSheet();
+                        sheet.show(activity.getSupportFragmentManager(), "GeminiKey");
 
-                            // Show the Bottom Sheet
-                            GeminiKeyBottomSheet sheet = new GeminiKeyBottomSheet();
-                            sheet.show(activity.getSupportFragmentManager(), "GeminiKey");
-
-                        } else {
-                            Toast.makeText(activity, "Error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                }
-            });
+                    } else {
+                        Toast.makeText(activity, "Error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
         });
     }
 

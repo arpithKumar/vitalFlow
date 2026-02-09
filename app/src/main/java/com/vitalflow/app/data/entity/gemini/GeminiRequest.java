@@ -14,8 +14,8 @@ public class GeminiRequest {
         this.contents = Collections.singletonList(new Content("user", prompt));
     }
 
-    public GeminiRequest(String prompt, String base64Image) {
-        this.contents = Collections.singletonList(new Content("user", prompt, base64Image));
+    public GeminiRequest(String prompt, String base64Image, String mimeType) {
+        this.contents = Collections.singletonList(new Content("user", prompt, base64Image, mimeType));
     }
 
     private static class Content {
@@ -32,17 +32,14 @@ public class GeminiRequest {
         }
 
         // Text + Image
-        public Content(String role, String text, String base64Image) {
+        public Content(String role, String text, String base64Image, String mimeType) {
             this.role = role;
             this.parts = new ArrayList<>();
-            // Gemini prefers text context first
             if (text != null && !text.isEmpty()) {
                 this.parts.add(new Part(text));
             }
 
-            // Add Image Data
-            InlineData inlineData = new InlineData("image/jpeg", base64Image);
-            this.parts.add(new Part(inlineData));
+            this.parts.add(new Part(new InlineData(mimeType, base64Image)));
         }
     }
 
@@ -62,7 +59,15 @@ public class GeminiRequest {
         }
     }
 
-    private record InlineData(@SerializedName("mime_type") String mime_type,
-                              @SerializedName("data") String data) {
+    private static class InlineData {
+        @SerializedName("mime_type")
+        private final String mime_type;
+        @SerializedName("data")
+        private final String data;
+
+        public InlineData(String mime_type, String data) {
+            this.mime_type = mime_type;
+            this.data = data;
+        }
     }
 }

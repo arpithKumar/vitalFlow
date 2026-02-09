@@ -15,20 +15,22 @@ import com.vitalflow.app.data.repository.GeminiRepository;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
 import dagger.hilt.android.lifecycle.HiltViewModel;
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.core.Single;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 
 @HiltViewModel
 public class ReportViewModel extends ViewModel {
 
     private final AppDao appDao;
     private final GeminiRepository geminiRepository;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final CompositeDisposable disposables = new CompositeDisposable();
 
     private final MutableLiveData<Report> reportState = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
@@ -58,47 +60,75 @@ public class ReportViewModel extends ViewModel {
                 ? FirebaseAuth.getInstance().getCurrentUser().getDisplayName()
                 : "VitalFlow User";
 
-        executor.execute(() -> {
-            try {
-                // 1. GATHER ALL DATA
-                List<DailyHealth> last30Days = appDao.getLast30DaysSync();
-                List<PeriodLog> recentCycles = appDao.getLast3CyclesSync();
+        // 3. RX ZIP: Fetch 4 sources in Parallel
+        Single<List<DailyHealth>> healthSource = appDao.getLast30DaysSync().subscribeOn(Schedulers.io());
+        Single<List<PeriodLog>> cycleSource = appDao.getLast3CyclesSync().subscribeOn(Schedulers.io());
+        Single<List<Medication>> medSource = appDao.getAllMedicationsSync().subscribeOn(Schedulers.io());
 
-                // Fetch Vitals (Sort by newest) & Limit to last 10 for concise AI context
-                List<Vital> allVitals = appDao.getAllVitalsSync();
-                List<Vital> recentVitals = allVitals.stream()
+        // Fetch Vitals & Sort/Limit in background
+        Single<List<Vital>> vitalSource = appDao.getAllVitalsSync()
+                .subscribeOn(Schedulers.io())
+                .map(list -> list.stream()
                         .sorted((v1, v2) -> Long.compare(v2.getTimestamp(), v1.getTimestamp()))
                         .limit(10)
-                        .collect(Collectors.toList());
+                        .collect(Collectors.toList()));
 
-                List<Medication> medications = appDao.getAllMedicationsSync();
+        disposables.add(
+                Single.zip(healthSource, cycleSource, medSource, vitalSource,
+                                (health, cycles, meds, vitals) -> {
+                                    // Create container object to pass to next step
+                                    return new RawData(health, cycles, meds, vitals);
+                                })
+                        .flatMap(data -> {
+                            // 4. Generate AI Prompt (Still on Background Thread)
+                            String prompt = buildDoctorPrompt(userName, data.health, data.cycles, data.vitals, data.meds);
 
-                // 2. BUILD AI PROMPT
-                String prompt = buildDoctorPrompt(userName, last30Days, recentCycles, recentVitals, medications);
+                            // 5. Wrap Gemini Callback in RxJava Single
+                            return Single.<Report>create(emitter -> {
+                                geminiRepository.sendMessage(prompt, null, new GeminiRepository.GeminiCallback() {
+                                    @Override
+                                    public void onSuccess(String aiSummary) {
+                                        Report report = new Report(userName, data.cycles, data.health, data.vitals, data.meds, aiSummary);
+                                        report.regularityScore = calculateRegularity(data.cycles);
+                                        emitter.onSuccess(report);
+                                    }
 
-                // 3. ASK GEMINI
-                geminiRepository.sendMessage(prompt, null, new GeminiRepository.GeminiCallback() {
-                    @Override
-                    public void onSuccess(String aiSummary) {
-                        // 4. Create Final Report Object
-                        Report data = new Report(userName, recentCycles, last30Days, recentVitals, medications, aiSummary);
-                        data.regularityScore = calculateRegularity(recentCycles);
+                                    @Override
+                                    public void onError(Throwable t) {
+                                        // Fallback report without AI summary if network fails
+                                        Report report = new Report(userName, data.cycles, data.health, data.vitals, data.meds, "AI Insights unavailable (Offline).");
+                                        report.regularityScore = calculateRegularity(data.cycles);
+                                        emitter.onSuccess(report);
+                                    }
+                                });
+                            });
+                        })
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(
+                                report -> {
+                                    reportState.setValue(report);
+                                    isLoading.setValue(false);
+                                },
+                                throwable -> {
+                                    errorState.setValue("Failed to generate report: " + throwable.getMessage());
+                                    isLoading.setValue(false);
+                                }
+                        )
+        );
+    }
 
-                        reportState.postValue(data);
-                        isLoading.postValue(false);
-                    }
+    private static class RawData {
+        List<DailyHealth> health;
+        List<PeriodLog> cycles;
+        List<Medication> meds;
+        List<Vital> vitals;
 
-                    @Override
-                    public void onError(Throwable t) {
-                        errorState.postValue("AI Generation Failed: " + t.getMessage());
-                        isLoading.postValue(false);
-                    }
-                });
-            } catch (Exception e) {
-                errorState.postValue("Data Error: " + e.getMessage());
-                isLoading.postValue(false);
-            }
-        });
+        RawData(List<DailyHealth> h, List<PeriodLog> c, List<Medication> m, List<Vital> v) {
+            this.health = h;
+            this.cycles = c;
+            this.meds = m;
+            this.vitals = v;
+        }
     }
 
     private String buildDoctorPrompt(String name, List<DailyHealth> stats, List<PeriodLog> cycles, List<Vital> vitals, List<Medication> meds) {
@@ -181,5 +211,11 @@ public class ReportViewModel extends ViewModel {
         if (variation <= 7) return "Regular (Avg " + avg + " days)";
         if (variation <= 10) return "Mildly Irregular";
         return "Irregular (Var " + variation + " days)";
+    }
+
+    @Override
+    protected void onCleared() {
+        super.onCleared();
+        disposables.clear();
     }
 }

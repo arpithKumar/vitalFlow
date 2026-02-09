@@ -2,7 +2,10 @@ package com.vitalflow.app.utils;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
@@ -10,6 +13,7 @@ import androidx.work.ExistingPeriodicWorkPolicy;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 
+import com.vitalflow.app.MainActivity;
 import com.vitalflow.app.R;
 
 import java.util.concurrent.TimeUnit;
@@ -34,6 +38,7 @@ public class NotificationHelper {
     public static void createNotificationChannel(Context context) {
         NotificationManager notificationManager = context.getSystemService(NotificationManager.class);
         if (notificationManager == null) return;
+
         NotificationChannel medChannel = new NotificationChannel(
                 CHANNEL_ID_MEDS, "Medication Alerts", NotificationManager.IMPORTANCE_HIGH);
         medChannel.setDescription("Reminders to take medications and refill stock");
@@ -43,6 +48,12 @@ public class NotificationHelper {
                 CHANNEL_ID_DOWNLOADS, "Downloads & Reports", NotificationManager.IMPORTANCE_LOW);
         downloadChannel.setDescription("Progress status for PDF reports");
         notificationManager.createNotificationChannel(downloadChannel);
+    }
+
+    private static PendingIntent getOpenAppIntent(Context context) {
+        Intent intent = new Intent(context, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     // --- PDF NOTIFICATIONS ---
@@ -63,8 +74,22 @@ public class NotificationHelper {
         }
     }
 
-    public static void showDownloadComplete(Context context) {
+    public static void showDownloadComplete(Context context, Uri fileUri) {
+        if (fileUri == null) return;
+
         try {
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(fileUri, "application/pdf");
+            intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+
+            // 3. PendingIntent
+            PendingIntent pendingIntent = PendingIntent.getActivity(
+                    context,
+                    0,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+
             NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID_DOWNLOADS)
                     .setSmallIcon(android.R.drawable.stat_sys_download_done) // Success Icon
                     .setContentTitle("Report Downloaded")
@@ -72,7 +97,8 @@ public class NotificationHelper {
                     .setPriority(NotificationCompat.PRIORITY_HIGH) // Make it pop up now
                     .setOngoing(false) // User can swipe away now
                     .setProgress(0, 0, false) // Remove progress bar
-                    .setAutoCancel(true);
+                    .setAutoCancel(true)
+                    .setContentIntent(pendingIntent);
 
             // Notify with SAME ID to update the existing notification
             NotificationManagerCompat.from(context).notify(DOWNLOAD_NOTIF_ID, builder.build());
@@ -88,7 +114,8 @@ public class NotificationHelper {
                     .setContentTitle("Refill Reminder: " + medName)
                     .setContentText("Only " + count + " pills remaining. Time to refill!")
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
-                    .setAutoCancel(true);
+                    .setAutoCancel(true)
+                    .setContentIntent(getOpenAppIntent(context));
 
             NotificationManagerCompat.from(context).notify(medName.hashCode(), builder.build());
         } catch (SecurityException e) {
@@ -103,11 +130,20 @@ public class NotificationHelper {
                     .setContentText("Take " + medName + " (" + time + ")")
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setCategory(NotificationCompat.CATEGORY_REMINDER)
-                    .setAutoCancel(true);
+                    .setAutoCancel(true)
+                    .setContentIntent(getOpenAppIntent(context));
 
             int uniqueId = (medName + time).hashCode();
             NotificationManagerCompat.from(context).notify(uniqueId, builder.build());
         } catch (SecurityException e) {
         }
     }
+
+    public static void triggerImmediateMedicationCheck(Context context) {
+        androidx.work.OneTimeWorkRequest checkRequest =
+                new androidx.work.OneTimeWorkRequest.Builder(MedicationWorker.class)
+                        .build();
+        WorkManager.getInstance(context).enqueue(checkRequest);
+    }
+
 }

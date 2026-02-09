@@ -1,6 +1,7 @@
 package com.vitalflow.app.utils;
 
 import android.content.Context;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.work.Worker;
@@ -41,8 +42,16 @@ public class MedicationWorker extends Worker {
         WorkerEntryPoint hiltEntryPoint = EntryPointAccessors.fromApplication(context, WorkerEntryPoint.class);
         AppDao appDao = hiltEntryPoint.getAppDao();
 
-        // 2. Fetch Data
-        List<Medication> meds = appDao.getAllMedicationsSync();
+        // 2. Fetch Data (RxJava Fix)
+        List<Medication> meds;
+        try {
+            // FIX: Use blockingGet() to unwrap the Single<List<Medication>>
+            meds = appDao.getAllMedicationsSync().blockingGet();
+        } catch (Exception e) {
+            Log.e("MedWorker", "Failed to fetch meds", e);
+            return Result.failure();
+        }
+
         if (meds == null || meds.isEmpty()) return Result.success();
 
         // 3. Check Logic
@@ -53,8 +62,7 @@ public class MedicationWorker extends Worker {
 
     private void checkMedications(Context context, List<Medication> meds) {
         String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
-        Calendar now = Calendar.getInstance();
-        long nowMillis = now.getTimeInMillis();
+        long nowMillis = System.currentTimeMillis();
 
         for (Medication m : meds) {
             // A. Check Expiry
@@ -73,9 +81,14 @@ public class MedicationWorker extends Worker {
                 Date startTime = sdfTime.parse(m.getTime());
 
                 if (startTime != null) {
+                    Calendar startCal = Calendar.getInstance();
+                    startCal.setTime(startTime);
+
                     Calendar target = Calendar.getInstance();
-                    target.set(Calendar.HOUR_OF_DAY, startTime.getHours());
-                    target.set(Calendar.MINUTE, startTime.getMinutes());
+                    target.setTimeInMillis(nowMillis); // Base on current day
+
+                    target.set(Calendar.HOUR_OF_DAY, startCal.get(Calendar.HOUR_OF_DAY));
+                    target.set(Calendar.MINUTE, startCal.get(Calendar.MINUTE));
                     target.set(Calendar.SECOND, 0);
 
                     // Add 6 hours for every dose already taken
@@ -91,7 +104,7 @@ public class MedicationWorker extends Worker {
                     }
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                Log.e("MedWorker", "Date parsing error", e);
             }
         }
     }
