@@ -13,11 +13,11 @@ import android.view.animation.DecelerateInterpolator;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.NavController;
@@ -32,8 +32,10 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.UserProfileChangeRequest;
 import com.vitalflow.app.R;
+import com.vitalflow.app.data.dao.AppDao;
 import com.vitalflow.app.data.repository.SyncRepository;
 import com.vitalflow.app.databinding.FragmentProfileBinding;
+import com.vitalflow.app.utils.DataExportHelper;
 import com.vitalflow.app.utils.NotificationHelper;
 import com.vitalflow.app.workers.SyncWorker;
 
@@ -56,6 +58,9 @@ public class ProfileFragment extends Fragment {
     @Inject
     SyncRepository syncRepository;
 
+    @Inject
+    AppDao appDao;
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -72,16 +77,16 @@ public class ProfileFragment extends Fragment {
 
         // 2. Setup Animations (Cascade Effect for a premium feel)
         animateEntry(binding.cardProfile, 0);
-        animateEntry(binding.cardPro, 50);
-        animateEntry(binding.lblCloud, 100);
-        animateEntry(binding.cardSync, 150);
+//        animateEntry(binding.cardPro, 50);
+        animateEntry(binding.lblCloud, 50);
+        animateEntry(binding.cardSync, 100);
 
-        animateEntry(binding.lblAi, 200);
-        animateEntry(binding.cardGeminiConfig, 250);
+        animateEntry(binding.lblAi, 150);
+        animateEntry(binding.cardGeminiConfig, 200);
 
-        animateEntry(binding.lblPref, 300);
-        animateEntry(binding.cardPrefs, 350);
-        animateEntry(binding.btnLogout, 400);
+        animateEntry(binding.lblPref, 250);
+        animateEntry(binding.cardPrefs, 300);
+        animateEntry(binding.btnLogout, 350);
 
 
         // 3. Back Button
@@ -152,6 +157,20 @@ public class ProfileFragment extends Fragment {
             binding.btnProAction.setText("UPGRADE");
             binding.btnProAction.setEnabled(true);
         }
+
+        binding.cardExport.setVisibility(View.VISIBLE);
+
+        ImageView arrowIcon = binding.imgExportArrow;
+
+        if (isPro) {
+            binding.cardExport.setAlpha(1.0f);
+            if (arrowIcon != null) arrowIcon.setImageResource(R.drawable.ic_chevron_right);
+            binding.cardExport.setOnClickListener(v -> DataExportHelper.exportData(requireContext(), appDao));
+        } else {
+            binding.cardExport.setAlpha(0.6f);
+            if (arrowIcon != null) arrowIcon.setImageResource(R.drawable.ic_lock);
+            binding.cardExport.setOnClickListener(v -> showUpgradeDialog());
+        }
     }
 
     private void handleProClick() {
@@ -163,23 +182,30 @@ public class ProfileFragment extends Fragment {
     }
 
     private void showUpgradeDialog() {
+        String[] features = {
+                "📊  Export Data to Excel (Doctor Ready)",
+                "☁️  Secure Cloud Backup & Sync",
+                "🤖  Advanced AI Health Insights",
+                "📈  Unlimited History Trends",
+                "🚫  Ad-Free Experience"
+        };
+
         new MaterialAlertDialogBuilder(requireContext())
-                .setTitle("Get VitalFlow Pro")
-                .setMessage("Unlock unlimited history, cloud backup, and advanced health charts for just $4.99/mo.")
-                .setIcon(R.drawable.ic_crown)
-                .setPositiveButton("Subscribe Now", (dialog, which) -> {
+                .setTitle("Unlock VitalFlow Premium 👑")
+                .setItems(features, null) // Display features as a clean list
+                .setPositiveButton("Subscribe - $4.99/mo", (dialog, which) -> {
                     // MOCK PURCHASE SUCCESS
                     prefs.edit().putBoolean("is_pro_member", true).apply();
+
+                    // Refresh UI to unlock features immediately
                     updateProCardUI();
 
-                    // Celebrate Animation using the Sync Lottie view momentarily
+                    // Celebration Animation
                     binding.lottieSync.playAnimation();
                     Toast.makeText(getContext(), "Welcome to Pro Club!", Toast.LENGTH_LONG).show();
-
-                    // Stop celebration after 2 seconds
                     new Handler(Looper.getMainLooper()).postDelayed(() -> binding.lottieSync.cancelAnimation(), 2000);
                 })
-                .setNegativeButton("Maybe Later", null)
+                .setNegativeButton("Maybe Later", (dialog, which) -> dialog.dismiss())
                 .show();
     }
 
@@ -375,12 +401,12 @@ public class ProfileFragment extends Fragment {
     // ------------------------------------------------------------------------
 
     private void setupPreferences() {
-        // Dark Mode
-        binding.switchDarkMode.setChecked(prefs.getBoolean("dark_mode", false));
-        binding.switchDarkMode.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            prefs.edit().putBoolean("dark_mode", isChecked).apply();
-            AppCompatDelegate.setDefaultNightMode(isChecked ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
-        });
+//        // Dark Mode
+//        binding.switchDarkMode.setChecked(prefs.getBoolean("dark_mode", false));
+//        binding.switchDarkMode.setOnCheckedChangeListener((buttonView, isChecked) -> {
+//            prefs.edit().putBoolean("dark_mode", isChecked).apply();
+//            AppCompatDelegate.setDefaultNightMode(isChecked ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
+//        });
 
         // 2. Notifications
         binding.switchNotifications.setChecked(prefs.getBoolean("notifications", true));

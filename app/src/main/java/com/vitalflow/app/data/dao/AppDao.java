@@ -100,4 +100,8 @@ public interface AppDao {
 
     @Query("SELECT * FROM daily_health WHERE date = :date")
     Single<List<DailyHealth>> getDailyHealthListSync(String date);
+
+    // --- FOR SYNC ---
+    @Query("SELECT * FROM food_logs")
+    Single<List<FoodLog>> getAllFoodLogsSync();
 }

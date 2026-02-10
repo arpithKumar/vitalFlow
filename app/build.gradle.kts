@@ -17,11 +17,13 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        multiDexEnabled = true
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -107,6 +109,10 @@ dependencies {
     implementation(libs.androidx.room.rxjava3)
 
     implementation(libs.androidx.biometric)
+
+    // Apache POI
+    implementation(libs.poi)
+    implementation(libs.poi.ooxml)
 
 //    debugImplementation(libs.leakcanary.android)
 }

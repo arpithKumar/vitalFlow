@@ -4,9 +4,13 @@
       <w>adbe</w>
       <w>dfdb</w>
       <w>dott</w>
+      <w>fileprovider</w>
       <w>healthdata</w>
       <w>heartrate</w>
+      <w>officedocument</w>
+      <w>openxmlformats</w>
       <w>pred</w>
+      <w>spreadsheetml</w>
       <w>stepcounter</w>
       <w>stepdetector</w>
     </words>

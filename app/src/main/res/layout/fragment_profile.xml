@@ -318,6 +318,66 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardExport"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="24dp"
+                android:layout_marginTop="12dp"
+                android:visibility="gone"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:layout_constraintTop_toBottomOf="@id/cardSync">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:padding="16dp">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:padding="4dp"
+                        android:src="@drawable/ic_download"
+                        app:tint="#2E7D32"
+                        android:background="@drawable/circle_shape"
+                        android:backgroundTint="#E8F5E9" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Export My Data"
+                            android:textColor="#37474F"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Download CSV / Excel"
+                            android:textColor="#78909C"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <ImageView
+                        android:id="@+id/imgExportArrow"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_chevron_right"
+                        app:tint="#B0BEC5" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <TextView
                 android:id="@+id/lblAi"
                 android:layout_width="wrap_content"
@@ -328,7 +388,7 @@
                 android:textColor="#00897B"
                 android:textStyle="bold"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/cardSync" />
+                app:layout_constraintTop_toBottomOf="@id/cardExport" />
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardGeminiConfig"
@@ -414,35 +474,35 @@
                     android:orientation="vertical"
                     android:padding="8dp">
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:padding="12dp">
+                    <!--                    <LinearLayout-->
+                    <!--                        android:layout_width="match_parent"-->
+                    <!--                        android:layout_height="wrap_content"-->
+                    <!--                        android:gravity="center_vertical"-->
+                    <!--                        android:padding="12dp">-->
 
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:background="@drawable/circle_shape"
-                            android:backgroundTint="#ECEFF1"
-                            android:padding="6dp"
-                            android:src="@drawable/ic_moon"
-                            app:tint="#546E7A" />
+                    <!--                        <ImageView-->
+                    <!--                            android:layout_width="24dp"-->
+                    <!--                            android:layout_height="24dp"-->
+                    <!--                            android:background="@drawable/circle_shape"-->
+                    <!--                            android:backgroundTint="#ECEFF1"-->
+                    <!--                            android:padding="6dp"-->
+                    <!--                            android:src="@drawable/ic_moon"-->
+                    <!--                            app:tint="#546E7A" />-->
 
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="16dp"
-                            android:layout_weight="1"
-                            android:text="Dark Mode"
-                            android:textColor="#37474F"
-                            android:textSize="15sp" />
+                    <!--                        <TextView-->
+                    <!--                            android:layout_width="0dp"-->
+                    <!--                            android:layout_height="wrap_content"-->
+                    <!--                            android:layout_marginStart="16dp"-->
+                    <!--                            android:layout_weight="1"-->
+                    <!--                            android:text="Dark Mode"-->
+                    <!--                            android:textColor="#37474F"-->
+                    <!--                            android:textSize="15sp" />-->
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switchDarkMode"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content" />
-                    </LinearLayout>
+                    <!--                        <com.google.android.material.switchmaterial.SwitchMaterial-->
+                    <!--                            android:id="@+id/switchDarkMode"-->
+                    <!--                            android:layout_width="wrap_content"-->
+                    <!--                            android:layout_height="wrap_content" />-->
+                    <!--                    </LinearLayout>-->
 
                     <View
                         android:layout_width="match_parent"

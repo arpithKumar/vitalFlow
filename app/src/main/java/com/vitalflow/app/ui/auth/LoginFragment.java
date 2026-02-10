@@ -37,10 +37,13 @@ import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.GoogleAuthProvider;
 import com.vitalflow.app.R;
+import com.vitalflow.app.data.repository.SyncRepository;
 import com.vitalflow.app.databinding.FragmentLoginBinding;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import javax.inject.Inject;
 
 import dagger.hilt.android.AndroidEntryPoint;
 
@@ -52,6 +55,9 @@ public class LoginFragment extends Fragment {
     private boolean isLoginMode = true; // True = Login, False = SignUp
     private CredentialManager credentialManager;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+
+    @Inject
+    SyncRepository syncRepository;
 
     @Nullable
     @Override
@@ -309,8 +315,31 @@ public class LoginFragment extends Fragment {
     }
 
     private void navigateToHome() {
-        NavController navController = Navigation.findNavController(requireView());
-        navController.navigate(R.id.action_login_to_home);
+
+        setLoading(true);
+        binding.btnAuthAction.setText("Restoring Data...");
+
+        new Thread(() -> {
+            boolean success = syncRepository.syncDataBlocking();
+
+            if (isAdded() && getActivity() != null) {
+                requireActivity().runOnUiThread(() -> {
+                    NavController navController = Navigation.findNavController(requireView());
+                    try {
+                        navController.navigate(R.id.action_login_to_home);
+                    } catch (Exception e) {
+                        // Fallback in case action ID is missing in graph
+                        navController.navigate(R.id.homeFragment);
+                    }
+
+                    if (success) {
+                        Toast.makeText(getContext(), "Account Synced Successfully ✅", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(getContext(), "Welcome Back! (Offline Mode)", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        }).start();
     }
 
     private void setLoading(boolean isLoading) {
@@ -319,5 +348,6 @@ public class LoginFragment extends Fragment {
         binding.btnGoogle.setEnabled(!isLoading);
         binding.etEmail.setEnabled(!isLoading);
         binding.etPassword.setEnabled(!isLoading);
+        binding.toggleAuthMode.setEnabled(!isLoading);
     }
 }
