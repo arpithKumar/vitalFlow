@@ -2,6 +2,7 @@ package com.vitalflow.app.ui.vitals;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -13,18 +14,24 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
+import android.bluetooth.le.ScanSettings;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.ParcelUuid;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
@@ -39,8 +46,11 @@ import com.vitalflow.app.data.entity.Vital;
 import com.vitalflow.app.databinding.LayoutAddVitalSheetBinding;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 public class AddVitalBottomSheet extends BottomSheetDialogFragment {
@@ -57,10 +67,36 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     private static final UUID SERVICE_HR = UUID.fromString("0000180d-0000-1000-8000-00805f9b34fb");
-    private static final UUID CHAR_HR = UUID.fromString("00002a37-0000-1000-8000-00805f9b34fb");
     private static final UUID SERVICE_SPO2 = UUID.fromString("00001822-0000-1000-8000-00805f9b34fb");
+    private static final UUID SERVICE_BP = UUID.fromString("00001810-0000-1000-8000-00805f9b34fb"); // Blood Pressure
+    private static final UUID SERVICE_WEIGHT = UUID.fromString("0000181d-0000-1000-8000-00805f9b34fb"); // Weight Scale
+
+    private static final UUID CHAR_HR = UUID.fromString("00002a37-0000-1000-8000-00805f9b34fb");
     private static final UUID CHAR_SPO2 = UUID.fromString("00002a5f-0000-1000-8000-00805f9b34fb");
     private static final UUID CONFIG_DESCRIPTOR = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
+
+    // --- LAUNCHERS (The modern way to handle results) ---
+    private final ActivityResultLauncher<String[]> permissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
+                boolean allGranted = true;
+                for (Map.Entry<String, Boolean> entry : result.entrySet()) {
+                    if (!entry.getValue()) allGranted = false;
+                }
+                if (allGranted) {
+                    startBleScan(); // Retry scan after permission grant
+                } else {
+                    Toast.makeText(getContext(), "Permissions required to scan", Toast.LENGTH_SHORT).show();
+                }
+            });
+
+    private final ActivityResultLauncher<Intent> enableBtLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == Activity.RESULT_OK) {
+                    startBleScan(); // Retry scan after BT enabled
+                } else {
+                    Toast.makeText(getContext(), "Bluetooth is required", Toast.LENGTH_SHORT).show();
+                }
+            });
 
     public interface OnVitalAddedListener {
         void onVitalAdded(Vital vital);
@@ -180,6 +216,8 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
 
     // --- BLUETOOTH LOGIC (Copied & Adapted) ---
     private boolean hasPermissions() {
+        Context context = getContext();
+        if (context == null) return false;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             return ContextCompat.checkSelfPermission(getContext(), Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED &&
                     ContextCompat.checkSelfPermission(getContext(), Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED;
@@ -190,9 +228,14 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
 
     private void requestBlePermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            requestPermissions(new String[]{Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT}, 101);
+            permissionLauncher.launch(new String[]{
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.BLUETOOTH_CONNECT
+            });
         } else {
-            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 101);
+            permissionLauncher.launch(new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION
+            });
         }
     }
 
@@ -206,34 +249,72 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
         BluetoothManager bm = (BluetoothManager) requireContext().getSystemService(Context.BLUETOOTH_SERVICE);
         bluetoothAdapter = bm.getAdapter();
         if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
-            Toast.makeText(getContext(), "Enable Bluetooth", Toast.LENGTH_SHORT).show();
+            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            enableBtLauncher.launch(enableBtIntent);
             return;
         }
 
         bleScanner = bluetoothAdapter.getBluetoothLeScanner();
+        if (bleScanner == null) {
+            Toast.makeText(getContext(),
+                            "Bluetooth Error: Scanner not available",
+                            Toast.LENGTH_SHORT)
+                    .show();
+            return;
+        }
         btDeviceAdapter = new BtDeviceAdapter(this::connectGatt);
 
         binding.rvBtDevices.setLayoutManager(new LinearLayoutManager(getContext()));
         binding.rvBtDevices.setAdapter(btDeviceAdapter);
 
+        List<ScanFilter> filters = new ArrayList<>();
+        filters.add(new ScanFilter.Builder().setServiceUuid(new ParcelUuid(SERVICE_HR)).build());
+        filters.add(new ScanFilter.Builder().setServiceUuid(new ParcelUuid(SERVICE_SPO2)).build());
+        filters.add(new ScanFilter.Builder().setServiceUuid(new ParcelUuid(SERVICE_BP)).build());
+        filters.add(new ScanFilter.Builder().setServiceUuid(new ParcelUuid(SERVICE_WEIGHT)).build());
+
+        ScanSettings settings = new ScanSettings.Builder()
+                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                .build();
+
         isScanning = true;
-        bleScanner.startScan(leScanCallback);
+        bleScanner.startScan(filters, settings, leScanCallback);
 
         handler.postDelayed(this::stopScan, 15000);
     }
 
     @SuppressLint("MissingPermission")
     private void stopScan() {
-        if (isScanning && bleScanner != null && hasPermissions()) {
-            isScanning = false;
-            bleScanner.stopScan(leScanCallback);
+        if (isScanning && bleScanner != null && bluetoothAdapter != null
+                && bluetoothAdapter.isEnabled() && hasPermissions()) {
+            try {
+                bleScanner.stopScan(leScanCallback);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        isScanning = false;
+
+        // Hide loading spinner if visible
+        if (binding != null && binding.layoutBtScanning.getVisibility() == View.VISIBLE) {
+            // Optional: You can indicate scan finished
         }
     }
 
     private final ScanCallback leScanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
-            if (btDeviceAdapter != null) btDeviceAdapter.addDevice(result.getDevice());
+            if (btDeviceAdapter != null && result.getDevice() != null) {
+                btDeviceAdapter.addDevice(result.getDevice());
+            }
+        }
+
+        @Override
+        public void onScanFailed(int errorCode) {
+            super.onScanFailed(errorCode);
+            if (binding != null) {
+                handler.post(() -> Toast.makeText(getContext(), "Scan failed: Error " + errorCode, Toast.LENGTH_SHORT).show());
+            }
         }
     };
 
@@ -242,14 +323,21 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
         if (!hasPermissions()) return;
         stopScan();
 
-        binding.tvBtStatus.setText("Connecting to " + device.getName() + "...");
+        binding.tvBtStatus.setText("Connecting to " + (device.getName() != null ? device.getName() : "Device") + "...");
 
         gatt = device.connectGatt(getContext(), false, new BluetoothGattCallback() {
             @Override
             public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
-                    handler.post(() -> binding.tvBtStatus.setText("Connected! Discovering..."));
+                    handler.post(() -> {
+                        if (binding != null)
+                            binding.tvBtStatus.setText("Connected! Discovering Services...");
+                    });
                     if (hasPermissions()) gatt.discoverServices();
+                } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                    handler.post(() -> {
+                        if (binding != null) binding.tvBtStatus.setText("Disconnected. Try again.");
+                    });
                 }
             }
 
@@ -283,16 +371,20 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
                     int format = (flag & 0x01) != 0 ? BluetoothGattCharacteristic.FORMAT_UINT16 : BluetoothGattCharacteristic.FORMAT_UINT8;
                     final int hr = c.getIntValue(format, 1);
                     handler.post(() -> {
-                        binding.etValue1.setText(String.valueOf(hr));
-                        binding.chipGroupType.check(R.id.chipHeartRate);
-                        binding.tvBtStatus.setText("Live Data: " + hr + " bpm");
+                        if (binding != null) {
+                            binding.etValue1.setText(String.valueOf(hr));
+                            binding.chipGroupType.check(R.id.chipHeartRate);
+                            binding.tvBtStatus.setText("Live Data: " + hr + " bpm");
+                        }
                     });
                 } else if (CHAR_SPO2.equals(c.getUuid())) {
                     final int spo2 = c.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, 1);
                     handler.post(() -> {
-                        binding.etValue1.setText(String.valueOf(spo2));
-                        binding.chipGroupType.check(R.id.chipOxygen);
-                        binding.tvBtStatus.setText("Live Data: " + spo2 + "% SpO2");
+                        if (binding != null) {
+                            binding.etValue1.setText(String.valueOf(spo2));
+                            binding.chipGroupType.check(R.id.chipOxygen);
+                            binding.tvBtStatus.setText("Live Data: " + spo2 + "% SpO2");
+                        }
                     });
                 }
             }
@@ -302,10 +394,12 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        stopScan();
         if (gatt != null && hasPermissions()) {
             try {
                 if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
                     gatt.disconnect();
+                    gatt.close();
                 }
             } catch (Exception ignored) {
             }

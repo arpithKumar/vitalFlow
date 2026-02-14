@@ -4,12 +4,14 @@ import android.view.LayoutInflater;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.vitalflow.app.R;
 import com.vitalflow.app.data.entity.Vital;
 import com.vitalflow.app.databinding.ItemVitalBinding;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class VitalsAdapter extends RecyclerView.Adapter<VitalsAdapter.VitalViewHolder> {
@@ -22,7 +24,41 @@ public class VitalsAdapter extends RecyclerView.Adapter<VitalsAdapter.VitalViewH
 
     public void updateData(List<Vital> newList) {
         this.list = newList;
-        notifyDataSetChanged();
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+            @Override
+            public int getOldListSize() {
+                return list.size();
+            }
+
+            @Override
+            public int getNewListSize() {
+                return newList.size();
+            }
+
+            @Override
+            public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+                // Assuming timestamp + type creates a unique ID for Vitals
+                Vital oldItem = list.get(oldItemPosition);
+                Vital newItem = newList.get(newItemPosition);
+                return oldItem.getTimestamp() == newItem.getTimestamp() &&
+                        oldItem.getType().equals(newItem.getType());
+            }
+
+            @Override
+            public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+                Vital oldItem = list.get(oldItemPosition);
+                Vital newItem = newList.get(newItemPosition);
+
+                // Compare values
+                boolean value2Match = (oldItem.getValue2() == null && newItem.getValue2() == null) ||
+                        (oldItem.getValue2() != null && oldItem.getValue2().equals(newItem.getValue2()));
+
+                return oldItem.getValue1().equals(newItem.getValue1()) && value2Match;
+            }
+        });
+
+        this.list = new ArrayList<>(newList);
+        diffResult.dispatchUpdatesTo(this);
     }
 
     @NonNull
@@ -61,10 +97,10 @@ public class VitalsAdapter extends RecyclerView.Adapter<VitalsAdapter.VitalViewH
 
     @Override
     public int getItemCount() {
-        return list != null ? list.size() : 0;
+        return list.size();
     }
 
-    static class VitalViewHolder extends RecyclerView.ViewHolder {
+    public static class VitalViewHolder extends RecyclerView.ViewHolder {
         final ItemVitalBinding binding;
 
         public VitalViewHolder(ItemVitalBinding binding) {

@@ -15,7 +15,6 @@ import com.vitalflow.app.R;
 import com.vitalflow.app.databinding.BottomSheetPeriodLogBinding;
 
 import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -69,6 +68,7 @@ public class BottomSheetPeriodLog extends BottomSheetDialogFragment {
         super.onViewCreated(view, savedInstanceState);
 
         setupHeader();
+        binding.chipGroupFlow.check(R.id.chipMedium);
 
         binding.btnSaveLog.setOnClickListener(v -> saveLog());
     }
@@ -85,25 +85,54 @@ public class BottomSheetPeriodLog extends BottomSheetDialogFragment {
     }
 
     private void saveLog() {
+
+        StringBuilder symptomsBuilder = new StringBuilder();
+        collectChips(binding.groupPhysical, symptomsBuilder);
+        collectChips(binding.groupMood, symptomsBuilder);
+        collectChips(binding.groupDigestive, symptomsBuilder);
+        collectChips(binding.groupPCOS, symptomsBuilder);
+
         // 1. Get Flow
         int selectedFlowId = binding.chipGroupFlow.getCheckedChipId();
-        boolean isFlow = (selectedFlowId != R.id.chipNone);
-        int intensity = 0;
-        if (selectedFlowId == R.id.chipLight) intensity = 1;
-        if (selectedFlowId == R.id.chipMedium) intensity = 2;
-        if (selectedFlowId == R.id.chipHeavy) intensity = 3;
 
         // 2. Get Symptoms
-        StringBuilder symptoms = new StringBuilder();
-        collectChips(binding.groupPhysical, symptoms);
-        collectChips(binding.groupMood, symptoms);
-        collectChips(binding.groupDigestive, symptoms);
-        collectChips(binding.groupPCOS, symptoms);
+        String symptoms = symptomsBuilder.toString();
 
-        if (symptoms.length() == 0) symptoms.append("None");
+        boolean hasSymptoms = symptomsBuilder.length() > 0;
+        if (symptoms.isEmpty()) symptoms = "None";
+
+        boolean isFlow;
+        int intensity;
+
+        if (selectedFlowId == View.NO_ID) {
+            // CASE A: User selected NOTHING in the flow section.
+
+            if (hasSymptoms) {
+                // If they selected symptoms (e.g., Cramps) but NO flow,
+                // assume it's just a symptom log (PMS).
+                isFlow = false;
+                intensity = 0;
+            } else {
+                // If they selected NOTHING (No symptoms, No flow chips),
+                // assume they just want to mark the date as a PERIOD.
+                // Default to Medium intensity.
+                isFlow = true;
+                intensity = 2;
+            }
+        } else if (selectedFlowId == R.id.chipNone) {
+            // CASE B: User explicitly clicked "No Flow"
+            isFlow = false;
+            intensity = 0;
+        } else {
+            // CASE C: User selected a specific intensity
+            isFlow = true;
+            if (selectedFlowId == R.id.chipLight) intensity = 1;
+            else if (selectedFlowId == R.id.chipMedium) intensity = 2;
+            else intensity = 3; // Heavy
+        }
 
         if (listener != null) {
-            listener.onSaveLog(dateKeys, isFlow, intensity, symptoms.toString());
+            listener.onSaveLog(dateKeys, isFlow, intensity, symptoms);
         }
         dismiss();
     }
@@ -122,8 +151,9 @@ public class BottomSheetPeriodLog extends BottomSheetDialogFragment {
 
     private String formatDatePretty(String dateKey) {
         try {
-            Date d = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(dateKey);
-            return new SimpleDateFormat("MMM dd", Locale.getDefault()).format(d);
+            return new SimpleDateFormat("MMM dd", Locale.getDefault()).format(
+                    new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(dateKey)
+            );
         } catch (Exception e) {
             return dateKey;
         }

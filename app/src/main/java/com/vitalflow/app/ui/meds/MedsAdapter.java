@@ -7,6 +7,7 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.vitalflow.app.data.entity.Medication;
@@ -33,8 +34,37 @@ public class MedsAdapter extends RecyclerView.Adapter<MedsAdapter.MedViewHolder>
 
     // Database-Driven Update: Just replace the list
     public void updateList(List<Medication> newList) {
-        this.list = newList;
-        notifyDataSetChanged();
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+            @Override
+            public int getOldListSize() {
+                return list.size();
+            }
+
+            @Override
+            public int getNewListSize() {
+                return newList.size();
+            }
+
+            @Override
+            public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+                // Assuming Name is unique. If you have an ID, use med.id instead.
+                return list.get(oldItemPosition).getName().equals(newList.get(newItemPosition).getName());
+            }
+
+            @Override
+            public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+                Medication oldItem = list.get(oldItemPosition);
+                Medication newItem = newList.get(newItemPosition);
+
+                // Check fields that affect the UI
+                return oldItem.getStatus().equals(newItem.getStatus()) &&
+                        oldItem.getPillsLeft() == newItem.getPillsLeft() &&
+                        oldItem.getTimesTakenToday() == newItem.getTimesTakenToday();
+            }
+        });
+
+        this.list = new ArrayList<>(newList);
+        diffResult.dispatchUpdatesTo(this);
     }
 
     public Medication getItem(int position) {
@@ -101,13 +131,9 @@ public class MedsAdapter extends RecyclerView.Adapter<MedsAdapter.MedViewHolder>
             }
         });
 
-        holder.binding.btnSkip.setOnClickListener(v -> {
-            listener.onStatusChange(med, "SKIPPED");
-        });
+        holder.binding.btnSkip.setOnClickListener(v -> listener.onStatusChange(med, "SKIPPED"));
 
-        holder.binding.tvStatus.setOnClickListener(v -> {
-            listener.onStatusChange(med, "PENDING");
-        });
+        holder.binding.tvStatus.setOnClickListener(v -> listener.onStatusChange(med, "PENDING"));
     }
 
     private void updateVisuals(MedViewHolder holder, String status, int taken, int total) {
@@ -164,7 +190,7 @@ public class MedsAdapter extends RecyclerView.Adapter<MedsAdapter.MedViewHolder>
         return list.size();
     }
 
-    static class MedViewHolder extends RecyclerView.ViewHolder {
+    public static class MedViewHolder extends RecyclerView.ViewHolder {
         final ItemMedicationBinding binding;
 
         public MedViewHolder(ItemMedicationBinding binding) {

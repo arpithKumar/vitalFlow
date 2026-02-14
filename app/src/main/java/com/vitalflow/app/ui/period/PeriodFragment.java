@@ -19,6 +19,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.Navigation;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -42,6 +43,8 @@ import com.vitalflow.app.data.entity.Medication;
 import com.vitalflow.app.data.entity.PeriodLog;
 import com.vitalflow.app.data.repository.GeminiRepository;
 import com.vitalflow.app.databinding.FragmentPeriodBinding;
+import com.vitalflow.app.databinding.ItemCalendarDayBinding;
+import com.vitalflow.app.databinding.ItemCycleHistoryBinding;
 import com.vitalflow.app.ui.chatbot.GeminiKeyBottomSheet;
 import com.vitalflow.app.utils.CycleHelper;
 
@@ -102,6 +105,12 @@ public class PeriodFragment extends Fragment {
     private final Handler handler = new Handler();
     private Runnable longPressRunnable;
 
+    private android.widget.PopupWindow currentTooltip;
+    private boolean movedTooFar = false;
+    private float initialTouchX = 0f;
+    private float initialTouchY = 0f;
+    private final Map<String, Integer> cyclePhaseMap = new HashMap<>();
+
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
 
     @Nullable
@@ -128,6 +137,11 @@ public class PeriodFragment extends Fragment {
         binding.recyclerHistory.setLayoutManager(new LinearLayoutManager(getContext()));
         binding.recyclerHistory.setAdapter(historyAdapter);
 
+        binding.btnJumpToday.setOnClickListener(v -> {
+            currentMonth.setTime(new Date()); // Reset to Today
+            updateCalendar();
+        });
+
         loadFlowData();
     }
 
@@ -145,9 +159,20 @@ public class PeriodFragment extends Fragment {
 
             switch (action) {
                 case MotionEvent.ACTION_DOWN:
+                    // Dismiss existing tooltip
+                    if (currentTooltip != null) {
+                        currentTooltip.dismiss();
+                        currentTooltip = null;
+                    }
+
                     isSelectionMode = false;
+                    movedTooFar = false;
                     tempSelectedDates.clear();
                     dragStartPosition = pos;
+
+                    // Save start position
+                    initialTouchX = event.getRawX();
+                    initialTouchY = event.getRawY();
 
                     // Long press
                     final int finalPos = pos;
@@ -162,30 +187,72 @@ public class PeriodFragment extends Fragment {
                             updateSelectionRange(finalPos);
                         }
                     };
-                    handler.postDelayed(longPressRunnable, 500);
-                    return false;
+                    handler.postDelayed(longPressRunnable, 400);
+                    return true;
 
                 case MotionEvent.ACTION_MOVE:
+                    // Check if user moved finger more than 20 pixels (Sloppy Tap Check)
+                    if (!movedTooFar) {
+                        float diffX = Math.abs(event.getRawX() - initialTouchX);
+                        float diffY = Math.abs(event.getRawY() - initialTouchY);
+                        if (diffX > 20 || diffY > 20) {
+                            movedTooFar = true;
+                            handler.removeCallbacks(longPressRunnable); // Cancel Long Press
+                        }
+                    }
+
                     if (isSelectionMode && pos != -1) {
-                        updateSelectionRange(pos);
+                        boolean changed = updateSelectionRange(pos);
+                        if (changed) {
+                            try {
+                                v.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);
+                            } catch (Exception e) {
+                            }
+                        }
                         return true;
                     }
                     return false;
 
                 case MotionEvent.ACTION_UP:
-                case MotionEvent.ACTION_CANCEL:
                     handler.removeCallbacks(longPressRunnable);
                     v.getParent().requestDisallowInterceptTouchEvent(false);
 
-                    // If we were selecting, open the sheet now
-                    if (isSelectionMode && !tempSelectedDates.isEmpty()) {
-                        openBatchLogSheet(new ArrayList<>(tempSelectedDates));
-                        isSelectionMode = false;
-                    }
+                    if (isSelectionMode) {
+                        // WAS SELECTION DRAG -> Open Sheet
+                        if (!tempSelectedDates.isEmpty()) {
+                            openBatchLogSheet(new ArrayList<>(tempSelectedDates));
+                        }
 
-                    // Cleanup visual selection
-                    tempSelectedDates.clear();
-                    adapter.notifyDataSetChanged();
+                        tempSelectedDates.clear();
+
+                        // Only refresh the items that were actually highlighted
+                        for (int i = 0; i < daysInMonth.size(); i++) {
+                            String key = getKey(daysInMonth.get(i));
+                            if (tempSelectedDates.contains(key)) {
+                                adapter.notifyItemChanged(i); // Turn off highlight
+                            }
+                        }
+
+                        isSelectionMode = false;
+
+                    } else if (!movedTooFar) {
+                        // WAS A CLEAN TAP (And not a scroll) -> Show Tooltip
+                        if (pos != -1 && pos < daysInMonth.size()) {
+                            Date date = daysInMonth.get(pos);
+                            Calendar cal = Calendar.getInstance();
+                            cal.setTime(date);
+                            // Only show for current month days
+                            if (cal.get(Calendar.MONTH) == currentMonth.get(Calendar.MONTH)) {
+                                showDateTooltip(child, date);
+                            }
+                        }
+                    }
+                    dragStartPosition = -1;
+                    break;
+                case MotionEvent.ACTION_CANCEL:
+                    handler.removeCallbacks(longPressRunnable);
+                    isSelectionMode = false;
+                    movedTooFar = true;
                     dragStartPosition = -1;
                     break;
             }
@@ -193,8 +260,103 @@ public class PeriodFragment extends Fragment {
         });
     }
 
-    private void updateSelectionRange(int currentPos) {
-        if (dragStartPosition == -1 || currentPos == -1) return;
+    private void showDateTooltip(View anchor, Date date) {
+        if (getContext() == null || anchor == null) return;
+
+        // 1. Inflate Layout
+        View view = LayoutInflater.from(getContext()).inflate(R.layout.layout_calender_tooltip, null);
+
+        TextView tvDate = view.findViewById(R.id.tvTooltipDate);
+        TextView tvStatus = view.findViewById(R.id.tvTooltipStatus);
+        TextView tvDetails = view.findViewById(R.id.tvTooltipDetails);
+        View dot = view.findViewById(R.id.viewStatusDot);
+
+        String key = getKey(date);
+        PeriodLog log = logMap.get(key);
+
+        // 2. Set Data
+        tvDate.setText(new SimpleDateFormat("EEEE, MMM dd", Locale.getDefault()).format(date));
+
+        // Default State
+        String status = "No Data";
+        int color = Color.GRAY;
+        String details = "";
+
+        // Logic Hierarchy: Period > Ovulation > Fertile > Predicted > Empty
+        if (log != null && log.isFlow) {
+            status = "Period";
+            if (log.flowIntensity == 1) {
+                status += " (Light)";
+                color = Color.parseColor("#F8BBD0");
+            } else if (log.flowIntensity == 2) {
+                status += " (Medium)";
+                color = Color.parseColor("#F06292");
+            } else {
+                status += " (Heavy)";
+                color = Color.parseColor("#C2185B");
+            }
+
+            if (log.symptoms != null && !log.symptoms.isEmpty() && !log.symptoms.equals("None")) {
+                details = "Symptoms: " + log.symptoms;
+            }
+        } else if (key.equals(ovulationDateKey)) {
+            status = "Ovulation Day 🥚";
+            color = Color.parseColor("#AB47BC");
+            details = "Peak Fertility. High chance of pregnancy.";
+        } else if (fertileDateKeys.contains(key)) {
+            status = "Fertile Window 🌿";
+            color = Color.parseColor("#E1BEE7");
+            details = "High chance of pregnancy.";
+        } else if (predictedDateKeys.contains(key)) {
+            status = "Predicted Period";
+            color = Color.parseColor("#FFCDD2");
+        } else {
+            // Handle "Just Symptoms" logs (Spotting/Cramps without flow)
+            if (log != null && log.symptoms != null && !log.symptoms.equals("None")) {
+                status = "Symptoms Logged";
+                color = Color.parseColor("#FFCC80"); // Orange
+                details = log.symptoms;
+            } else {
+                status = "Low Chance of Pregnancy";
+                color = Color.parseColor("#CFD8DC");
+            }
+        }
+
+        tvStatus.setText(status);
+        dot.setBackgroundTintList(ColorStateList.valueOf(color));
+
+        if (!details.isEmpty()) {
+            tvDetails.setText(details);
+            tvDetails.setVisibility(View.VISIBLE);
+        } else {
+            tvDetails.setVisibility(View.GONE);
+        }
+
+        // 3. Create Popup
+        currentTooltip = new android.widget.PopupWindow(
+                view,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                true // Focusable (clicking outside dismisses it)
+        );
+
+        currentTooltip.setElevation(20);
+        // Important: Set background to null so touch events outside dismiss it properly
+        currentTooltip.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+
+        // 4. Show it centered above the anchor view
+        view.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        int popupWidth = view.getMeasuredWidth();
+        int popupHeight = view.getMeasuredHeight();
+
+        int xOff = (anchor.getWidth() / 2) - (popupWidth / 2);
+        int yOff = -anchor.getHeight() - popupHeight + 10; // 10px overlap fix for visual connection
+
+        currentTooltip.showAsDropDown(anchor, xOff, yOff);
+    }
+
+    private boolean updateSelectionRange(int currentPos) {
+        if (dragStartPosition == -1 || currentPos == -1) return false;
 
         // 1. Calculate min and max to handle dragging backwards
         int start = Math.min(dragStartPosition, currentPos);
@@ -204,19 +366,36 @@ public class PeriodFragment extends Fragment {
         // (This fixes the "random selection" issue)
         Set<String> newSelection = new HashSet<>();
 
+        int targetMonth = currentMonth.get(Calendar.MONTH);
+
         for (int i = start; i <= end; i++) {
             if (i < daysInMonth.size()) {
                 Date date = daysInMonth.get(i);
-                newSelection.add(getKey(date));
+                Calendar cal = Calendar.getInstance();
+                cal.setTime(date);
+                if (cal.get(Calendar.MONTH) == targetMonth) {
+                    newSelection.add(getKey(date));
+                }
             }
         }
 
         // 3. Only notify changes if selection is different
         if (!newSelection.equals(tempSelectedDates)) {
+            for (int i = 0; i < daysInMonth.size(); i++) {
+                String key = getKey(daysInMonth.get(i));
+                boolean wasSelected = tempSelectedDates.contains(key);
+                boolean isNowSelected = newSelection.contains(key);
+                if (wasSelected != isNowSelected) {
+                    adapter.notifyItemChanged(i);
+                }
+            }
+
+            // 3. Update the source of truth
             tempSelectedDates.clear();
             tempSelectedDates.addAll(newSelection);
-            adapter.notifyDataSetChanged(); // Refresh grid
+            return true;
         }
+        return false;
     }
 
     // --- 2. BATCH BOTTOM SHEET ---
@@ -306,12 +485,14 @@ public class PeriodFragment extends Fragment {
     private void calculatePredictionInternal(List<CycleHistory> history) {
         predictedDateKeys.clear();
         fertileDateKeys.clear();
+        cyclePhaseMap.clear();
         ovulationDateKey = "";
 
         if (history.isEmpty()) return;
 
         CycleHistory lastCycle = history.get(0);
         int avgCycle = CycleHelper.calculateAverageCycleLength(history);
+        int avgPeriod = 5;
 
         Calendar c = Calendar.getInstance();
         c.setTime(lastCycle.startDate);
@@ -321,7 +502,6 @@ public class PeriodFragment extends Fragment {
         Date ovulationDate = CycleHelper.calculateOvulationDate(nextPeriodStart);
         List<Date> fertileWindow = CycleHelper.calculateFertileWindow(ovulationDate);
         ovulationDateKey = this.sdf.format(ovulationDate);
-
         fertileWindow.forEach(fd -> fertileDateKeys.add(sdf.format(fd)));
 
         Calendar predCal = Calendar.getInstance();
@@ -329,6 +509,32 @@ public class PeriodFragment extends Fragment {
         for (int i = 0; i < 5; i++) {
             predictedDateKeys.add(sdf.format(predCal.getTime()));
             predCal.add(Calendar.DAY_OF_YEAR, 1);
+        }
+
+        Calendar phaseCal = Calendar.getInstance();
+        phaseCal.setTime(lastCycle.startDate);
+
+        for (int i = 0; i < 60; i++) {
+            Date d = phaseCal.getTime();
+            String key = sdf.format(d);
+
+            // Determine Phase
+            int phase = 0; // Default
+
+            if (fertileDateKeys.contains(key)) {
+                phase = 2; // Ovulatory / Fertile (Purple)
+            } else if (d.after(lastCycle.startDate) && d.before(fertileWindow.get(0))) {
+                long daysSinceStart = TimeUnit.DAYS.convert(d.getTime() - lastCycle.startDate.getTime(), TimeUnit.MILLISECONDS);
+                if (daysSinceStart >= avgPeriod) {
+                    phase = 1;
+                }
+            } else if (d.after(fertileWindow.get(fertileWindow.size() - 1)) && d.before(nextPeriodStart)) {
+                phase = 3;
+            }
+
+            if (phase != 0) cyclePhaseMap.put(key, phase);
+
+            phaseCal.add(Calendar.DAY_OF_YEAR, 1);
         }
     }
 
@@ -444,7 +650,25 @@ public class PeriodFragment extends Fragment {
             calendar.add(Calendar.DAY_OF_MONTH, 1);
         }
 
-        if (adapter != null) adapter.notifyDataSetChanged();
+        if (adapter != null) {
+            if (binding.recyclerCalendar.getChildCount() > 0) {
+                adapter.notifyItemRangeChanged(0, daysInMonth.size());
+            } else {
+                // Fallback for first load (when grid is empty)
+                adapter.notifyDataSetChanged();
+            }
+        }
+        Calendar today = Calendar.getInstance();
+        boolean isCurrentMonth = (today.get(Calendar.MONTH) == currentMonth.get(Calendar.MONTH)) &&
+                (today.get(Calendar.YEAR) == currentMonth.get(Calendar.YEAR));
+
+        if (binding.btnJumpToday != null) {
+            if (isCurrentMonth) {
+                binding.btnJumpToday.hide();
+            } else {
+                binding.btnJumpToday.show();
+            }
+        }
 
         SimpleDateFormat sdf = new SimpleDateFormat("MMMM yyyy", Locale.getDefault());
         binding.tvMonthName.setText(sdf.format(currentMonth.getTime()));
@@ -557,7 +781,7 @@ public class PeriodFragment extends Fragment {
             return;
         }
         try {
-            // Find newest flow date
+            // Find the newest flow date
             Date lastDate = null;
             for (PeriodLog log : logs) {
                 if (log.isFlow) {
@@ -740,33 +964,54 @@ public class PeriodFragment extends Fragment {
         @NonNull
         @Override
         public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_calendar_day, parent, false);
-            return new Holder(v);
+            ItemCalendarDayBinding binding = ItemCalendarDayBinding.inflate(
+                    LayoutInflater.from(parent.getContext()),
+                    parent,
+                    false
+            );
+            return new Holder(binding);
         }
 
         @Override
         public void onBindViewHolder(@NonNull Holder holder, int position) {
             Date date = daysInMonth.get(position);
-            Calendar cal = Calendar.getInstance();
-            cal.setTime(date);
-
-            holder.tvDay.setText(String.valueOf(cal.get(Calendar.DAY_OF_MONTH)));
-
-            // 1. Reset State
-            holder.viewBackground.setBackgroundResource(R.drawable.bg_heatmap_square);
-            holder.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#F5F5F5"))); // Default Empty
-            holder.viewBorder.setVisibility(View.GONE);
-            holder.tvDay.setTextColor(Color.parseColor("#546E7A"));
-
-            // Grey out non-current month days
-            boolean isSameMonth = cal.get(Calendar.MONTH) == currentMonth.get(Calendar.MONTH);
-            if (!isSameMonth) {
-                holder.tvDay.setTextColor(Color.parseColor("#CFD8DC"));
-                holder.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FAFAFA"))); // Lighter
-            }
-
             String key = getKey(date);
             PeriodLog log = logMap.get(key);
+
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(date);
+            holder.binding.tvDayNumber.setText(String.valueOf(cal.get(Calendar.DAY_OF_MONTH)));
+
+            // 1. Reset State
+            holder.binding.viewBackground.setBackgroundResource(R.drawable.bg_heatmap_square);
+            holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#F5F5F5"))); // Default Empty
+            holder.binding.tvDayNumber.setTextColor(Color.parseColor("#546E7A"));
+            holder.binding.viewSymptomDot.setVisibility(View.GONE);
+            holder.binding.viewSelectionBorder.setVisibility(View.GONE);
+
+            // Gray out non-current month days
+            boolean isSameMonth = cal.get(Calendar.MONTH) == currentMonth.get(Calendar.MONTH);
+            if (!isSameMonth) {
+                holder.binding.tvDayNumber.setTextColor(Color.parseColor("#CFD8DC"));
+                holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FAFAFA"))); // Lighter
+                return;
+            }
+
+            boolean isPeriodDay = (log != null && log.isFlow) || predictedDateKeys.contains(key);
+
+            if (!isPeriodDay) {
+                Integer phase = cyclePhaseMap.get(key);
+                if (phase != null) {
+                    if (phase == 1) { // Follicular (Energy)
+                        holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#E1F5FE"))); // Light Blue
+                    } else if (phase == 2) { // Ovulatory (Libido)
+                        // (Handled below by fertile keys usually, but backup here)
+                        holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#E8F5E9"))); // Green
+                    } else if (phase == 3) { // Luteal (PMS)
+                        holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FFF3E0"))); // Light Orange
+                    }
+                }
+            }
 
             // --- HEATMAP LOGIC ---
 
@@ -777,25 +1022,29 @@ public class PeriodFragment extends Fragment {
                 else if (log.flowIntensity == 2) color = Color.parseColor("#F06292"); // Med Pink
                 else color = Color.parseColor("#C2185B"); // Heavy Pink
 
-                holder.viewBackground.setBackgroundTintList(ColorStateList.valueOf(color));
-                holder.tvDay.setTextColor(Color.WHITE);
+                holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(color));
+                holder.binding.tvDayNumber.setTextColor(Color.WHITE);
             } else if (key.equals(ovulationDateKey)) {
                 // OVULATION -> Purple
-                holder.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#AB47BC")));
-                holder.tvDay.setTextColor(Color.WHITE);
+                holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#AB47BC")));
+                holder.binding.tvDayNumber.setTextColor(Color.WHITE);
             } else if (fertileDateKeys.contains(key)) {
                 // FERTILE -> Light Purple
-                holder.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#E1BEE7")));
-                holder.tvDay.setTextColor(Color.parseColor("#4A148C"));
+                holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#C8E6C9")));
+                holder.binding.tvDayNumber.setTextColor(Color.parseColor("#1B5E20"));
             } else if (predictedDateKeys.contains(key)) {
                 // PREDICTED PERIOD -> Dashed/Light Red (Simulated with color here)
-                holder.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FFCDD2")));
-                holder.tvDay.setTextColor(Color.parseColor("#B71C1C"));
+                holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FFCDD2")));
+                holder.binding.tvDayNumber.setTextColor(Color.parseColor("#B71C1C"));
+            }
+
+            if (log != null && log.symptoms != null && !log.symptoms.isEmpty() && !log.symptoms.equalsIgnoreCase("None")) {
+                holder.binding.viewSymptomDot.setVisibility(View.VISIBLE);
             }
 
             // --- SELECTION LOGIC ---
             if (tempSelectedDates.contains(key)) {
-                holder.viewBorder.setVisibility(View.VISIBLE);
+                holder.binding.viewSelectionBorder.setVisibility(View.VISIBLE);
             }
         }
 
@@ -804,33 +1053,65 @@ public class PeriodFragment extends Fragment {
             return daysInMonth.size();
         }
 
-        class Holder extends RecyclerView.ViewHolder {
-            TextView tvDay;
-            View viewBackground;
-            View viewBorder;
+        public static class Holder extends RecyclerView.ViewHolder {
+            ItemCalendarDayBinding binding;
 
-            public Holder(@NonNull View v) {
-                super(v);
-                tvDay = v.findViewById(R.id.tvDayNumber);
-                viewBackground = v.findViewById(R.id.viewBackground);
-                viewBorder = v.findViewById(R.id.viewSelectionBorder);
+            public Holder(ItemCalendarDayBinding binding) {
+                super(binding.getRoot());
+                this.binding = binding;
             }
         }
     }
 
-    class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.Holder> {
+    static class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.Holder> {
         private List<CycleHistory> data = new ArrayList<>();
 
-        public void setData(List<CycleHistory> data) {
-            this.data = data;
-            notifyDataSetChanged();
+        public void setData(List<CycleHistory> newHistoryList) {
+            DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+                @Override
+                public int getOldListSize() {
+                    return data.size();
+                }
+
+                @Override
+                public int getNewListSize() {
+                    return newHistoryList.size();
+                }
+
+                @Override
+                public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+                    // Compare unique IDs (Assuming CycleHistory has startDate as a unique identifier)
+                    return data.get(oldItemPosition).startDate.equals(newHistoryList.get(newItemPosition).startDate);
+                }
+
+                @Override
+                public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+                    CycleHistory oldItem = data.get(oldItemPosition);
+                    CycleHistory newItem = newHistoryList.get(newItemPosition);
+
+                    // Compare content fields
+                    return oldItem.endDate.equals(newItem.endDate) &&
+                            oldItem.durationDays == newItem.durationDays &&
+                            oldItem.cycleLengthDays == newItem.cycleLengthDays;
+                }
+            });
+
+            // 2. Update Data
+            this.data = new ArrayList<>(newHistoryList); // Create copy
+
+            // 3. Dispatch specific updates
+            diffResult.dispatchUpdatesTo(this);
         }
 
         @NonNull
         @Override
         public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_cycle_history, parent, false);
-            return new Holder(v);
+            ItemCycleHistoryBinding binding = ItemCycleHistoryBinding.inflate(
+                    LayoutInflater.from(parent.getContext()),
+                    parent,
+                    false
+            );
+            return new Holder(binding);
         }
 
         @Override
@@ -840,16 +1121,16 @@ public class PeriodFragment extends Fragment {
             SimpleDateFormat yearFormat = new SimpleDateFormat("yyyy", Locale.getDefault());
 
             // Bind Data
-            holder.tvDateRange.setText(new StringBuilder().append(sdf.format(item.startDate)).append(" - ")
+            holder.binding.tvDateRange.setText(new StringBuilder().append(sdf.format(item.startDate)).append(" - ")
                     .append(sdf.format(item.endDate)).toString());
-            holder.tvYear.setText(yearFormat.format(item.startDate));
-            holder.tvDuration.setText(String.valueOf(item.durationDays));
+            holder.binding.tvYear.setText(yearFormat.format(item.startDate));
+            holder.binding.tvDuration.setText(String.valueOf(item.durationDays));
 
             if (item.cycleLengthDays > 0) {
-                holder.tvCycleLength.setText(String.valueOf(item.cycleLengthDays));
-                holder.tvCycleLength.setVisibility(View.VISIBLE);
+                holder.binding.tvCycleLength.setText(String.valueOf(item.cycleLengthDays));
+                holder.binding.tvCycleLength.setVisibility(View.VISIBLE);
             } else {
-                holder.tvCycleLength.setText("-");
+                holder.binding.tvCycleLength.setText("-");
             }
         }
 
@@ -858,15 +1139,12 @@ public class PeriodFragment extends Fragment {
             return data.size();
         }
 
-        class Holder extends RecyclerView.ViewHolder {
-            TextView tvDateRange, tvYear, tvDuration, tvCycleLength;
+        public static class Holder extends RecyclerView.ViewHolder {
+            ItemCycleHistoryBinding binding;
 
-            public Holder(@NonNull View itemView) {
-                super(itemView);
-                tvDateRange = itemView.findViewById(R.id.tvDateRange);
-                tvYear = itemView.findViewById(R.id.tvYear);
-                tvDuration = itemView.findViewById(R.id.tvDuration);
-                tvCycleLength = itemView.findViewById(R.id.tvCycleLength);
+            public Holder(ItemCycleHistoryBinding binding) {
+                super(binding.getRoot());
+                this.binding = binding;
             }
         }
     }

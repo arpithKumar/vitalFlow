@@ -1,5 +1,5 @@
 [versions]
-agp = "9.0.0"
+agp = "9.0.1"
 biometric = "1.1.0"
 commonsIo = "2.21.0"
 coreKtx = "1.17.0"
@@ -10,7 +10,7 @@ espressoCore = "3.7.0"
 appcompat = "1.7.1"
 leakcanaryAndroid = "2.14"
 material = "1.13.0"
-activity = "1.12.3"
+activity = "1.12.4"
 constraintlayout = "2.2.1"
 
 # VitalFlow Specific Versions

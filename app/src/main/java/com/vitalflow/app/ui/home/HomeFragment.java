@@ -12,7 +12,9 @@ import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -41,6 +43,7 @@ import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.Navigation;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.bumptech.glide.Glide;
@@ -113,7 +116,6 @@ public class HomeFragment extends Fragment implements SensorEventListener {
 
     // Health Connect
     private HealthConnectManager healthConnectManager;
-    private ActivityResultLauncher<String[]> permissionLauncher;
 
     private SensorManager sensorManager;
     private Sensor stepSensor;
@@ -140,15 +142,16 @@ public class HomeFragment extends Fragment implements SensorEventListener {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        NotificationHelper.createNotificationChannel(requireContext());
-        healthConnectManager = new HealthConnectManager(requireContext());
+        if (getContext() != null) {
+            NotificationHelper.createNotificationChannel(requireContext());
+            healthConnectManager = new HealthConnectManager(requireContext());
 
-        sensorManager = (SensorManager) requireContext().getSystemService(Context.SENSOR_SERVICE);
-        if (sensorManager != null) {
-            stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
-            isSensorPresent = (stepSensor != null);
+            sensorManager = (SensorManager) requireContext().getSystemService(Context.SENSOR_SERVICE);
+            if (sensorManager != null) {
+                stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
+                isSensorPresent = (stepSensor != null);
+            }
         }
-
         initLaunchers();
     }
 
@@ -191,6 +194,8 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                         }
                     }
                     if (allGranted) fetchHealthConnectData();
+                    else
+                        Toast.makeText(getContext(), "Permissions needed to sync watch data", Toast.LENGTH_SHORT).show();
                 });
     }
 
@@ -254,7 +259,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
     @Override
     public void onResume() {
         super.onResume();
-        if (isSensorPresent) {
+        if (isSensorPresent && sensorManager != null) {
             sensorManager.registerListener(this, stepSensor, SensorManager.SENSOR_DELAY_UI);
         }
     }
@@ -262,7 +267,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
     @Override
     public void onPause() {
         super.onPause();
-        if (isSensorPresent) {
+        if (isSensorPresent && sensorManager != null) {
             sensorManager.unregisterListener(this);
         }
     }
@@ -335,9 +340,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                 saveToDb();
             }
 
-            boolean shouldAnimate = displayedWaterAmount != 0;
-            if (displayedWaterAmount == 0 && dailyHealth.getWaterIntakeMl() == 0)
-                shouldAnimate = true;
+            boolean shouldAnimate = (displayedWaterAmount == 0 && dailyHealth.getWaterIntakeMl() > 0);
             updateHydrationUI(shouldAnimate);
             updateStatsUI();
             updateMoodUI();
@@ -348,8 +351,9 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                     .subscribeOn(Schedulers.io())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(history -> {
+                        if (binding == null) return;
                         String tip = InsightEngine.getInsight(currentDayData, history);
-                        if (isAdded() && binding != null) binding.tvTipText.setText(tip);
+                        if (isAdded()) binding.tvTipText.setText(tip);
                     }, Throwable::printStackTrace));
         });
 
@@ -385,12 +389,14 @@ public class HomeFragment extends Fragment implements SensorEventListener {
 
         // 1. Load Logs
         appDao.getFoodLogsForDate(todayDateKey).observe(getViewLifecycleOwner(), logs -> {
+            if (binding == null) return;
             foodAdapter.submitList(logs);
             binding.rvFoodLogs.setVisibility(logs.isEmpty() ? View.GONE : View.VISIBLE);
         });
 
         // 2. Load Total Calories
         appDao.getTotalCaloriesForDate(todayDateKey).observe(getViewLifecycleOwner(), total -> {
+            if (binding == null) return;
             int cal = total != null ? total : 0;
             binding.tvCaloriesTotal.setText(cal + " kcal");
         });
@@ -530,6 +536,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
     }
 
     private void calculateNextMedicationSmart(List<Medication> meds) {
+        if (binding == null) return;
         if (meds == null || meds.isEmpty()) {
             binding.tvNextMedName.setText("No Meds");
             binding.tvNextMedTime.setText("Add Prescription");
@@ -543,19 +550,15 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         boolean hasActiveMeds = false;
 
         for (Medication m : meds) {
-            if (m.getEndDate() != null && !m.getEndDate().equalsIgnoreCase("Forever") && m.getEndDate().compareTo(today) < 0) {
+            if (m.getEndDate() != null && !m.getEndDate().equalsIgnoreCase("Forever") && m.getEndDate().compareTo(today) < 0)
                 continue;
-            }
             hasActiveMeds = true;
 
             int takenCount = 0;
-            if (m.getLastActionDate() != null && m.getLastActionDate().equals(today)) {
+            if (m.getLastActionDate() != null && m.getLastActionDate().equals(today))
                 takenCount = m.getTimesTakenToday();
-            }
 
-            if (takenCount >= m.getFrequencyPerDay()) {
-                continue;
-            }
+            if (takenCount >= m.getFrequencyPerDay()) continue;
 
             try {
                 SimpleDateFormat sdfTime = new SimpleDateFormat("hh:mm a", Locale.getDefault());
@@ -627,13 +630,14 @@ public class HomeFragment extends Fragment implements SensorEventListener {
             // Convert Set to Array for the launcher
             String[] permsArray = perms.toArray(new String[0]);
 
-            healthConnectManager.checkPermissions(perms).thenAccept(granted -> {
+            healthConnectManager.checkPermissions(granted -> {
                 if (granted.containsAll(perms)) {
                     fetchHealthConnectData();
                 } else {
                     // Request missing permissions
-                    permissionLauncher.launch(permsArray);
+                    requestHealthConnectLauncher.launch(permsArray);
                 }
+                return null;
             });
         }
     }
@@ -642,54 +646,40 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         if (!healthConnectManager.isAvailable()) return;
 
         // 1. Fetch Steps
-        healthConnectManager.readTodaySteps(new HealthConnectManager.OnStepsReadListener() {
-            @Override
-            public void onStepsRead(long steps) {
-                if (isAdded() && getActivity() != null) {
-                    getActivity().runOnUiThread(() -> updateStepsIfHigher((int) steps));
-                }
+        healthConnectManager.readTodaySteps(steps -> {
+            if (isAdded() && getActivity() != null) {
+                getActivity().runOnUiThread(() -> updateStepsIfHigher(steps.intValue()));
             }
-
-            @Override
-            public void onError(Throwable t) {
-            }
+            return null; // Required for Kotlin Interop
         });
 
         // 2. Fetch Heart Rate
-        healthConnectManager.readAvgHeartRate(new HealthConnectManager.OnHeartRateReadListener() {
-            @Override
-            public void onHeartRateRead(long avgBpm) {
-                if (avgBpm > 0 && isAdded() && getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
-                        String date = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
-                        Vital hrVital = new Vital("Heart Rate", String.valueOf(avgBpm), null, "bpm", date, System.currentTimeMillis(), "Health Connect", null);
-                        disposables.add(appDao.insertVital(hrVital)
-                                .subscribeOn(Schedulers.io())
-                                .subscribe());
-                    });
-                }
+        healthConnectManager.readAvgHeartRate(avgBpm -> {
+            if (avgBpm > 0 && isAdded() && getActivity() != null) {
+                getActivity().runOnUiThread(() -> {
+                    String date = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+                    // Check if we already have this reading to avoid duplicates (optional logic)
+                    Vital hrVital = new Vital("Heart Rate", String.valueOf(avgBpm), null, "bpm", date, System.currentTimeMillis(), "Health Connect", null);
+                    disposables.add(appDao.insertVital(hrVital)
+                            .subscribeOn(Schedulers.io())
+                            .subscribe());
+                });
             }
-
-            @Override
-            public void onError(Throwable t) {
-            }
+            return null;
         });
 
-        healthConnectManager.readSleepAndCalories(new HealthConnectManager.OnDeepDataReadListener() {
-            @Override
-            public void onDataRead(long calories, String sleepDuration) {
-                if (getActivity() != null && currentDayData != null) {
-                    getActivity().runOnUiThread(() -> {
+        healthConnectManager.readSleepAndCalories((calories, sleepDuration) -> {
+            if (getActivity() != null && currentDayData != null) {
+                getActivity().runOnUiThread(() -> {
+                    // Only update if data is valid
+                    if (!sleepDuration.equals("0h 0m")) {
                         currentDayData.setSleepDuration(sleepDuration);
-                        saveToDb();
-                        updateStatsUI();
-                    });
-                }
+                    }
+                    saveToDb();
+                    updateStatsUI();
+                });
             }
-
-            @Override
-            public void onError(Throwable t) {
-            }
+            return null;
         });
     }
 
@@ -805,8 +795,10 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         animator.setDuration(1000); // Syncs with the water drop animation duration
         animator.setInterpolator(new DecelerateInterpolator());
         animator.addUpdateListener(animation -> {
-            int val = (int) animation.getAnimatedValue();
-            binding.tvIntakeAmount.setText(String.valueOf(val));
+            if (binding != null) {
+                int val = (int) animation.getAnimatedValue();
+                binding.tvIntakeAmount.setText(String.valueOf(val));
+            }
         });
         animator.start();
         displayedWaterAmount = end; // Update tracked value
@@ -1011,8 +1003,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         dialogView.findViewById(R.id.btnAdd).setOnClickListener(v -> {
             String valueStr = etAmount.getText().toString().trim();
             if (!valueStr.isEmpty()) {
-                int amount = Integer.parseInt(valueStr);
-                addWater(amount);
+                addWater(Integer.parseInt(valueStr));
                 dialog.dismiss();
             }
         });
@@ -1029,7 +1020,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
 
             @Override
             public void onAnimationEnd(@NonNull Animator a) {
-                binding.lottieCelebration.setVisibility(View.GONE);
+                if (binding != null) binding.lottieCelebration.setVisibility(View.GONE);
             }
 
             @Override
@@ -1078,7 +1069,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         geminiRepository.getDailyTip(stats, new GeminiRepository.GeminiCallback() {
             @Override
             public void onSuccess(String tip) {
-                if (getActivity() != null) {
+                if (getActivity() != null && binding != null) {
                     getActivity().runOnUiThread(() -> {
                         prefs.edit()
                                 .putString("daily_tip_date", todayDateKey)
@@ -1092,7 +1083,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
             @Override
             public void onError(Throwable t) {
                 // Fallback to local static insight on error
-                if (getActivity() != null) {
+                if (getActivity() != null && binding != null) {
                     getActivity().runOnUiThread(() -> {
                         String fallback = InsightEngine.getInsight(currentDayData, null);
                         binding.tvTipText.setText(fallback);
@@ -1187,26 +1178,28 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                     public void onChildDraw(@NonNull android.graphics.Canvas c, @NonNull androidx.recyclerview.widget.RecyclerView r, @NonNull androidx.recyclerview.widget.RecyclerView.ViewHolder v, float dX, float dY, int action, boolean isActive) {
                         if (action == androidx.recyclerview.widget.ItemTouchHelper.ACTION_STATE_SWIPE && dX < 0) {
                             View itemView = v.itemView;
-
-                            // Draw Red Background
-                            ColorDrawable bg = new ColorDrawable(Color.parseColor("#FFEBEE")); // Light Red
-                            bg.setBounds(itemView.getRight() + (int) dX, itemView.getTop(), itemView.getRight(), itemView.getBottom());
-                            bg.draw(c);
+                            Paint p = new Paint();
+                            p.setColor(Color.parseColor("#FFEBEE"));
+                            c.drawRect(itemView.getRight() + dX, itemView.getTop(), itemView.getRight(), itemView.getBottom(), p);
 
                             // Draw Trash Icon
                             // Ensure you have R.drawable.ic_trash_can or use android.R.drawable.ic_menu_delete
-                            android.graphics.drawable.Drawable icon = androidx.core.content.ContextCompat.getDrawable(requireContext(), android.R.drawable.ic_menu_delete);
+                            Drawable icon = ContextCompat.getDrawable(requireContext(), android.R.drawable.ic_menu_delete);
 
                             if (icon != null) {
                                 icon.setTint(Color.parseColor("#C62828")); // Dark Red
-                                int h = itemView.getBottom() - itemView.getTop();
-                                int m = (h - icon.getIntrinsicHeight()) / 2;
-                                int top = itemView.getTop() + m;
-                                int left = itemView.getRight() - m - icon.getIntrinsicWidth();
+                                int itemHeight = itemView.getBottom() - itemView.getTop();
+                                int intrinsicHeight = icon.getIntrinsicHeight();
+                                int intrinsicWidth = icon.getIntrinsicWidth();
+                                int iconTop = itemView.getTop() + (itemHeight - intrinsicHeight) / 2;
+                                int iconMargin = (itemHeight - intrinsicHeight) / 2;
+                                int iconLeft = itemView.getRight() - iconMargin - intrinsicWidth;
+                                int iconRight = itemView.getRight() - iconMargin;
+                                int iconBottom = iconTop + intrinsicHeight;
 
                                 // Prevent icon from going too far if swipe is small
-                                if (left > itemView.getRight() + (int) dX) {
-                                    icon.setBounds(left, top, itemView.getRight() - m, top + icon.getIntrinsicHeight());
+                                if (iconLeft > itemView.getRight() + dX) {
+                                    icon.setBounds(iconLeft, iconTop, iconRight, iconBottom);
                                     icon.draw(c);
                                 }
                             }
@@ -1215,8 +1208,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                     }
                 };
 
-        androidx.recyclerview.widget.ItemTouchHelper itemTouchHelper = new androidx.recyclerview.widget.ItemTouchHelper(simpleItemTouchCallback);
-        itemTouchHelper.attachToRecyclerView(binding.rvFoodLogs);
+        new ItemTouchHelper(simpleItemTouchCallback).attachToRecyclerView(binding.rvFoodLogs);
     }
 
     // Internal delete method that triggers the Snack bar

@@ -1,25 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="48dp"
-    android:padding="2dp">
+    android:layout_height="50dp"
+    android:layout_margin="2dp">
 
     <View
         android:id="@+id/viewBackground"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@drawable/bg_heatmap_square"
-        android:backgroundTint="#F5F5F5" />
+        android:backgroundTint="#FAFAFA" />
 
-    <TextView
-        android:id="@+id/tvDayNumber"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:text="1"
-        android:textColor="#37474F"
-        android:textSize="12sp"
-        android:textStyle="bold" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvDayNumber"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="1"
+            android:textColor="#546E7A"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <View
+            android:id="@+id/viewSymptomDot"
+            android:layout_width="5dp"
+            android:layout_height="5dp"
+            android:layout_marginTop="2dp"
+            android:background="@drawable/shape_circle_solid"
+            android:backgroundTint="#FB8C00"
+            android:visibility="gone" />
+    </LinearLayout>
 
     <View
         android:id="@+id/viewSelectionBorder"
