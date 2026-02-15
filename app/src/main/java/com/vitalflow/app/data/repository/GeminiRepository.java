@@ -9,6 +9,8 @@ import android.net.Uri;
 import android.util.Base64;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+
 import com.google.gson.Gson;
 import com.vitalflow.app.data.entity.FoodLog;
 import com.vitalflow.app.data.entity.HealthPlan;
@@ -127,9 +129,10 @@ public class GeminiRepository {
         }
 
         // 2. The Strict JSON Prompt
+        String contextBuilderString = contextBuilder.toString();
         String prompt = "You are an expert Gynecologist, Fitness Coach and Nutritionist. \n" +
                 "Analyze this user's data (Cycle Day, Sleep, Nutrition, Symptoms):\n" +
-                "[" + contextBuilder.toString() + "]\n\n" +
+                "[" + contextBuilderString + "]\n\n" +
                 "Generate a highly personalized JSON health plan.\n" +
                 "REQUIREMENTS:\n" +
                 "1. If on Birth Control, ignore standard ovulation predictions.\n" +
@@ -153,7 +156,7 @@ public class GeminiRepository {
 
         apiService.generateContent(getUserModel(), apiKey, new GeminiRequest(prompt)).enqueue(new Callback<>() {
             @Override
-            public void onResponse(Call<GeminiResponse> call, Response<GeminiResponse> response) {
+            public void onResponse(@NonNull Call<GeminiResponse> call, @NonNull Response<GeminiResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     try {
                         String rawText = response.body().getText();
@@ -172,7 +175,7 @@ public class GeminiRepository {
             }
 
             @Override
-            public void onFailure(Call<GeminiResponse> call, Throwable t) {
+            public void onFailure(@NonNull Call<GeminiResponse> call, @NonNull Throwable t) {
                 callback.onError(t);
             }
         });
@@ -222,15 +225,14 @@ public class GeminiRepository {
     }
 
     private void executeCall(String apiKey, String model, GeminiRequest request, GeminiCallback callback) {
-        apiService.generateContent(apiKey, model, request).enqueue(new Callback<GeminiResponse>() {
+        apiService.generateContent(apiKey, model, request).enqueue(new Callback<>() {
             @Override
-            public void onResponse(Call<GeminiResponse> call, Response<GeminiResponse> response) {
+            public void onResponse(@NonNull Call<GeminiResponse> call, @NonNull Response<GeminiResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     callback.onSuccess(response.body().getText());
                 } else {
-                    try {
-                        String errorBody = response.errorBody() != null ? response.errorBody().string() : "Unknown Error";
-                        Log.e("GeminiRepo", "API Error: " + errorBody);
+                    try (okhttp3.ResponseBody errorBody = response.errorBody()) {
+                        Log.e("GeminiRepo", "API Error: " + (null != errorBody ? errorBody.string() : "Unknown Error"));
                         callback.onError(new Exception("Error " + response.code() + ": " + errorBody));
                     } catch (Exception e) {
                         callback.onError(new Exception("Error " + response.code()));
@@ -239,7 +241,7 @@ public class GeminiRepository {
             }
 
             @Override
-            public void onFailure(Call<GeminiResponse> call, Throwable t) {
+            public void onFailure(@NonNull Call<GeminiResponse> call, @NonNull Throwable t) {
                 callback.onError(t);
             }
         });
@@ -287,7 +289,7 @@ public class GeminiRepository {
 
                 apiService.generateContent(getUserModel(), apiKey, request).enqueue(new Callback<>() {
                     @Override
-                    public void onResponse(Call<GeminiResponse> call, Response<GeminiResponse> response) {
+                    public void onResponse(@NonNull Call<GeminiResponse> call, @NonNull Response<GeminiResponse> response) {
                         if (response.isSuccessful() && response.body() != null) {
                             try {
                                 String json = response.body().getText()
@@ -305,7 +307,7 @@ public class GeminiRepository {
                     }
 
                     @Override
-                    public void onFailure(Call<GeminiResponse> call, Throwable t) {
+                    public void onFailure(@NonNull Call<GeminiResponse> call, @NonNull Throwable t) {
                         callback.onError(t);
                     }
                 });
