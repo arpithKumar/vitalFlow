@@ -25,6 +25,9 @@ public class Medication {
     private String startDate;    // YYYY-MM-DD
     private String endDate;      // YYYY-MM-DD (Can be "Forever")
 
+    private String selectedDays;
+    private String prescriptionUri;
+
     // Extra details
     private String doctorName;
     private String hospitalName;
@@ -37,7 +40,7 @@ public class Medication {
     @Ignore
     public Medication(String name, String dosage, String type, String time,
                       String doctorName, String hospitalName, String startDate, String endDate,
-                      int pillsLeft, int frequencyPerDay) {
+                      int pillsLeft, int frequencyPerDay, String selectedDays, String prescriptionUri) {
         this.id = UUID.randomUUID().toString();
         this.name = name;
         this.dosage = dosage;
@@ -49,16 +52,18 @@ public class Medication {
         this.endDate = endDate;
         this.pillsLeft = pillsLeft;
         this.frequencyPerDay = frequencyPerDay;
+        this.selectedDays = selectedDays != null ? selectedDays : "Everyday";
         this.timesTakenToday = 0;
         this.dbStatus = "PENDING";
         this.lastActionDate = "";
+        this.prescriptionUri = prescriptionUri;
     }
 
     // Helper Constructor for Room DB
     public Medication(@NonNull String id, String name, String dosage, String type, String time,
                       String doctorName, String hospitalName, String startDate, String endDate,
                       int pillsLeft, String dbStatus, String lastActionDate,
-                      int frequencyPerDay, int timesTakenToday) {
+                      int frequencyPerDay, int timesTakenToday, String selectedDays, String prescriptionUri) {
         this.id = id;
         this.name = name;
         this.dosage = dosage;
@@ -72,7 +77,9 @@ public class Medication {
         this.dbStatus = dbStatus;
         this.lastActionDate = lastActionDate;
         this.frequencyPerDay = frequencyPerDay;
+        this.selectedDays = selectedDays != null ? selectedDays : "Everyday";
         this.timesTakenToday = timesTakenToday;
+        this.prescriptionUri = prescriptionUri;
     }
 
     // --- LOGIC METHODS ---
@@ -224,5 +231,21 @@ public class Medication {
 
     public void setTimesTakenToday(int timesTakenToday) {
         this.timesTakenToday = timesTakenToday;
+    }
+
+    public String getSelectedDays() {
+        return selectedDays;
+    }
+
+    public void setSelectedDays(String selectedDays) {
+        this.selectedDays = selectedDays;
+    }
+
+    public String getPrescriptionUri() {
+        return prescriptionUri;
+    }
+
+    public void setPrescriptionUri(String prescriptionUri) {
+        this.prescriptionUri = prescriptionUri;
     }
 }

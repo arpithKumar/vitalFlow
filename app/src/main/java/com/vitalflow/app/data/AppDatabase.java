@@ -10,7 +10,7 @@ import com.vitalflow.app.data.entity.Medication;
 import com.vitalflow.app.data.entity.PeriodLog;
 import com.vitalflow.app.data.entity.Vital;
 
-@Database(entities = {Vital.class, Medication.class, DailyHealth.class, PeriodLog.class, FoodLog.class}, version = 7, exportSchema = false)
+@Database(entities = {Vital.class, Medication.class, DailyHealth.class, PeriodLog.class, FoodLog.class}, version = 8, exportSchema = false)
 public abstract class AppDatabase extends RoomDatabase {
     public abstract AppDao appDao();
 }

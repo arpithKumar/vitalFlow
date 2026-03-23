@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/cardRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -38,7 +39,7 @@
             android:textColor="#37474F"
             android:textSize="18sp"
             android:textStyle="bold"
-            app:layout_constraintEnd_toStartOf="@+id/tvTime"
+            app:layout_constraintEnd_toStartOf="@+id/btnViewPrescription"
             app:layout_constraintStart_toEndOf="@id/imgIcon"
             app:layout_constraintTop_toTopOf="@id/imgIcon" />
 
@@ -52,6 +53,20 @@
             android:textSize="14sp"
             app:layout_constraintStart_toStartOf="@id/tvMedName"
             app:layout_constraintTop_toBottomOf="@id/tvMedName" />
+
+        <ImageView
+            android:id="@+id/btnViewPrescription"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginEnd="12dp"
+            android:padding="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_gallery"
+            app:tint="#00897B"
+            android:visibility="gone"
+            app:layout_constraintEnd_toStartOf="@id/tvTime"
+            app:layout_constraintTop_toTopOf="@id/tvTime"
+            app:layout_constraintBottom_toBottomOf="@id/tvTime" />
 
         <TextView
             android:id="@+id/tvTime"
@@ -119,7 +134,8 @@
                 android:text="Skip"
                 android:textColor="#FF7043"
                 app:strokeColor="#FFCCBC"
-                app:strokeWidth="1dp" />
+                app:strokeWidth="1dp"
+                tools:ignore="TouchTargetSizeCheck" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnTake"
@@ -130,7 +146,8 @@
                 android:layout_weight="1"
                 android:text="Take"
                 android:textColor="#FFFFFF"
-                app:backgroundTint="#00897B" />
+                app:backgroundTint="#00897B"
+                tools:ignore="TouchTargetSizeCheck" />
         </LinearLayout>
 
         <TextView

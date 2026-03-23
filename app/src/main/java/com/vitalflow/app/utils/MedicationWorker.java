@@ -45,7 +45,6 @@ public class MedicationWorker extends Worker {
         // 2. Fetch Data (RxJava Fix)
         List<Medication> meds;
         try {
-            // FIX: Use blockingGet() to unwrap the Single<List<Medication>>
             meds = appDao.getAllMedicationsSync().blockingGet();
         } catch (Exception e) {
             Log.e("MedWorker", "Failed to fetch meds", e);
@@ -62,6 +61,7 @@ public class MedicationWorker extends Worker {
 
     private void checkMedications(Context context, List<Medication> meds) {
         String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        String currentDayOfWeek = new SimpleDateFormat("EEE", Locale.getDefault()).format(new Date());
         long nowMillis = System.currentTimeMillis();
 
         for (Medication m : meds) {
@@ -70,9 +70,16 @@ public class MedicationWorker extends Worker {
                 continue;
             }
 
+            String scheduledDays = m.getSelectedDays();
+            if (scheduledDays != null && !scheduledDays.equals("Everyday") && !scheduledDays.contains(currentDayOfWeek)) {
+                continue;
+            }
+
             // B. Check if already completed today
+            int taken = 0;
             if (m.getLastActionDate() != null && m.getLastActionDate().equals(today)) {
-                if (m.getTimesTakenToday() >= m.getFrequencyPerDay()) continue;
+                taken = m.getTimesTakenToday();
+                if (taken >= m.getFrequencyPerDay()) continue;
             }
 
             // C. Calculate Time
@@ -91,14 +98,12 @@ public class MedicationWorker extends Worker {
                     target.set(Calendar.MINUTE, startCal.get(Calendar.MINUTE));
                     target.set(Calendar.SECOND, 0);
 
-                    // Add 6 hours for every dose already taken
-                    int taken = (m.getLastActionDate() != null && m.getLastActionDate().equals(today)) ? m.getTimesTakenToday() : 0;
-                    target.add(Calendar.HOUR_OF_DAY, taken * 6);
+                    int intervalHours = 12 / Math.max(1, m.getFrequencyPerDay());
+                    target.add(Calendar.HOUR_OF_DAY, taken * intervalHours);
 
                     long diff = target.getTimeInMillis() - nowMillis;
                     long diffMinutes = diff / (1000 * 60);
-
-                    // D. Trigger if due in next 20 mins OR slightly overdue (-5 mins)
+                    
                     if (diffMinutes >= -5 && diffMinutes <= 20) {
                         NotificationHelper.sendMedicationReminder(context, m.getName(), sdfTime.format(target.getTime()));
                     }

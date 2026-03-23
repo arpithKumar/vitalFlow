@@ -14,6 +14,7 @@ import com.vitalflow.app.data.entity.Medication;
 import com.vitalflow.app.databinding.ItemMedicationBinding;
 import com.vitalflow.app.utils.NotificationHelper;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -88,13 +89,19 @@ public class MedsAdapter extends RecyclerView.Adapter<MedsAdapter.MedViewHolder>
         Medication med = list.get(position);
 
         holder.binding.tvMedName.setText(med.getName());
-        holder.binding.tvDosage.setText(med.getDosage() + " (" + med.getType() + ")");
+        holder.binding.tvDosage.setText(MessageFormat.format("{0} ({1})", med.getDosage(), med.getType()));
         holder.binding.tvTime.setText(med.getTime());
 
         // Extra Info Logic
         StringBuilder extra = new StringBuilder();
         if (med.getDoctorName() != null && !med.getDoctorName().isEmpty())
             extra.append(med.getDoctorName());
+
+        String scheduledDays = med.getSelectedDays();
+        if (scheduledDays != null && !scheduledDays.equals("Everyday")) {
+            if (extra.length() > 0) extra.append(" • ");
+            extra.append(scheduledDays);
+        }
 
         // 2. Dates (Start - End)
         if (med.getStartDate() != null && !med.getStartDate().isEmpty()) {
@@ -110,9 +117,47 @@ public class MedsAdapter extends RecyclerView.Adapter<MedsAdapter.MedViewHolder>
         holder.binding.tvExtraInfo.setText(extra.toString());
 
         // Refill Warning Logic
-        String unit = med.getType() != null && med.getType().equalsIgnoreCase("Liquid") ? "ml left" : "pills left";
-        holder.binding.tvRefill.setText(med.getPillsLeft() + " " + unit + " left");
+        String medType = med.getType() != null ? med.getType().toLowerCase() : "pill";
+        String unit;
+
+        if (medType.equals("liquid")) {
+            unit = "ml";
+        } else if (medType.equals("injection")) {
+            unit = "units";
+        } else {
+            unit = medType + "s";
+        }
+        holder.binding.tvRefill.setText(MessageFormat.format("{0} {1} left", med.getPillsLeft(), unit));
         holder.binding.tvRefill.setTextColor(med.getPillsLeft() <= 5 ? Color.RED : Color.parseColor("#00897B"));
+
+        if (med.getPrescriptionUri() != null && !med.getPrescriptionUri().isEmpty()) {
+            holder.binding.btnViewPrescription.setVisibility(View.VISIBLE);
+
+            holder.binding.btnViewPrescription.setOnClickListener(v -> {
+                // Create a quick, full-screen dark mode viewer
+                android.app.Dialog dialog = new android.app.Dialog(v.getContext(), android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+                android.widget.ImageView imageView = new android.widget.ImageView(v.getContext());
+
+                imageView.setLayoutParams(new android.view.ViewGroup.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT));
+                imageView.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+
+                try {
+                    imageView.setImageURI(android.net.Uri.parse(med.getPrescriptionUri()));
+                } catch (Exception e) {
+                    android.widget.Toast.makeText(v.getContext(), "Could not load image", android.widget.Toast.LENGTH_SHORT).show();
+                }
+
+                // Tap the image to close the viewer
+                imageView.setOnClickListener(imgView -> dialog.dismiss());
+
+                dialog.setContentView(imageView);
+                dialog.show();
+            });
+        } else {
+            holder.binding.btnViewPrescription.setVisibility(View.GONE);
+        }
 
         // Visual State Update
         String status = med.getStatus();

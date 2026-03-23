@@ -178,18 +178,22 @@ public class PdfReportManager {
                 canvas2.drawText(freq, MARGIN + 230, yPosition, paint);
                 paint.setTextSize(10);
                 canvas2.drawText("@ " + med.getTime(), MARGIN + 230, yPosition + 12, paint);
+                String days = med.getSelectedDays();
+                if (days != null && !days.equals("Everyday")) {
+                    canvas2.drawText(days, MARGIN + 230, yPosition + 24, paint);
+                }
+
                 paint.setTextSize(12);
 
-                // [Red Flag] for Adherence
                 String statusText;
                 int statusColor = COLOR_TEXT_DARK;
 
                 if ("TAKEN".equals(med.getStatus())) {
                     statusText = "Completed";
-                    statusColor = Color.parseColor("#2E7D32"); // Green
+                    statusColor = Color.parseColor("#2E7D32");
                 } else if ("SKIPPED".equals(med.getStatus())) {
                     statusText = "Skipped";
-                    statusColor = COLOR_WARNING; // RED FLAG
+                    statusColor = COLOR_WARNING;
                 } else {
                     statusText = med.getTimesTakenToday() + "/" + med.getFrequencyPerDay();
                 }
@@ -204,9 +208,9 @@ public class PdfReportManager {
                 // Separator line
                 paint.setColor(Color.LTGRAY);
                 paint.setStrokeWidth(0.5f);
-                canvas2.drawLine(MARGIN, yPosition + 20, PAGE_WIDTH - MARGIN, yPosition + 20, paint);
+                canvas2.drawLine(MARGIN, yPosition + 30, PAGE_WIDTH - MARGIN, yPosition + 30, paint);
 
-                yPosition += 35;
+                yPosition += 45;
             }
             document.finishPage(page2);
         }

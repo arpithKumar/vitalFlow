@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F5F5F5">
@@ -28,6 +29,7 @@
             android:layout_marginStart="16dp"
             android:padding="12dp"
             android:src="@drawable/ic_arrow_back"
+            android:contentDescription="back button"
             app:tint="#FFFFFF"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:clickable="true"
@@ -71,7 +73,8 @@
                 android:textColor="@color/selector_chip_text"
                 app:chipBackgroundColor="@color/selector_chip_bg"
                 app:chipStrokeWidth="0dp"
-                app:ensureMinTouchTargetSize="false" />
+                app:ensureMinTouchTargetSize="false"
+                tools:ignore="TouchTargetSizeCheck" />
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chipMorning"
@@ -83,7 +86,8 @@
                 android:textColor="@color/selector_chip_text"
                 app:chipBackgroundColor="@color/selector_chip_bg"
                 app:chipStrokeWidth="0dp"
-                app:ensureMinTouchTargetSize="false" />
+                app:ensureMinTouchTargetSize="false"
+                tools:ignore="TouchTargetSizeCheck" />
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chipAfternoon"
@@ -95,7 +99,8 @@
                 android:textColor="@color/selector_chip_text"
                 app:chipBackgroundColor="@color/selector_chip_bg"
                 app:chipStrokeWidth="0dp"
-                app:ensureMinTouchTargetSize="false" />
+                app:ensureMinTouchTargetSize="false"
+                tools:ignore="TouchTargetSizeCheck" />
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chipNight"
@@ -107,7 +112,8 @@
                 android:textColor="@color/selector_chip_text"
                 app:chipBackgroundColor="@color/selector_chip_bg"
                 app:chipStrokeWidth="0dp"
-                app:ensureMinTouchTargetSize="false" />
+                app:ensureMinTouchTargetSize="false"
+                tools:ignore="TouchTargetSizeCheck" />
 
         </com.google.android.material.chip.ChipGroup>
     </HorizontalScrollView>
@@ -162,12 +168,27 @@
     </LinearLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabScanMed"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="24dp"
+        android:src="@android:drawable/ic_menu_camera"
+        app:backgroundTint="#E0F2F1"
+        app:tint="#00897B"
+        app:fabSize="mini"
+        android:contentDescription="Scan Prescription"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/fabAddMed" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabAddMed"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_margin="24dp"
         android:src="@drawable/ic_add"
         app:backgroundTint="#00897B"
+        android:contentDescription="Button to add medication"
         app:tint="#FFFFFF"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />

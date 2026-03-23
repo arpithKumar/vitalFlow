@@ -3,6 +3,7 @@ package com.vitalflow.app.ui.meds;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,9 +22,12 @@ import com.vitalflow.app.data.entity.Medication;
 import com.vitalflow.app.data.repository.GeminiRepository;
 import com.vitalflow.app.databinding.BottomSheetAddMedBinding;
 
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import javax.inject.Inject;
 
@@ -47,6 +51,9 @@ public class AddMedBottomSheet extends BottomSheetDialogFragment {
     private final CompositeDisposable disposables = new CompositeDisposable();
 
     private int frequency = 1;
+
+    private String autoName, autoDosage, autoType, savedPrescriptionUri;
+    private int autoFreq = 1;
 
     public interface OnMedicationAddedListener {
         void onMedicationAdded(Medication medication);
@@ -73,6 +80,14 @@ public class AddMedBottomSheet extends BottomSheetDialogFragment {
         }
     }
 
+    public void setAutoFillData(String name, String dosage, String type, int freq, String uri) {
+        this.autoName = name;
+        this.autoDosage = dosage;
+        this.autoType = type;
+        this.autoFreq = freq;
+        this.savedPrescriptionUri = uri;
+    }
+
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -92,12 +107,30 @@ public class AddMedBottomSheet extends BottomSheetDialogFragment {
 
         if (medToEdit != null) {
             prefillData();
+        } else if (autoName != null) {
+            binding.etName.setText(autoName);
+            binding.etDosage.setText(autoDosage);
+            frequency = autoFreq > 0 ? autoFreq : 1;
+            binding.tvFrequency.setText(String.valueOf(frequency));
+
+            if ("Liquid".equalsIgnoreCase(autoType)) binding.chipLiquid.setChecked(true);
+            else if ("Capsule".equalsIgnoreCase(autoType)) binding.chipCapsule.setChecked(true);
+            else if ("Injection".equalsIgnoreCase(autoType))
+                binding.chipInjections.setChecked(true);
+            else binding.chipPill.setChecked(true);
+
+            setDefaultDateTime();
+            updateQuantityHint(binding.chipGroupType.getCheckedChipId());
         } else {
             setDefaultDateTime();
             updateQuantityHint(R.id.chipPill);
         }
 
-        binding.chipGroupType.setOnCheckedChangeListener((group, checkedId) -> updateQuantityHint(checkedId));
+        binding.chipGroupType.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            if (!checkedIds.isEmpty()) {
+                updateQuantityHint(checkedIds.get(0));
+            }
+        });
         binding.cardTimePicker.setOnClickListener(v -> showTimePicker());
         binding.cardDatePicker.setOnClickListener(v -> showDatePicker("start"));
         binding.cardEndDatePicker.setOnClickListener(v -> showDatePicker("end"));
@@ -177,7 +210,6 @@ public class AddMedBottomSheet extends BottomSheetDialogFragment {
         binding.btnSaveMed.setText("Save Schedule");
 
         if (response.toUpperCase().startsWith("YES")) {
-            // ⚠️ INTERACTION FOUND -> Show Alert
             String warning = response.replaceFirst("YES:", "").trim();
 
             new MaterialAlertDialogBuilder(requireContext())
@@ -188,7 +220,6 @@ public class AddMedBottomSheet extends BottomSheetDialogFragment {
                     .setNegativeButton("Cancel", null)
                     .show();
         } else {
-            // No interaction -> Proceed
             finalizeSave(name, dosage);
         }
     }
@@ -216,19 +247,45 @@ public class AddMedBottomSheet extends BottomSheetDialogFragment {
             else if (type.equals("Injection")) binding.chipInjections.setChecked(true);
         }
         updateQuantityHint(binding.chipGroupType.getCheckedChipId());
+
+        String savedDays = medToEdit.getSelectedDays();
+        if (savedDays != null && !savedDays.equals("Everyday")) {
+            if (savedDays.contains("Mon")) binding.chipMon.setChecked(true);
+            if (savedDays.contains("Tue")) binding.chipTue.setChecked(true);
+            if (savedDays.contains("Wed")) binding.chipWed.setChecked(true);
+            if (savedDays.contains("Thu")) binding.chipThu.setChecked(true);
+            if (savedDays.contains("Fri")) binding.chipFri.setChecked(true);
+            if (savedDays.contains("Sat")) binding.chipSat.setChecked(true);
+            if (savedDays.contains("Sun")) binding.chipSun.setChecked(true);
+        }
+    }
+
+    private void setupActions(Map<Integer, Runnable> actions) {
+        actions.put(R.id.chipLiquid, () -> {
+            binding.tvQuantityLabel.setText("Total Volume (ml)");
+            binding.etQuantity.setHint("e.g. 200");
+        });
+
+        actions.put(R.id.chipInjections, () -> {
+            binding.tvQuantityLabel.setText("Total Units / Vials");
+            binding.etQuantity.setHint("e.g. 5");
+        });
+
+        actions.put(R.id.chipCapsule, () -> {
+            binding.tvQuantityLabel.setText("Total Quantity (Capsules)");
+            binding.etQuantity.setHint("e.g. 30");
+        });
     }
 
     private void updateQuantityHint(int checkedId) {
-        if (checkedId == R.id.chipLiquid) {
-            binding.tvQuantityLabel.setText("Total Volume (ml)");
-            binding.etQuantity.setHint("e.g. 200");
-        } else if (checkedId == R.id.chipInjections) {
-            binding.tvQuantityLabel.setText("Total Units / Vials");
-            binding.etQuantity.setHint("e.g. 5");
-        } else {
+        final Map<Integer, Runnable> actions = new HashMap<>();
+        final Runnable defaultAction = () -> {
             binding.tvQuantityLabel.setText("Total Quantity (Pills)");
             binding.etQuantity.setHint("e.g. 30");
-        }
+        };
+
+        setupActions(actions);
+        actions.getOrDefault(checkedId, defaultAction).run();
     }
 
     private void finalizeSave(String name, String dosage) {
@@ -244,6 +301,7 @@ public class AddMedBottomSheet extends BottomSheetDialogFragment {
             try {
                 quantity = Integer.parseInt(qtyStr);
             } catch (Exception e) {
+                Toast.makeText(getContext(), "Invalid quantity, defaulting to 30", Toast.LENGTH_SHORT).show();
             }
         }
 
@@ -254,6 +312,20 @@ public class AddMedBottomSheet extends BottomSheetDialogFragment {
             if (selectedChip != null) type = selectedChip.getText().toString();
         }
 
+        List<String> selectedDaysList = new ArrayList<>();
+        if (binding.chipMon.isChecked()) selectedDaysList.add("Mon");
+        if (binding.chipTue.isChecked()) selectedDaysList.add("Tue");
+        if (binding.chipWed.isChecked()) selectedDaysList.add("Wed");
+        if (binding.chipThu.isChecked()) selectedDaysList.add("Thu");
+        if (binding.chipFri.isChecked()) selectedDaysList.add("Fri");
+        if (binding.chipSat.isChecked()) selectedDaysList.add("Sat");
+        if (binding.chipSun.isChecked()) selectedDaysList.add("Sun");
+
+        String finalDaysString = "Everyday";
+        if (!selectedDaysList.isEmpty() && selectedDaysList.size() < 7) {
+            finalDaysString = TextUtils.join(",", selectedDaysList);
+        }
+
         if (name.isEmpty() || dosage.isEmpty()) {
             Toast.makeText(getContext(), "Please enter Name and Dosage", Toast.LENGTH_SHORT).show();
             return;
@@ -261,7 +333,7 @@ public class AddMedBottomSheet extends BottomSheetDialogFragment {
 
         if (medToEdit == null) {
             Medication newMed = new Medication(name, dosage, type, time, doctor, hospital,
-                    startDate, endDate, quantity, frequency);
+                    startDate, endDate, quantity, frequency, finalDaysString, savedPrescriptionUri);
             if (listener != null) listener.onMedicationAdded(newMed);
         } else {
             medToEdit.setName(name);
@@ -274,9 +346,12 @@ public class AddMedBottomSheet extends BottomSheetDialogFragment {
             medToEdit.setFrequencyPerDay(frequency);
             medToEdit.setEndDate(endDate);
             medToEdit.setPillsLeft(quantity);
+            medToEdit.setSelectedDays(finalDaysString);
+            if (savedPrescriptionUri != null) {
+                medToEdit.setPrescriptionUri(savedPrescriptionUri);
+            }
             if (listener != null) listener.onMedicationAdded(medToEdit);
         }
-
         dismiss();
     }
 

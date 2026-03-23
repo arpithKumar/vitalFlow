@@ -101,6 +101,21 @@
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
+                <ImageView
+                    android:id="@+id/btnWaterReminder"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="Set Custom Remainder"
+                    android:focusable="true"
+                    android:src="@drawable/ic_notifications"
+                    app:layout_constraintBottom_toBottomOf="@id/tvHydrationTitle"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:tint="#00897B"
+                    tools:ignore="TouchTargetSizeCheck" />
+
                 <com.google.android.material.progressindicator.CircularProgressIndicator
                     android:id="@+id/progressHydration"
                     android:layout_width="wrap_content"
@@ -211,6 +226,7 @@
                     app:iconPadding="0dp"
                     android:insetLeft="0dp"
                     android:insetTop="0dp"
+                    android:contentDescription="Reset hydration progress"
                     android:insetRight="0dp"
                     android:insetBottom="0dp"
                     android:visibility="visible"

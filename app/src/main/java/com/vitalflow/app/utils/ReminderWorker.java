@@ -31,14 +31,7 @@ public class ReminderWorker extends Worker {
     private void sendNotification() {
         Context context = getApplicationContext();
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        String channelId = "health_reminders";
         int notificationId = 1;
-
-        // 1. Create Channel (Android O+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(channelId, "Daily Reminders", NotificationManager.IMPORTANCE_DEFAULT);
-            manager.createNotificationChannel(channel);
-        }
 
         Intent appIntent = new Intent(context, com.vitalflow.app.MainActivity.class);
         appIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -63,7 +56,7 @@ public class ReminderWorker extends Worker {
         );
 
         // 3. Build Notification
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, channelId)
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, NotificationHelper.CHANNEL_ID_WATER)
                 .setSmallIcon(R.drawable.ic_logo_splash)
                 .setContentTitle("Stay Hydrated! \uD83D\uDCA7")
                 .setContentText("You haven't logged water in a while.")

@@ -137,9 +137,14 @@ public class ReportViewModel extends ViewModel {
         sb.append("Patient: ").append(name).append("\n");
 
         // Stats Averages
-        double avgSleep = stats.stream().mapToDouble(d -> parseSleep(d.getSleepDuration())).average().orElse(0);
-        double avgWater = stats.stream().mapToInt(DailyHealth::getWaterIntakeMl).average().orElse(0);
-        sb.append("30-Day Avg: Sleep ").append(String.format("%.1f", avgSleep)).append("hrs, Water ").append((int) avgWater).append("ml.\n");
+
+        double avgSleep = (stats == null) ? 0d :
+                stats.stream().mapToDouble(d -> parseSleep(d.getSleepDuration())).average().orElse(0);
+        double avgWater = (stats == null) ? 0d :
+                stats.stream().mapToInt(DailyHealth::getWaterIntakeMl).average().orElse(0);
+        String sleepFmt = String.format(java.util.Locale.getDefault(), "%.1f", avgSleep);
+        int waterRounded = (int) Math.round(avgWater);
+        sb.append("30-Day Avg: Sleep ").append(sleepFmt).append(" hrs, Water ").append(waterRounded).append(" ml.\n");
 
         // Cycle Data
         sb.append("Menstrual History: ").append(cycles.isEmpty() ? "No logs" : cycles.toString()).append("\n");
@@ -159,7 +164,9 @@ public class ReportViewModel extends ViewModel {
         // Meds Context
         sb.append("Current Medications: ");
         for (Medication m : meds)
-            sb.append(m.getName()).append(" (").append(m.getDosage()).append("); ");
+            sb.append(m.getName()).append(" (").append(m.getDosage())
+                    .append(", Scheduled: ").append(m.getSelectedDays())
+                    .append("); ");
         sb.append("\n");
 
         sb.append("INSTRUCTIONS: Highlight any irregularities in vitals or cycle. Mention medication adherence if relevant. Be concise and professional. NO MARKDOWN.");

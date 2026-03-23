@@ -2,10 +2,13 @@ package com.vitalflow.app.ui.meds;
 
 import static androidx.core.content.ContextCompat.getDrawable;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.transition.TransitionManager;
 import android.view.LayoutInflater;
@@ -14,8 +17,12 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
+import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.ItemTouchHelper;
@@ -23,13 +30,18 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.chip.Chip;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
 import com.vitalflow.app.R;
 import com.vitalflow.app.data.dao.AppDao;
 import com.vitalflow.app.data.entity.Medication;
+import com.vitalflow.app.data.repository.GeminiRepository;
 import com.vitalflow.app.databinding.FragmentMedsBinding;
 import com.vitalflow.app.utils.NotificationHelper;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -48,6 +60,9 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedicationAddedListener {
 
     @Inject
+    GeminiRepository geminiRepository;
+
+    @Inject
     AppDao appDao;
 
     private FragmentMedsBinding binding;
@@ -55,6 +70,20 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
     private List<Medication> allMeds = new ArrayList<>();
 
     private final CompositeDisposable disposables = new CompositeDisposable();
+
+    private ActivityResultLauncher<Uri> takePictureLauncher;
+    private Uri currentPhotoUri;
+    private AlertDialog loadingDialog;
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        takePictureLauncher = registerForActivityResult(new ActivityResultContracts.TakePicture(), success -> {
+            if (success && currentPhotoUri != null) {
+                saveToVaultAndAnalyze(currentPhotoUri);
+            }
+        });
+    }
 
     @Nullable
     @Override
@@ -68,6 +97,7 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
         super.onViewCreated(view, savedInstanceState);
 
         binding.btnBack.setOnClickListener(v -> Navigation.findNavController(view).popBackStack());
+        binding.fabScanMed.setOnClickListener(v -> launchCamera());
 
         setupRecyclerView();
 
@@ -83,6 +113,96 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
         setupSwipeToDelete();
 
         binding.chipGroupFilters.setOnCheckedStateChangeListener((group, checkedId) -> applyFilters());
+    }
+
+    private void launchCamera() {
+        try {
+            java.io.File photoFile = java.io.File.createTempFile("scan_", ".jpg", requireContext().getExternalCacheDir());
+            currentPhotoUri = FileProvider.getUriForFile(requireContext(), requireContext().getPackageName() + ".provider", photoFile);
+            takePictureLauncher.launch(currentPhotoUri);
+        } catch (Exception e) {
+            Toast.makeText(getContext(), "Camera error", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void saveToVaultAndAnalyze(android.net.Uri tempUri) {
+        showLoadingDialog();
+        new Thread(() -> {
+            try {
+                // 1. SAVE TO VAULT (Permanent internal storage)
+                File vaultFile = new File(requireContext().getFilesDir(), "rx_" + System.currentTimeMillis() + ".jpg");
+                InputStream in = requireContext().getContentResolver().openInputStream(tempUri);
+                FileOutputStream out = new FileOutputStream(vaultFile);
+                byte[] buffer = new byte[1024];
+                int read;
+                while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+                in.close();
+                out.close();
+                String finalVaultUri = Uri.fromFile(vaultFile).toString();
+
+                // 2. SHRINK FOR AI (Prevent Crash)
+                InputStream is = requireContext().getContentResolver().openInputStream(tempUri);
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inJustDecodeBounds = true;
+                BitmapFactory.decodeStream(is, null, options);
+                is.close();
+
+                int inSampleSize = 1;
+                if (options.outHeight > 800 || options.outWidth > 800) {
+                    final int halfH = options.outHeight / 2, halfW = options.outWidth / 2;
+                    while ((halfH / inSampleSize) >= 800 && (halfW / inSampleSize) >= 800)
+                        inSampleSize *= 2;
+                }
+
+                options.inJustDecodeBounds = false;
+                options.inSampleSize = inSampleSize;
+                is = requireContext().getContentResolver().openInputStream(tempUri);
+                Bitmap bitmap = android.graphics.BitmapFactory.decodeStream(is, null, options);
+                is.close();
+
+                // 3. CALL GEMINI
+                geminiRepository.analyzePrescription(bitmap, new GeminiRepository.PrescriptionCallback() {
+                    @Override
+                    public void onSuccess(GeminiRepository.PrescriptionResult result) {
+                        if (getActivity() != null) getActivity().runOnUiThread(() -> {
+                            dismissLoadingDialog();
+                            AddMedBottomSheet sheet = new AddMedBottomSheet();
+                            sheet.setAutoFillData(result.name, result.dosage, result.type, result.frequency, finalVaultUri);
+                            sheet.setListener(MedsFragment.this);
+                            sheet.show(getParentFragmentManager(), "AddMedSheet");
+                        });
+                    }
+
+                    @Override
+                    public void onError(Throwable t) {
+                        if (getActivity() != null) getActivity().runOnUiThread(() -> {
+                            dismissLoadingDialog();
+                            Toast.makeText(getContext(), "AI couldn't read label", Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                });
+            } catch (Exception e) {
+                if (getActivity() != null) getActivity().runOnUiThread(() -> {
+                    dismissLoadingDialog();
+                    Toast.makeText(getContext(), "Processing error", Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).start();
+    }
+
+    private void showLoadingDialog() {
+        if (loadingDialog == null) {
+            loadingDialog = new MaterialAlertDialogBuilder(requireContext())
+                    .setView(getLayoutInflater().inflate(R.layout.dialog_loading, null))
+                    .setCancelable(false).create();
+            if (loadingDialog.getWindow() != null)
+                loadingDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        loadingDialog.show();
+    }
+
+    private void dismissLoadingDialog() {
+        if (loadingDialog != null && loadingDialog.isShowing()) loadingDialog.dismiss();
     }
 
     private void checkDailyResets(List<Medication> meds) {
@@ -122,8 +242,14 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
 
     private void applyFilters() {
         String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        String currentDayOfWeek = new SimpleDateFormat("EEE", Locale.getDefault()).format(new Date());
+
         List<Medication> activeMeds = allMeds.stream()
                 .filter(m -> m.getEndDate() == null || m.getEndDate().equals("Forever") || m.getEndDate().compareTo(today) >= 0)
+                .filter(m -> {
+                    String days = m.getSelectedDays();
+                    return days == null || days.equals("Everyday") || days.contains(currentDayOfWeek);
+                })
                 .toList();
 
         int checkedId = binding.chipGroupFilters.getCheckedChipId();

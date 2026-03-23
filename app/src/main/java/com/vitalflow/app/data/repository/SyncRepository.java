@@ -18,6 +18,7 @@ import com.vitalflow.app.data.entity.Medication;
 import com.vitalflow.app.data.entity.PeriodLog;
 import com.vitalflow.app.data.entity.Vital;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -71,6 +72,7 @@ public class SyncRepository {
                 performFullSync(listener);
                 notifyComplete(listener, true, "Sync Complete");
             } catch (Exception e) {
+                Log.e("SyncRepo", "Async Sync Error", e);
                 notifyComplete(listener, false, e.getMessage());
             }
         }).start();
@@ -78,14 +80,7 @@ public class SyncRepository {
 
     // --- THE CORE LOGIC (Safe Order: Download -> Merge -> Upload) ---
     private void performFullSync(OnSyncListener listener) throws ExecutionException, InterruptedException {
-        String uid = auth.getCurrentUser().getUid();
-
-        // ---------------------------------------------------------
-        // PART A: DOWNLOAD CLOUD DATA FIRST (RESTORE/MERGE)
-        // ---------------------------------------------------------
-        // We pull the latest cloud data and insert it into Room.
-        // Room's OnConflictStrategy.REPLACE ensures that if Cloud data is newer/different,
-        // our local DB gets updated BEFORE we try to upload anything.
+        String uid = auth.getCurrentUser() != null ? auth.getCurrentUser().getUid() : null;
 
         notifyProgress(listener, 1, 4); // Progress 25%
         restoreCollection(uid, "medications", Medication.class, appDao::insertMedication);
@@ -96,11 +91,6 @@ public class SyncRepository {
         restoreCollection(uid, "period_logs", PeriodLog.class, appDao::insertPeriodLog);
         restoreCollection(uid, "food_logs", FoodLog.class, appDao::insertFoodLog);
 
-        // ---------------------------------------------------------
-        // PART B: UPLOAD MERGED DATA TO CLOUD
-        // ---------------------------------------------------------
-        // Now that Local DB contains the "Merged Truth" (Local changes + Cloud updates),
-        // we push this consistent state back to the Cloud.
 
         notifyProgress(listener, 3, 4); // Progress 75%
         uploadCollection(uid, "medications", appDao.getAllMedicationsSync().blockingGet());
@@ -116,19 +106,39 @@ public class SyncRepository {
     private <T> void uploadCollection(String uid, String collectionName, List<T> items) throws ExecutionException, InterruptedException {
         if (items == null || items.isEmpty()) return;
 
-        WriteBatch batch = firestore.batch();
         CollectionReference ref = firestore.collection("users").document(uid).collection(collectionName);
-
-        // Firestore batches represent atomic operations
-        // NOTE: Firestore has a limit of 500 ops per batch.
-        // For production, you might need to split this if user has >500 items.
-        // For this MVP, a single batch per collection is usually fine.
+        List<WriteBatch> batches = new ArrayList<>();
+        WriteBatch currentBatch = firestore.batch();
+        int count = 0;
 
         for (T item : items) {
+            if (item == null) continue;
             String docId = getDocId(item);
-            batch.set(ref.document(docId), item, SetOptions.merge());
+            if (docId == null || docId.trim().isEmpty()) {
+                docId = "auto_" + System.currentTimeMillis() + "_" + item.hashCode();
+            }
+
+            currentBatch.set(ref.document(docId), item, SetOptions.merge());
+            count++;
+
+            if (count >= 400) {
+                batches.add(currentBatch);
+                currentBatch = firestore.batch();
+                count = 0;
+            }
         }
-        Tasks.await(batch.commit()); // Block until upload finishes
+
+        if (count > 0) {
+            batches.add(currentBatch);
+        }
+
+        batches.forEach(batch -> {
+            try {
+                Tasks.await(batch.commit());
+            } catch (ExecutionException | InterruptedException e) {
+                Log.e("SyncRepo", "Couldn't upload batch! ", e);
+            }
+        });
     }
 
     // --- HELPER: RESTORE ---
@@ -139,9 +149,13 @@ public class SyncRepository {
         var snapshot = Tasks.await(ref.get());
 
         for (DocumentSnapshot doc : snapshot.getDocuments()) {
-            T item = doc.toObject(type);
-            if (item != null) {
-                callback.insert(item).blockingAwait();
+            try {
+                T item = doc.toObject(type);
+                if (item != null) {
+                    callback.insert(item).blockingAwait();
+                }
+            } catch (Exception e) {
+                Log.e("SyncRepo", "Skipped corrupted document: " + doc.getId(), e);
             }
         }
     }

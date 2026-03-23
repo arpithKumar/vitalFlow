@@ -100,7 +100,9 @@ public class GeminiRepository {
         if (activeMeds != null && !activeMeds.isEmpty()) {
             for (Medication med : activeMeds) {
                 contextBuilder.append("- ").append(med.getName())
-                        .append(" (Dose: ").append(med.getDosage()).append(")\n");
+                        .append(" (Dose: ").append(med.getDosage())
+                        .append(", Scheduled: ").append(med.getSelectedDays())
+                        .append(")\n");
             }
         } else {
             contextBuilder.append("No active medications.\n");
@@ -160,12 +162,16 @@ public class GeminiRepository {
                 if (response.isSuccessful() && response.body() != null) {
                     try {
                         String rawText = response.body().getText();
-                        String json = rawText.replaceAll("```json", "")
-                                .replaceAll("```", "")
-                                .trim();
-
-                        HealthPlan plan = gson.fromJson(json, HealthPlan.class);
-                        callback.onSuccess(plan);
+                        int startIndex = rawText.indexOf('{');
+                        int endIndex = rawText.lastIndexOf('}');
+                        if (startIndex != -1 && endIndex != -1 && startIndex < endIndex) {
+                            String json = rawText.substring(startIndex, endIndex + 1);
+                            Log.d("Gemini Periods Response", json);
+                            HealthPlan plan = gson.fromJson(json, HealthPlan.class);
+                            callback.onSuccess(plan);
+                        } else {
+                            callback.onError(new Exception("AI returned invalid format: " + rawText));
+                        }
                     } catch (Exception e) {
                         callback.onError(new Exception("Failed to parse AI Plan: " + e.getMessage()));
                     }
@@ -185,7 +191,6 @@ public class GeminiRepository {
 
         String apiKey = getUserApiKey();
 
-        // 1. Check if Key Exists
         if (apiKey == null || apiKey.isEmpty()) {
             callback.onError(new SecurityException("API_KEY_MISSING"));
             return;
@@ -202,7 +207,29 @@ public class GeminiRepository {
                     if (mimeType == null) mimeType = "image/jpeg";
 
                     InputStream is = resolver.openInputStream(imageUri);
-                    Bitmap bitmap = BitmapFactory.decodeStream(is);
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inJustDecodeBounds = true;
+                    BitmapFactory.decodeStream(is, null, options);
+                    is.close();
+
+                    // 2. Calculate Shrink Factor (Target ~800px)
+                    int reqWidth = 800;
+                    int reqHeight = 800;
+                    int inSampleSize = 1;
+
+                    if (options.outHeight > reqHeight || options.outWidth > reqWidth) {
+                        final int halfHeight = options.outHeight / 2;
+                        final int halfWidth = options.outWidth / 2;
+                        while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= reqWidth) {
+                            inSampleSize *= 2;
+                        }
+                    }
+
+                    options.inJustDecodeBounds = false;
+                    options.inSampleSize = inSampleSize;
+                    is = resolver.openInputStream(imageUri);
+                    Bitmap bitmap = BitmapFactory.decodeStream(is, null, options);
+                    is.close();
 
                     if (bitmap == null) {
                         callback.onError(new Exception("Failed to decode image"));
@@ -292,12 +319,16 @@ public class GeminiRepository {
                     public void onResponse(@NonNull Call<GeminiResponse> call, @NonNull Response<GeminiResponse> response) {
                         if (response.isSuccessful() && response.body() != null) {
                             try {
-                                String json = response.body().getText()
-                                        .replaceAll("```json", "")
-                                        .replaceAll("```", "").trim();
-
-                                FoodAnalysisResult result = gson.fromJson(json, FoodAnalysisResult.class);
-                                callback.onSuccess(result);
+                                String rawText = response.body().getText();
+                                int startIndex = rawText.indexOf('{');
+                                int endIndex = rawText.lastIndexOf('}');
+                                if (startIndex != -1 && endIndex != -1 && startIndex < endIndex) {
+                                    String json = rawText.substring(startIndex, endIndex + 1);
+                                    FoodAnalysisResult result = gson.fromJson(json, FoodAnalysisResult.class);
+                                    callback.onSuccess(result);
+                                } else {
+                                    callback.onError(new Exception("AI returned invalid format: " + rawText));
+                                }
                             } catch (Exception e) {
                                 callback.onError(new Exception("Failed to parse food data: " + e.getMessage()));
                             }
@@ -328,5 +359,69 @@ public class GeminiRepository {
         public String food_name;
         public int calories;
         public String macros;
+    }
+
+    public void analyzePrescription(Bitmap image, PrescriptionCallback callback) {
+        String apiKey = getUserApiKey();
+        if (apiKey == null) {
+            callback.onError(new SecurityException("API_KEY_MISSING"));
+            return;
+        }
+
+        String prompt = "Analyze this medication label/prescription. Extract the data. " +
+                "Return ONLY raw JSON (no markdown) in this exact format: " +
+                "{ \"name\": \"Medication Name\", \"dosage\": \"e.g. 500mg\", \"frequency\": 2, \"type\": \"Pill\" }. " +
+                "If type is unknown, use \"Pill\". If frequency is unknown, use 1.";
+
+        executor.execute(() -> {
+            try {
+                String base64 = bitmapToBase64(image, "image/jpeg");
+                GeminiRequest request = new GeminiRequest(prompt, base64, "image/jpeg");
+
+                apiService.generateContent(getUserModel(), apiKey, request).enqueue(new Callback<>() {
+                    @Override
+                    public void onResponse(@NonNull Call<GeminiResponse> call, @NonNull Response<GeminiResponse> response) {
+                        if (response.isSuccessful() && response.body() != null) {
+                            try {
+                                String rawText = response.body().getText();
+                                int startIndex = rawText.indexOf('{');
+                                int endIndex = rawText.lastIndexOf('}');
+                                if (startIndex != -1 && endIndex != -1 && startIndex < endIndex) {
+                                    String json = rawText.substring(startIndex, endIndex + 1);
+                                    PrescriptionResult result = gson.fromJson(json, PrescriptionResult.class);
+                                    callback.onSuccess(result);
+                                } else {
+                                    callback.onError(new Exception("Invalid format"));
+                                }
+                            } catch (Exception e) {
+                                callback.onError(e);
+                            }
+                        } else {
+                            callback.onError(new Exception("AI Error"));
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<GeminiResponse> call, @NonNull Throwable t) {
+                        callback.onError(t);
+                    }
+                });
+            } catch (Exception e) {
+                callback.onError(e);
+            }
+        });
+    }
+
+    public interface PrescriptionCallback {
+        void onSuccess(PrescriptionResult result);
+
+        void onError(Throwable t);
+    }
+
+    public static class PrescriptionResult {
+        public String name;
+        public String dosage;
+        public int frequency;
+        public String type;
     }
 }

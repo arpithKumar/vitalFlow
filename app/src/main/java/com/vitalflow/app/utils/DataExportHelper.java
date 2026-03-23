@@ -46,16 +46,19 @@ public class DataExportHelper {
 
                 // --- SHEET 1: MEDICATIONS ---
                 Sheet sheetMeds = workbook.createSheet("Medications");
-                createHeader(sheetMeds, "Name", "Dosage", "Frequency", "Time", "Status", "Pills Left");
+                createHeader(sheetMeds, "Name", "Dosage", "Frequency", "Scheduled Days", "Time", "Status", "Pills Left", "Rx Saved?");
                 int rowNum = 1;
                 for (Medication m : meds) {
                     Row row = sheetMeds.createRow(rowNum++);
                     row.createCell(0).setCellValue(m.getName());
                     row.createCell(1).setCellValue(m.getDosage());
                     row.createCell(2).setCellValue(m.getFrequencyPerDay() + "x Daily");
-                    row.createCell(3).setCellValue(m.getTime());
-                    row.createCell(4).setCellValue(m.getStatus()); // Taken/Skipped
-                    row.createCell(5).setCellValue(m.getPillsLeft());
+                    row.createCell(3).setCellValue(m.getSelectedDays());
+                    row.createCell(4).setCellValue(m.getTime());
+                    row.createCell(5).setCellValue(m.getStatus()); // Taken/Skipped
+                    row.createCell(6).setCellValue(m.getPillsLeft());
+                    boolean hasRx = m.getPrescriptionUri() != null && !m.getPrescriptionUri().isEmpty();
+                    row.createCell(7).setCellValue(hasRx ? "Yes" : "No");
                 }
 
                 // --- SHEET 2: VITALS ---

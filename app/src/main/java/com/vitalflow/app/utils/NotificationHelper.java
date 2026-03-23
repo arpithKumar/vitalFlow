@@ -22,13 +22,16 @@ public class NotificationHelper {
 
     private static final String CHANNEL_ID_MEDS = "med_inventory_channel";
     private static final String CHANNEL_ID_DOWNLOADS = "download_channel"; // New Channel
+    public static final String CHANNEL_ID_WATER = "health_reminders";
     private static final int DOWNLOAD_NOTIF_ID = 999; // Unique ID for updating
 
 
-    public static void scheduleDailyReminder(Context context) {
-        // Schedule to run every 24 hours
-        PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(ReminderWorker.class, 24, TimeUnit.HOURS).build();
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork("daily_health_reminder", ExistingPeriodicWorkPolicy.KEEP, request);
+    public static void scheduleDailyReminder(Context context, int intervalHours) {
+        PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(ReminderWorker.class, intervalHours, TimeUnit.HOURS).build();
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                "daily_health_reminder",
+                ExistingPeriodicWorkPolicy.UPDATE,
+                request);
     }
 
     public static void cancelReminders(Context context) {
@@ -48,6 +51,11 @@ public class NotificationHelper {
                 CHANNEL_ID_DOWNLOADS, "Downloads & Reports", NotificationManager.IMPORTANCE_LOW);
         downloadChannel.setDescription("Progress status for PDF reports");
         notificationManager.createNotificationChannel(downloadChannel);
+
+        NotificationChannel waterChannel = new NotificationChannel(
+                CHANNEL_ID_WATER, "Daily Reminders", NotificationManager.IMPORTANCE_DEFAULT);
+        waterChannel.setDescription("Hydration and health reminders");
+        notificationManager.createNotificationChannel(waterChannel);
     }
 
     private static PendingIntent getOpenAppIntent(Context context) {

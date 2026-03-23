@@ -45,6 +45,9 @@ import androidx.fragment.app.Fragment;
 import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkManager;
 
 import com.bumptech.glide.Glide;
 import com.github.mikephil.charting.charts.BarChart;
@@ -70,6 +73,7 @@ import com.vitalflow.app.utils.InsightEngine;
 import com.vitalflow.app.utils.NotificationHelper;
 import com.vitalflow.app.utils.PdfReportManager;
 import com.vitalflow.app.utils.WidgetUpdateHelper;
+import com.vitalflow.app.workers.HealthSyncWorker;
 
 import java.io.File;
 import java.io.IOException;
@@ -83,6 +87,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
 
@@ -178,7 +183,6 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         // --- SPECIFIC STEP PERMISSION LAUNCHER ---
         requestStepPermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
             if (isGranted) {
-                // Permission granted, sensor will start working in onResume
             }
         });
 
@@ -369,6 +373,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         appDao.getAllMedications().observe(getViewLifecycleOwner(), this::calculateNextMedicationSmart);
 
         setupHydrationChips();
+        setupWaterReminder();
         binding.chipGoal.setOnClickListener(v -> showSetGoalDialog());
         binding.btnResetHydration.setOnClickListener(v -> resetHydration());
 
@@ -452,35 +457,65 @@ public class HomeFragment extends Fragment implements SensorEventListener {
     private void analyzeFood(Uri imageUri) {
         showLoadingDialog();
 
-        try {
-            InputStream is = requireContext().getContentResolver().openInputStream(imageUri);
-            Bitmap bitmap = BitmapFactory.decodeStream(is);
+        new Thread(() -> {
+            try {
+                InputStream is = requireContext().getContentResolver().openInputStream(imageUri);
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inJustDecodeBounds = true;
+                BitmapFactory.decodeStream(is, null, options);
+                is.close();
 
-            geminiRepository.analyzeFoodImage(bitmap, new GeminiRepository.FoodAnalysisCallback() {
-                @Override
-                public void onSuccess(GeminiRepository.FoodAnalysisResult result) {
-                    if (getActivity() != null) {
-                        getActivity().runOnUiThread(() -> {
-                            dismissLoadingDialog();
-                            showConfirmFoodDialog(result);
-                        });
+                int reqWidth = 800;
+                int reqHeight = 800;
+                int inSampleSize = 1;
+
+                if (options.outHeight > reqHeight || options.outWidth > reqWidth) {
+                    final int halfHeight = options.outHeight / 2;
+                    final int halfWidth = options.outWidth / 2;
+                    while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= reqWidth) {
+                        inSampleSize *= 2;
                     }
                 }
 
-                @Override
-                public void onError(Throwable t) {
-                    if (getActivity() != null) {
-                        getActivity().runOnUiThread(() -> {
-                            dismissLoadingDialog();
-                            Toast.makeText(getContext(), "AI Error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                        });
+                options.inJustDecodeBounds = false;
+                options.inSampleSize = inSampleSize;
+                is = requireContext().getContentResolver().openInputStream(imageUri);
+                Bitmap bitmap = BitmapFactory.decodeStream(is, null, options);
+                is.close();
+
+                if (bitmap == null) throw new IOException("Image decode failed");
+
+                geminiRepository.analyzeFoodImage(bitmap, new GeminiRepository.FoodAnalysisCallback() {
+                    @Override
+                    public void onSuccess(GeminiRepository.FoodAnalysisResult result) {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                dismissLoadingDialog();
+                                showConfirmFoodDialog(result);
+                            });
+                        }
                     }
+
+                    @Override
+                    public void onError(Throwable t) {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                dismissLoadingDialog();
+                                Toast.makeText(getContext(), "AI Error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                    }
+                });
+
+            } catch (Exception e) {
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        dismissLoadingDialog();
+                        Toast.makeText(getContext(), "Failed to load image", Toast.LENGTH_SHORT).show();
+                    });
                 }
-            });
-        } catch (Exception e) {
-            dismissLoadingDialog();
-            Toast.makeText(getContext(), "Failed to load image", Toast.LENGTH_SHORT).show();
-        }
+            }
+        }).start();
     }
 
     private void showLoadingDialog() {
@@ -535,6 +570,93 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                 .show();
     }
 
+    private void setupWaterReminder() {
+        SharedPreferences prefs = requireContext().getSharedPreferences("vital_prefs", Context.MODE_PRIVATE);
+
+        binding.btnWaterReminder.setOnClickListener(v -> {
+            String[] options = {"Off (No Reminders)", "Every 1 Hour", "Every 2 Hours", "Every 4 Hours", "Custom..."};
+            int[] predefinedIntervals = {0, 1, 2, 4};
+
+            int currentInterval = prefs.getInt("water_reminder_interval", 0);
+            int checkedItem = 4;
+            for (int i = 0; i < predefinedIntervals.length; i++) {
+                if (predefinedIntervals[i] == currentInterval) {
+                    checkedItem = i;
+                    break;
+                }
+            }
+
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Water Reminders")
+                    .setSingleChoiceItems(options, checkedItem, (dialog, which) -> {
+                        dialog.dismiss();
+
+                        if (which < 4) {
+                            int selectedInterval = predefinedIntervals[which];
+                            prefs.edit().putInt("water_reminder_interval", selectedInterval).apply();
+
+                            if (selectedInterval == 0) {
+                                NotificationHelper.cancelReminders(requireContext());
+                                Toast.makeText(getContext(), "Water reminders turned off", Toast.LENGTH_SHORT).show();
+                            } else {
+                                NotificationHelper.scheduleDailyReminder(requireContext(), selectedInterval);
+                                Toast.makeText(getContext(), "Reminding every " + selectedInterval + " hours", Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            showCustomReminderDialog(prefs);
+                        }
+                    })
+                    .show();
+        });
+    }
+
+    private void showCustomReminderDialog(SharedPreferences prefs) {
+        // Create an EditText programmatically so we don't need a new XML file
+        EditText input = new EditText(requireContext());
+        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        input.setHint("e.g. 3");
+
+        // Add some padding to the input field so it looks nice
+        android.widget.FrameLayout container = new android.widget.FrameLayout(requireContext());
+        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        int margin = (int) (24 * getResources().getDisplayMetrics().density);
+        params.leftMargin = margin;
+        params.rightMargin = margin;
+        input.setLayoutParams(params);
+        container.addView(input);
+
+        int currentInterval = prefs.getInt("water_reminder_interval", 0);
+        if (currentInterval > 0) {
+            input.setText(String.valueOf(currentInterval));
+            input.setSelection(input.getText().length());
+        }
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Custom Interval")
+                .setMessage("Remind me to drink water every X hours:")
+                .setView(container)
+                .setPositiveButton("Save", (dialog, whichButton) -> {
+                    String valueStr = input.getText().toString().trim();
+                    if (!valueStr.isEmpty()) {
+                        try {
+                            int hours = Integer.parseInt(valueStr);
+                            if (hours > 0 && hours <= 24) {
+                                prefs.edit().putInt("water_reminder_interval", hours).apply();
+                                NotificationHelper.scheduleDailyReminder(requireContext(), hours);
+                                Toast.makeText(getContext(), "Reminding every " + hours + " hours", Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(getContext(), "Please enter between 1 and 24 hours", Toast.LENGTH_SHORT).show();
+                            }
+                        } catch (NumberFormatException e) {
+                            Toast.makeText(getContext(), "Invalid number", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
     private void calculateNextMedicationSmart(List<Medication> meds) {
         if (binding == null) return;
         if (meds == null || meds.isEmpty()) {
@@ -544,6 +666,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         }
 
         String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        String currentDayOfWeek = new SimpleDateFormat("EEE", Locale.getDefault()).format(new Date());
 
         Medication nextMed = null;
         long minDiffMillis = Long.MAX_VALUE;
@@ -552,6 +675,12 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         for (Medication m : meds) {
             if (m.getEndDate() != null && !m.getEndDate().equalsIgnoreCase("Forever") && m.getEndDate().compareTo(today) < 0)
                 continue;
+
+            String scheduledDays = m.getSelectedDays();
+            if (scheduledDays != null && !scheduledDays.equals("Everyday") && !scheduledDays.contains(currentDayOfWeek)) {
+                continue;
+            }
+
             hasActiveMeds = true;
 
             int takenCount = 0;
@@ -567,8 +696,6 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                 if (startTime != null) {
                     Calendar doseTime = Calendar.getInstance();
                     doseTime.setTime(startTime);
-
-                    // Reset to today's date + parsed time
                     Calendar target = Calendar.getInstance();
                     target.set(Calendar.HOUR_OF_DAY, doseTime.get(Calendar.HOUR_OF_DAY));
                     target.set(Calendar.MINUTE, doseTime.get(Calendar.MINUTE));
@@ -591,8 +718,6 @@ public class HomeFragment extends Fragment implements SensorEventListener {
 
         if (nextMed != null) {
             binding.tvNextMedName.setText(nextMed.getName());
-
-            // Re-calculate the display time for the UI
             try {
                 int taken = 0;
                 if (nextMed.getLastActionDate() != null && nextMed.getLastActionDate().equals(today)) {
@@ -603,7 +728,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                 Date baseTime = sdfTime.parse(nextMed.getTime());
                 Calendar c = Calendar.getInstance();
                 c.setTime(baseTime);
-                c.add(Calendar.HOUR_OF_DAY, taken * 6); // Add spacing for display
+                c.add(Calendar.HOUR_OF_DAY, taken * 6);
 
                 String displayTime = sdfTime.format(c.getTime());
                 binding.tvNextMedTime.setText(displayTime);
@@ -613,11 +738,9 @@ public class HomeFragment extends Fragment implements SensorEventListener {
             }
 
         } else if (hasActiveMeds) {
-            // Active meds exist, but all taken
             binding.tvNextMedName.setText("All Done");
             binding.tvNextMedTime.setText("See you tomorrow");
         } else {
-            // No active meds (all expired)
             binding.tvNextMedName.setText("No Active");
             binding.tvNextMedTime.setText("Prescriptions");
         }
@@ -681,6 +804,17 @@ public class HomeFragment extends Fragment implements SensorEventListener {
             }
             return null;
         });
+
+        PeriodicWorkRequest healthSyncWork = new PeriodicWorkRequest.Builder(
+                HealthSyncWorker.class, 4, TimeUnit.HOURS
+        ).build();
+
+        WorkManager.getInstance(requireContext())
+                .enqueueUniquePeriodicWork(
+                        "HealthConnectAutoSync",
+                        ExistingPeriodicWorkPolicy.KEEP,
+                        healthSyncWork
+                );
     }
 
     private void loadUserData() {
@@ -781,7 +915,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                 goalReachedTriggered = true;
             }
         } else {
-            binding.chipGoal.setText("Goal: " + goal + "ml");
+            binding.chipGoal.setText(MessageFormat.format("Goal: {0}ml", goal));
             binding.chipGoal.setTextColor(Color.parseColor("#546E7A"));
             binding.chipGoal.setChipIconResource(R.drawable.ic_edit);
             binding.chipGoal.setChipIconTint(ColorStateList.valueOf(Color.parseColor("#90A4AE")));

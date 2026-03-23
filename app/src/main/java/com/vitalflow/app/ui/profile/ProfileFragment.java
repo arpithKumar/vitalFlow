@@ -39,6 +39,7 @@ import com.vitalflow.app.utils.DataExportHelper;
 import com.vitalflow.app.utils.NotificationHelper;
 import com.vitalflow.app.workers.SyncWorker;
 
+import java.text.MessageFormat;
 import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
@@ -314,21 +315,22 @@ public class ProfileFragment extends Fragment {
     }
 
     private void startSync() {
-        // UI: Start Animation
         binding.lottieSync.playAnimation();
         binding.tvSyncStatus.setText("Preparing...");
-        binding.cardSync.setClickable(false); // Lock button
+        binding.cardSync.setClickable(false);
 
         // Execute Sync
         syncRepository.syncDataToCloud(new SyncRepository.OnSyncListener() {
             @Override
             public void onProgress(int current, int total) {
                 // Update text live: "Syncing: 5 / 20"
-                binding.tvSyncStatus.setText("Syncing: " + current + " / " + total);
+                if (binding == null) return;
+                binding.tvSyncStatus.setText(MessageFormat.format("Syncing: {0} / {1}", current, total));
             }
 
             @Override
             public void onComplete(boolean success, String message) {
+                if (binding == null) return;
                 // UI: Stop Animation
                 binding.lottieSync.cancelAnimation();
                 binding.lottieSync.setProgress(0f);
@@ -412,7 +414,7 @@ public class ProfileFragment extends Fragment {
         binding.switchNotifications.setChecked(prefs.getBoolean("notifications", true));
         binding.switchNotifications.setOnCheckedChangeListener((buttonView, isChecked) -> {
             prefs.edit().putBoolean("notifications", isChecked).apply();
-            if (isChecked) NotificationHelper.scheduleDailyReminder(requireContext());
+            if (isChecked) NotificationHelper.scheduleDailyReminder(requireContext(), 24);
             else NotificationHelper.cancelReminders(requireContext());
         });
 
