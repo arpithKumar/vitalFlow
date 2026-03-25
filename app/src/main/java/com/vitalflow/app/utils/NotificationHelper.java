@@ -10,11 +10,15 @@ import android.net.Uri;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.OneTimeWorkRequest;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 
 import com.vitalflow.app.MainActivity;
 import com.vitalflow.app.R;
+import com.vitalflow.app.data.entity.Medication;
+import com.vitalflow.app.receivers.MedicationActionReceiver;
+import com.vitalflow.app.workers.SnoozeWorker;
 
 import java.util.concurrent.TimeUnit;
 
@@ -130,21 +134,59 @@ public class NotificationHelper {
         }
     }
 
-    public static void sendMedicationReminder(Context context, String medName, String time) {
+    public static void sendMedicationReminder(Context context, Medication med) {
         try {
+            int uniqueId = (med.getId() + med.getTime()).hashCode();
+
+            // Intent to open the app normally
+            PendingIntent appPendingIntent = getOpenAppIntent(context);
+
+            // Action 1: Mark as Taken
+            Intent takenIntent = new Intent(context, MedicationActionReceiver.class);
+            takenIntent.setAction("ACTION_MARK_TAKEN");
+            takenIntent.putExtra("med_id", med.getId());
+            takenIntent.putExtra("notif_id", uniqueId);
+            PendingIntent takenPending = PendingIntent.getBroadcast(
+                    context, uniqueId + 1, takenIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+            // Action 2: Snooze for 1 Hour
+            Intent snoozeIntent = new Intent(context, MedicationActionReceiver.class);
+            snoozeIntent.setAction("ACTION_SNOOZE");
+            snoozeIntent.putExtra("med_id", med.getId());
+            snoozeIntent.putExtra("med_name", med.getName());
+            snoozeIntent.putExtra("notif_id", uniqueId);
+            PendingIntent snoozePending = PendingIntent.getBroadcast(
+                    context, uniqueId + 2, snoozeIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
             NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID_MEDS)
-                    .setSmallIcon(R.drawable.ic_heart) // Use your app logo or specific med icon
-                    .setContentTitle("Time to take your Meds")
-                    .setContentText("Take " + medName + " (" + time + ")")
+                    .setSmallIcon(R.drawable.ic_heart)
+                    .setContentTitle("Time for your Meds")
+                    .setContentText("Take " + med.getName() + " (" + med.getDosage() + ")")
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setCategory(NotificationCompat.CATEGORY_REMINDER)
                     .setAutoCancel(true)
-                    .setContentIntent(getOpenAppIntent(context));
+                    .setContentIntent(appPendingIntent)
+                    .addAction(R.drawable.ic_check_circle, "Mark Taken", takenPending)
+                    .addAction(R.drawable.ic_clock, "Snooze 1h", snoozePending);
 
-            int uniqueId = (medName + time).hashCode();
             NotificationManagerCompat.from(context).notify(uniqueId, builder.build());
         } catch (SecurityException e) {
         }
+    }
+
+    // 2. Add this helper method to schedule the snooze
+    public static void scheduleSnooze(Context context, String medId, String medName) {
+        androidx.work.Data inputData = new androidx.work.Data.Builder()
+                .putString("med_id", medId)
+                .putString("med_name", medName)
+                .build();
+
+        OneTimeWorkRequest snoozeRequest = new OneTimeWorkRequest.Builder(SnoozeWorker.class)
+                .setInitialDelay(1, TimeUnit.HOURS)
+                .setInputData(inputData)
+                .build();
+
+        androidx.work.WorkManager.getInstance(context).enqueue(snoozeRequest);
     }
 
     public static void triggerImmediateMedicationCheck(Context context) {

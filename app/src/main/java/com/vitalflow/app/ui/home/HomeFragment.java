@@ -2,10 +2,12 @@ package com.vitalflow.app.ui.home;
 
 import android.Manifest;
 import android.animation.Animator;
+import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.PropertyValuesHolder;
 import android.animation.ValueAnimator;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
@@ -22,6 +24,8 @@ import android.hardware.SensorManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.speech.RecognizerIntent;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -30,6 +34,7 @@ import android.view.animation.DecelerateInterpolator;
 import android.view.animation.TranslateAnimation;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -68,6 +73,7 @@ import com.vitalflow.app.data.entity.Vital;
 import com.vitalflow.app.data.repository.GeminiRepository;
 import com.vitalflow.app.databinding.FragmentHomeBinding;
 import com.vitalflow.app.ui.report.ReportViewModel;
+import com.vitalflow.app.utils.DataImportHelper;
 import com.vitalflow.app.utils.HealthConnectManager;
 import com.vitalflow.app.utils.InsightEngine;
 import com.vitalflow.app.utils.NotificationHelper;
@@ -78,6 +84,8 @@ import com.vitalflow.app.workers.HealthSyncWorker;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -142,6 +150,11 @@ public class HomeFragment extends Fragment implements SensorEventListener {
     private ActivityResultLauncher<String> requestStepPermissionLauncher;
     private ActivityResultLauncher<String[]> requestHealthConnectLauncher;
 
+    private ActivityResultLauncher<Intent> speechLauncher;
+    private List<Medication> activeMedsList = new ArrayList<>();
+
+    private ActivityResultLauncher<String[]> documentPickerLauncher;
+
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -201,6 +214,47 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                     else
                         Toast.makeText(getContext(), "Permissions needed to sync watch data", Toast.LENGTH_SHORT).show();
                 });
+
+        // Speech-to-Text Launcher
+        speechLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == getActivity().RESULT_OK && result.getData() != null) {
+                        ArrayList<String> matches = result.getData().getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                        if (matches != null && !matches.isEmpty()) {
+                            String spokenText = matches.get(0).toLowerCase();
+                            processVoiceCommand(spokenText);
+                        }
+                    }
+                });
+
+        // Excel Document Picker Launcher
+        documentPickerLauncher = registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
+            if (uri != null) {
+                showLoadingDialog();
+                DataImportHelper.restoreFromExcel(requireContext(), uri, appDao, new com.vitalflow.app.utils.DataImportHelper.ImportCallback() {
+                    @Override
+                    public void onSuccess(int itemsRestored) {
+                        if (getActivity() != null) getActivity().runOnUiThread(() -> {
+                            dismissLoadingDialog();
+                            Toast.makeText(getContext(), "Restored " + itemsRestored + " medications! 🎉", Toast.LENGTH_LONG).show();
+                            WidgetUpdateHelper.updateWidgets(getContext()); // Refresh widgets
+                        });
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        if (getActivity() != null) getActivity().runOnUiThread(() -> {
+                            dismissLoadingDialog();
+                            new MaterialAlertDialogBuilder(requireContext())
+                                    .setTitle("Restore Failed")
+                                    .setMessage(error)
+                                    .setPositiveButton("OK", null)
+                                    .show();
+                        });
+                    }
+                });
+            }
+        });
     }
 
     @Nullable
@@ -216,6 +270,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         reportViewModel = new androidx.lifecycle.ViewModelProvider(this).get(ReportViewModel.class);
         loadUserData();
         updateGreeting();
+        displayStreak();
 
         // 1. Calculate Today's Date Key (YYYY-MM-DD)
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
@@ -232,14 +287,168 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         }
 
         setupButtons();
+        checkAndShowMenuHint();
         setupAdditionalView(view);
     }
 
+    private void checkAndShowMenuHint() {
+        SharedPreferences prefs = requireActivity().getPreferences(android.content.Context.MODE_PRIVATE);
+        boolean hintShown = prefs.getBoolean("is_first_time_menu_hint_shown", false);
+        if (!hintShown) {
+            startProfileHintAnimation();
+            prefs.edit().putBoolean("is_first_time_menu_hint_shown", true).apply();
+        }
+    }
+
+    private void generateAndShareCaregiverReport() {
+        showLoadingDialog(); // Reuse your existing loading dialog!
+
+        // 1. Fetch the last 7 days of health data
+        disposables.add(appDao.getLastSevenDaysSync()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(history -> {
+
+                    // 2. Fetch their active medications
+                    disposables.add(appDao.getAllMedicationsSync()
+                            .subscribeOn(Schedulers.io())
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribe(meds -> {
+                                dismissLoadingDialog();
+                                formatAndShareReport(history, meds);
+                            }, e -> {
+                                dismissLoadingDialog();
+                                Toast.makeText(getContext(), "Error gathering meds", Toast.LENGTH_SHORT).show();
+                            }));
+                }, e -> {
+                    dismissLoadingDialog();
+                    Toast.makeText(getContext(), "Error gathering history", Toast.LENGTH_SHORT).show();
+                }));
+    }
+
+    private void formatAndShareReport(List<DailyHealth> history, List<Medication> meds) {
+        StringBuilder report = new StringBuilder();
+        String dateStr = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(new Date());
+
+        report.append("🩺 VitalFlow Health Summary\n");
+        report.append("Generated on: ").append(dateStr).append("\n\n");
+
+        // Section 1: Medications
+        report.append("💊 ACTIVE MEDICATIONS:\n");
+        if (meds == null || meds.isEmpty()) {
+            report.append("- None logged.\n");
+        } else {
+            for (Medication m : meds) {
+                report.append("- ").append(m.getName())
+                        .append(" (").append(m.getDosage()).append(") ")
+                        .append(" | ").append(m.getFrequencyPerDay()).append("x Daily\n");
+            }
+        }
+        report.append("\n");
+
+        // Section 2: Weekly Averages
+        report.append("📊 7-DAY TRENDS:\n");
+        if (history == null || history.isEmpty()) {
+            report.append("- Not enough data logged yet.\n");
+        } else {
+            int totalWater = 0, totalSteps = 0;
+            for (DailyHealth dh : history) {
+                totalWater += dh.getWaterIntakeMl();
+                totalSteps += dh.getStepCount();
+            }
+            int avgWater = totalWater / history.size();
+            int avgSteps = totalSteps / history.size();
+
+            report.append("- Avg Hydration: ").append(avgWater).append(" ml/day\n");
+            report.append("- Avg Steps: ").append(avgSteps).append(" steps/day\n");
+
+            // Just grab the most recent night's sleep
+            if (currentDayData != null && currentDayData.getSleepDuration() != null) {
+                report.append("- Recent Sleep: ").append(currentDayData.getSleepDuration()).append("\n");
+            }
+        }
+
+        report.append("\nShared securely via the VitalFlow App.");
+
+        // 3. Trigger Android's Native Share Sheet
+        android.content.Intent sendIntent = new android.content.Intent();
+        sendIntent.setAction(android.content.Intent.ACTION_SEND);
+        sendIntent.putExtra(android.content.Intent.EXTRA_TEXT, report.toString());
+        sendIntent.setType("text/plain");
+
+        android.content.Intent shareIntent = android.content.Intent.createChooser(sendIntent, "Share Medical Summary with...");
+        startActivity(shareIntent);
+    }
+
+    private void startProfileHintAnimation() {
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(binding.imgProfile, "scaleX", 1.0f, 1.1f, 1.0f);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(binding.imgProfile, "scaleY", 1.0f, 1.1f, 1.0f);
+
+        scaleX.setDuration(1000);
+        scaleY.setDuration(1000);
+
+        scaleX.setRepeatCount(2);
+        scaleY.setRepeatCount(2);
+
+        AnimatorSet animatorSet = new AnimatorSet();
+        animatorSet.playTogether(scaleX, scaleY);
+        animatorSet.setStartDelay(500);
+        animatorSet.start();
+    }
+
     private void setupButtons() {
-        binding.btnExportPdf.setOnClickListener(v -> {
-            Toast.makeText(getContext(), "Gathering data & AI Insights...", Toast.LENGTH_SHORT).show();
-            NotificationHelper.showDownloadProgress(requireContext());
-            reportViewModel.generateFullReport();
+
+        binding.imgProfile.setOnClickListener(v -> {
+            PopupMenu popup = new PopupMenu(requireContext(), v);
+
+            // Add items to the menu (GroupID, ItemID, Order, Title)
+            popup.getMenu().add(0, 1, 0, "Export Report (PDF/Excel)");
+            popup.getMenu().add(0, 2, 0, "Share with Caregiver");
+            popup.getMenu().add(0, 3, 0, "Restore from Backup");
+
+            popup.getMenu().findItem(1).setIcon(android.R.drawable.ic_menu_save);
+            popup.getMenu().findItem(2).setIcon(android.R.drawable.ic_menu_share);
+            popup.getMenu().findItem(3).setIcon(android.R.drawable.ic_menu_upload);
+
+            try {
+                Field field = popup.getClass().getDeclaredField("mPopup");
+                field.setAccessible(true);
+                Object menuHelper = field.get(popup);
+                Class<?> classPopupHelper = Class.forName(menuHelper.getClass().getName());
+                Method setForceIcons = classPopupHelper.getMethod("setForceShowIcon", boolean.class);
+                setForceIcons.invoke(menuHelper, true);
+            } catch (Exception e) {
+                Log.e("PopupMenu", "Error showing menu icons", e);
+            }
+
+            // Handle the menu item clicks
+            popup.setOnMenuItemClickListener(item -> {
+                switch (item.getItemId()) {
+                    case 1: // Export Report
+                        Toast.makeText(getContext(), "Gathering data & AI Insights...", Toast.LENGTH_SHORT).show();
+                        NotificationHelper.showDownloadProgress(requireContext());
+                        reportViewModel.generateFullReport();
+                        return true;
+
+                    case 2:
+                        generateAndShareCaregiverReport();
+                        return true;
+
+                    case 3: // Restore Excel
+                        new MaterialAlertDialogBuilder(requireContext())
+                                .setTitle("Restore Data")
+                                .setMessage("Select a previously exported VitalFlow Excel (.xlsx) file to restore your medications.")
+                                .setPositiveButton("Select File", (dialog, which) -> {
+                                    documentPickerLauncher.launch(new String[]{"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+                                })
+                                .setNegativeButton("Cancel", null)
+                                .show();
+                        return true;
+                }
+                return false;
+            });
+
+            popup.show();
         });
 
         reportViewModel.getReportData().observe(getViewLifecycleOwner(), reportData -> {
@@ -370,7 +579,12 @@ public class HomeFragment extends Fragment implements SensorEventListener {
             else tvRate.setText("-- bpm");
         });
 
-        appDao.getAllMedications().observe(getViewLifecycleOwner(), this::calculateNextMedicationSmart);
+        appDao.getAllMedications().observe(getViewLifecycleOwner(), meds -> {
+            this.activeMedsList = meds;
+            calculateNextMedicationSmart(meds);
+        });
+
+        binding.btnVoiceLog.setOnClickListener(v -> launchSpeechRecognizer());
 
         setupHydrationChips();
         setupWaterReminder();
@@ -385,6 +599,80 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         setupMoodTracker();
         startHeartPulseAnimation();
         setupNutritionSection();
+    }
+
+    private void launchSpeechRecognizer() {
+        try {
+            Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+            intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "What did you just do? (e.g., 'I drank water and took my vitamins')");
+            speechLauncher.launch(intent);
+        } catch (Exception e) {
+            Toast.makeText(getContext(), "Speech recognition not available on this device", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void processVoiceCommand(String spokenText) {
+        showLoadingDialog();
+
+        geminiRepository.analyzeVoiceCommand(spokenText, activeMedsList, new GeminiRepository.VoiceCommandCallback() {
+            @Override
+            public void onSuccess(List<GeminiRepository.VoiceAction> actions) {
+                if (getActivity() == null) return;
+
+                getActivity().runOnUiThread(() -> {
+                    dismissLoadingDialog();
+                    int actionsLogged = 0;
+                    StringBuilder summary = new StringBuilder("Logged: ");
+
+                    for (GeminiRepository.VoiceAction a : actions) {
+                        if ("WATER".equals(a.action)) {
+                            addWater(a.amount_ml);
+                            summary.append(a.amount_ml).append("ml Water, ");
+                            actionsLogged++;
+                        } else if ("FOOD".equals(a.action)) {
+                            String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
+                            FoodLog log = new FoodLog(todayDateKey, time, a.food_name, a.calories, a.macros);
+                            disposables.add(appDao.insertFoodLog(log).subscribeOn(Schedulers.io()).subscribe());
+                            summary.append(a.food_name).append(", ");
+                            actionsLogged++;
+                        } else if ("MEDICATION".equals(a.action)) {
+                            // Find the med and update it
+                            for (Medication m : activeMedsList) {
+                                if (m.getId().equals(a.med_id)) {
+                                    m.setTimesTakenToday(m.getTimesTakenToday() + 1);
+                                    if (m.getPillsLeft() > 0) m.setPillsLeft(m.getPillsLeft() - 1);
+                                    disposables.add(appDao.insertMedication(m).subscribeOn(Schedulers.io()).subscribe());
+                                    summary.append(m.getName()).append(", ");
+                                    actionsLogged++;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (actionsLogged > 0) {
+                        // Clean up the trailing comma
+                        String finalSummary = summary.substring(0, summary.length() - 2);
+                        showCustomSnackbar(finalSummary, Color.parseColor("#00897B"), Color.WHITE, R.drawable.ic_check_circle, v -> {
+                        });
+                        playCelebration(); // Pop the confetti!
+                    } else {
+                        Toast.makeText(getContext(), "AI couldn't find any health actions.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        dismissLoadingDialog();
+                        Toast.makeText(getContext(), "Voice logging failed.", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            }
+        });
     }
 
     private void setupNutritionSection() {
@@ -403,7 +691,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         appDao.getTotalCaloriesForDate(todayDateKey).observe(getViewLifecycleOwner(), total -> {
             if (binding == null) return;
             int cal = total != null ? total : 0;
-            binding.tvCaloriesTotal.setText(cal + " kcal");
+            binding.tvCaloriesTotal.setText(MessageFormat.format("{0} kcal", cal));
         });
 
         // 3. Scan Button Action
@@ -426,6 +714,50 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                     }
                 })
                 .show();
+    }
+
+    private void displayStreak() {
+        if (binding == null) return;
+        SharedPreferences prefs = requireContext().getSharedPreferences("vital_prefs", Context.MODE_PRIVATE);
+        int currentStreak = prefs.getInt("streak_count", 0);
+        String lastStreakDate = prefs.getString("last_streak_date", "");
+
+        // Check if they missed yesterday. If so, visually reset the streak to 0.
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.DAY_OF_YEAR, -1);
+        String yesterday = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.getTime());
+
+        if (!lastStreakDate.equals(todayDateKey) && !lastStreakDate.equals(yesterday) && !lastStreakDate.isEmpty()) {
+            currentStreak = 0;
+        }
+
+        binding.tvStreakCount.setText("🔥 " + currentStreak + " Days");
+    }
+
+    private void updateStreakCount() {
+        SharedPreferences prefs = requireContext().getSharedPreferences("vital_prefs", Context.MODE_PRIVATE);
+        String lastStreakDate = prefs.getString("last_streak_date", "");
+        int currentStreak = prefs.getInt("streak_count", 0);
+
+        // If they haven't already earned it today
+        if (!lastStreakDate.equals(todayDateKey)) {
+            Calendar cal = Calendar.getInstance();
+            cal.add(Calendar.DAY_OF_YEAR, -1);
+            String yesterday = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.getTime());
+
+            if (lastStreakDate.equals(yesterday)) {
+                currentStreak++;
+            } else {
+                currentStreak = 1;
+            }
+
+            prefs.edit()
+                    .putString("last_streak_date", todayDateKey)
+                    .putInt("streak_count", currentStreak)
+                    .apply();
+
+            displayStreak();
+        }
     }
 
     private void checkCameraPermissionAndLaunch() {
@@ -912,6 +1244,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
 
             if (!goalReachedTriggered && animate) {
                 playCelebration();
+                updateStreakCount();
                 goalReachedTriggered = true;
             }
         } else {

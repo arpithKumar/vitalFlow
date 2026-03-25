@@ -104,4 +104,7 @@ public interface AppDao {
     // --- FOR SYNC ---
     @Query("SELECT * FROM food_logs")
     Single<List<FoodLog>> getAllFoodLogsSync();
+
+    @Query("SELECT * FROM medications WHERE id = :id LIMIT 1")
+    Single<Medication> getMedicationById(String id);
 }

@@ -103,9 +103,10 @@ public class MedicationWorker extends Worker {
 
                     long diff = target.getTimeInMillis() - nowMillis;
                     long diffMinutes = diff / (1000 * 60);
-                    
+
                     if (diffMinutes >= -5 && diffMinutes <= 20) {
-                        NotificationHelper.sendMedicationReminder(context, m.getName(), sdfTime.format(target.getTime()));
+                        m.setTime(sdfTime.format(target.getTime()));
+                        NotificationHelper.sendMedicationReminder(context, m);
                     }
                 }
             } catch (Exception e) {

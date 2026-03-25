@@ -12,6 +12,7 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.vitalflow.app.data.entity.FoodLog;
 import com.vitalflow.app.data.entity.HealthPlan;
 import com.vitalflow.app.data.entity.Medication;
@@ -22,6 +23,7 @@ import com.vitalflow.app.data.network.GeminiApiService;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -423,5 +425,85 @@ public class GeminiRepository {
         public String dosage;
         public int frequency;
         public String type;
+    }
+
+    public void analyzeVoiceCommand(String spokenText, List<Medication> activeMeds, VoiceCommandCallback callback) {
+        String apiKey = getUserApiKey();
+        if (apiKey == null) {
+            callback.onError(new SecurityException("API_KEY_MISSING"));
+            return;
+        }
+
+        // Pass the user's actual database medications to Gemini so it can ID them
+        StringBuilder medsString = new StringBuilder();
+        if (activeMeds != null) {
+            for (Medication m : activeMeds) {
+                medsString.append("{id: '").append(m.getId()).append("', name: '").append(m.getName()).append("'}, ");
+            }
+        }
+
+        String prompt = "You are a health tracking AI. The user just voice-logged this: \"" + spokenText + "\"\n" +
+                "Extract the actions they want to log into a strict JSON array. ONLY return the JSON array, no markdown.\n" +
+                "Format rules:\n" +
+                "1. For Water: {\"action\": \"WATER\", \"amount_ml\": 250} (Extract amount or default to 250)\n" +
+                "2. For Food: {\"action\": \"FOOD\", \"food_name\": \"apple\", \"calories\": 95, \"macros\": \"14g Carbs\"}\n" +
+                "3. For Medication: {\"action\": \"MEDICATION\", \"med_id\": \"id_here\", \"med_name\": \"name\"}. Match from this exact list: [" + medsString + "]. If the med isn't in the list, skip it.\n" +
+                "Example output: [{\"action\": \"WATER\", \"amount_ml\": 500}, {\"action\": \"FOOD\", \"food_name\": \"Pizza\", \"calories\": 280, \"macros\": \"30g Carbs, 10g Fat, 12g Protein\"}]";
+
+        executor.execute(() -> {
+            try {
+                GeminiRequest request = new GeminiRequest(prompt);
+                apiService.generateContent(getUserModel(), apiKey, request).enqueue(new Callback<>() {
+                    @Override
+                    public void onResponse(@NonNull Call<GeminiResponse> call, @NonNull Response<GeminiResponse> response) {
+                        if (response.isSuccessful() && response.body() != null) {
+                            try {
+                                String rawText = response.body().getText();
+                                int startIndex = rawText.indexOf('[');
+                                int endIndex = rawText.lastIndexOf(']');
+                                if (startIndex != -1 && endIndex != -1 && startIndex < endIndex) {
+                                    String json = rawText.substring(startIndex, endIndex + 1);
+
+                                    // Parse the array of actions
+                                    Type listType = new TypeToken<List<VoiceAction>>() {
+                                    }.getType();
+                                    List<VoiceAction> actions = gson.fromJson(json, listType);
+                                    callback.onSuccess(actions);
+                                } else {
+                                    callback.onError(new Exception("Invalid format"));
+                                }
+                            } catch (Exception e) {
+                                callback.onError(e);
+                            }
+                        } else {
+                            callback.onError(new Exception("AI Error"));
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<GeminiResponse> call, @NonNull Throwable t) {
+                        callback.onError(t);
+                    }
+                });
+            } catch (Exception e) {
+                callback.onError(e);
+            }
+        });
+    }
+
+    public interface VoiceCommandCallback {
+        void onSuccess(List<VoiceAction> actions);
+
+        void onError(Throwable t);
+    }
+
+    public static class VoiceAction {
+        public String action;    // "WATER", "FOOD", "MEDICATION"
+        public int amount_ml;    // For water
+        public String food_name; // For food
+        public int calories;     // For food
+        public String macros;    // For food
+        public String med_id;    // For medication
+        public String med_name;  // For medication
     }
 }

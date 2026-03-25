@@ -13,17 +13,18 @@ import java.util.UUID;
 
 @Entity(tableName = "medications")
 public class Medication {
+
     @PrimaryKey
     @NonNull
     private String id;
     private String name;
     private String dosage;
-    private String type;         // "Pill", "Liquid", "Injection"
-    private String time;         // "08:00 AM"
-    private int frequencyPerDay; // e.g., 1, 2, 3
-    private int timesTakenToday; // e.g., 0, 1, 2...
-    private String startDate;    // YYYY-MM-DD
-    private String endDate;      // YYYY-MM-DD (Can be "Forever")
+    private String type;
+    private String time;
+    private int frequencyPerDay;
+    private int timesTakenToday;
+    private String startDate;
+    private String endDate;
 
     private String selectedDays;
     private String prescriptionUri;
@@ -36,6 +37,10 @@ public class Medication {
     @ColumnInfo(name = "status")
     private String dbStatus;
     private String lastActionDate;
+
+    @Ignore
+    public Medication() {
+    }
 
     @Ignore
     public Medication(String name, String dosage, String type, String time,
