@@ -1,16 +1,31 @@
+# OS-specific files
+.DS_Store
+
+# Gradle & Build files
+.gradle/
+build/
+*/build/
+captures/
+
+# Local configuration & Secrets (DO NOT COMMIT)
+local.properties
+
+# Android Studio / IntelliJ
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
+/.idea/caches/
+/.idea/libraries/
 /.idea/modules.xml
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
 /.idea/copilot.data.migration.ask2agent.xml
+
+# NDK / C++ build files
+.externalNativeBuild/
+.cxx/
+
+# Release outputs (APKs, App Bundles, Baseline Profiles)
+*.apk
+*.aab
+*.dm
+/app/release/
