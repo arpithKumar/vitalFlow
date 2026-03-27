@@ -23,7 +23,7 @@
         android:maxWidth="260dp"
         android:paddingHorizontal="12dp"
         android:paddingVertical="8dp"
-        android:textColor="?android:attr/textColorPrimary"
+        android:textColor="@color/text_primary"
         android:textSize="14sp"
         android:lineSpacingExtra="2dp"
         app:layout_constraintStart_toEndOf="@id/imgBotAvatar"

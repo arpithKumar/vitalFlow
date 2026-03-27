@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F5F5">
+    android:background="@color/app_background">
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
@@ -50,7 +51,8 @@
                             android:focusable="true"
                             android:padding="8dp"
                             android:src="@drawable/ic_arrow_back"
-                            app:tint="#FFFFFF" />
+                            app:tint="#FFFFFF"
+                            tools:ignore="TouchTargetSizeCheck,SpeakableTextPresentCheck" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -83,7 +85,7 @@
                             android:layout_height="110dp"
                             android:layout_weight="1"
                             android:layout_marginEnd="4dp"
-                            app:cardBackgroundColor="#FFFFFF"
+                            app:cardBackgroundColor="@color/app_surface"
                             app:cardCornerRadius="12dp"
                             app:strokeWidth="0dp">
 
@@ -106,7 +108,7 @@
                                     android:text="--"
                                     android:textSize="22sp"
                                     android:textStyle="bold"
-                                    android:textColor="#37474F"
+                                    android:textColor="@color/text_primary"
                                     android:layout_marginTop="4dp" />
 
                                 <TextView
@@ -114,7 +116,7 @@
                                     android:layout_height="wrap_content"
                                     android:text="HR (bpm)"
                                     android:textSize="10sp"
-                                    android:textColor="#90A4AE" />
+                                    android:textColor="@color/text_secondary" />
                             </LinearLayout>
                         </com.google.android.material.card.MaterialCardView>
 
@@ -123,7 +125,7 @@
                             android:layout_height="110dp"
                             android:layout_weight="1"
                             android:layout_marginHorizontal="4dp"
-                            app:cardBackgroundColor="#FFFFFF"
+                            app:cardBackgroundColor="@color/app_surface"
                             app:cardCornerRadius="12dp"
                             app:strokeWidth="0dp">
 
@@ -146,7 +148,7 @@
                                     android:text="--/--"
                                     android:textSize="22sp"
                                     android:textStyle="bold"
-                                    android:textColor="#37474F"
+                                    android:textColor="@color/text_primary"
                                     android:layout_marginTop="4dp" />
 
                                 <TextView
@@ -154,7 +156,7 @@
                                     android:layout_height="wrap_content"
                                     android:text="BP (mmHg)"
                                     android:textSize="10sp"
-                                    android:textColor="#90A4AE" />
+                                    android:textColor="@color/text_secondary" />
                             </LinearLayout>
                         </com.google.android.material.card.MaterialCardView>
 
@@ -163,7 +165,7 @@
                             android:layout_height="110dp"
                             android:layout_weight="1"
                             android:layout_marginStart="4dp"
-                            app:cardBackgroundColor="#FFFFFF"
+                            app:cardBackgroundColor="@color/app_surface"
                             app:cardCornerRadius="12dp"
                             app:strokeWidth="0dp">
 
@@ -186,7 +188,7 @@
                                     android:text="--"
                                     android:textSize="22sp"
                                     android:textStyle="bold"
-                                    android:textColor="#37474F"
+                                    android:textColor="@color/text_primary"
                                     android:layout_marginTop="4dp" />
 
                                 <TextView
@@ -194,7 +196,7 @@
                                     android:layout_height="wrap_content"
                                     android:text="SpO2 (%)"
                                     android:textSize="10sp"
-                                    android:textColor="#90A4AE" />
+                                    android:textColor="@color/text_secondary" />
                             </LinearLayout>
                         </com.google.android.material.card.MaterialCardView>
 
@@ -209,7 +211,7 @@
                 android:layout_marginTop="-30dp"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="4dp"
-                app:cardBackgroundColor="#FFFFFF">
+                app:cardBackgroundColor="@color/app_surface">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -230,13 +232,13 @@
                             android:text="Heart Rate Trends"
                             android:textSize="16sp"
                             android:textStyle="bold"
-                            android:textColor="#37474F" />
+                            android:textColor="@color/text_primary" />
 
                         <View
                             android:layout_width="8dp"
                             android:layout_height="8dp"
                             android:background="@drawable/circle_shape"
-                            android:backgroundTint="#00897B" />
+                            android:backgroundTint="@color/primary" />
                     </LinearLayout>
 
                     <com.google.android.material.chip.ChipGroup
@@ -300,8 +302,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="16dp"
                 android:layout_marginTop="16dp"
-                app:cardBackgroundColor="#E3F2FD"
-                app:strokeColor="#90CAF9"
+                app:cardBackgroundColor="@color/bg_date_start"
+                app:strokeColor="@color/text_date_start_label"
                 app:strokeWidth="1dp"
                 app:cardCornerRadius="12dp"
                 android:visibility="gone">
@@ -317,9 +319,9 @@
                         android:layout_width="32dp"
                         android:layout_height="32dp"
                         android:src="@drawable/ic_water_drop"
-                        app:tint="#1565C0"
+                        app:tint="@color/text_date_start_label"
                         android:background="@drawable/circle_shape"
-                        android:backgroundTint="#FFFFFF"
+                        android:backgroundTint="@color/app_surface"
                         android:padding="6dp" />
 
                     <LinearLayout
@@ -335,14 +337,14 @@
                             android:text="Did you know?"
                             android:textSize="12sp"
                             android:textStyle="bold"
-                            android:textColor="#1565C0" />
+                            android:textColor="@color/text_date_start_label" />
 
                         <TextView
                             android:id="@+id/tvInsightText"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Insight text..."
-                            android:textColor="#0D47A1"
+                            android:textColor="@color/text_date_start_val"
                             android:textSize="13sp"
                             android:layout_marginTop="2dp" />
                     </LinearLayout>
@@ -357,7 +359,7 @@
                 android:layout_marginTop="24dp"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                android:textColor="#37474F" />
+                android:textColor="@color/text_primary" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvVitals"
@@ -378,10 +380,10 @@
         android:layout_gravity="bottom|end"
         android:layout_margin="24dp"
         android:text="Log Vitals"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/white"
         android:textStyle="bold"
-        app:backgroundTint="#00897B"
+        app:backgroundTint="@color/primary"
         app:icon="@drawable/ic_add"
-        app:iconTint="#FFFFFF"
+        app:iconTint="@color/white"
         app:elevation="6dp" />
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

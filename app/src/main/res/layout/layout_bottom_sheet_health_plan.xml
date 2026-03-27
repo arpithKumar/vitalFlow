@@ -27,7 +27,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:text="Daily Health Plan"
-                android:textColor="#263238"
+                android:textColor="@color/text_primary"
                 android:textSize="24sp"
                 android:textStyle="bold" />
 
@@ -35,7 +35,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                app:cardBackgroundColor="#E0F2F1"
+                app:cardBackgroundColor="@color/chip_bg_selected"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="0dp">
 
@@ -50,7 +50,7 @@
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:src="@drawable/ic_ai_stars"
-                        app:tint="#00695C" />
+                        app:tint="@color/primary" />
 
                     <TextView
                         android:id="@+id/tvDaySummary"
@@ -58,7 +58,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
                         android:text="Loading..."
-                        android:textColor="#004D40"
+                        android:textColor="@color/primary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -69,7 +69,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:text="Nutrition"
-                android:textColor="#546E7A"
+                android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -83,7 +83,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="EAT ✅"
-                    android:textColor="#2E7D32"
+                    android:textColor="@color/text_success"
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
@@ -97,7 +97,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="AVOID ❌"
-                    android:textColor="#C62828"
+                    android:textColor="@color/warning_red"
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
@@ -112,7 +112,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:text="Recommended Exercises"
-                android:textColor="#546E7A"
+                android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -128,7 +128,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:text="Relief &amp; Habits"
-                android:textColor="#546E7A"
+                android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 

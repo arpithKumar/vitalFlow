@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F5F5">
+    android:background="@color/app_background">
 
     <View
         android:id="@+id/headerBg"
@@ -106,10 +106,10 @@
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="16dp"
                 android:layout_marginBottom="16dp"
-                app:cardBackgroundColor="#FCE4EC"
+                app:cardBackgroundColor="@color/bg_ai_insight"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="0dp"
-                app:strokeColor="#F8BBD0"
+                app:strokeColor="@color/stroke_ai_insight"
                 app:strokeWidth="1dp">
 
                 <TextView
@@ -119,11 +119,11 @@
                     android:gravity="center_vertical"
                     android:padding="16dp"
                     android:text="Tap or drag dates to log symptoms..."
-                    android:textColor="#880E4F"
+                    android:textColor="@color/text_ai_insight"
                     android:textSize="14sp"
                     android:lineSpacingExtra="2dp"
                     app:drawableStartCompat="@drawable/ic_period"
-                    app:drawableTint="#C2185B"
+                    app:drawableTint="@color/icon_ai_insight"
                     android:drawablePadding="12dp" />
             </com.google.android.material.card.MaterialCardView>
 
@@ -134,7 +134,7 @@
                 android:layout_marginHorizontal="24dp"
                 android:layout_marginBottom="8dp"
                 android:text="Next Period: Calculating..."
-                android:textColor="#37474F"
+                android:textColor="@color/text_primary"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -142,7 +142,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="16dp"
-                app:cardBackgroundColor="#FFFFFF"
+                app:cardBackgroundColor="@color/app_surface"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="2dp">
 
@@ -166,7 +166,7 @@
                             android:background="?attr/selectableItemBackgroundBorderless"
                             android:contentDescription="previous month"
                             android:src="@drawable/ic_arrow_back"
-                            app:tint="#546E7A"
+                            app:tint="@color/text_secondary"
                             tools:ignore="TouchTargetSizeCheck" />
 
                         <TextView
@@ -176,7 +176,7 @@
                             android:layout_weight="1"
                             android:gravity="center"
                             android:text="Month Year"
-                            android:textColor="#37474F"
+                            android:textColor="@color/text_primary"
                             android:textSize="18sp"
                             android:textStyle="bold" />
 
@@ -187,7 +187,7 @@
                             android:background="?attr/selectableItemBackgroundBorderless"
                             android:contentDescription="next month"
                             android:src="@drawable/ic_arrow_forward"
-                            app:tint="#546E7A"
+                            app:tint="@color/text_secondary"
                             tools:ignore="TouchTargetSizeCheck" />
                     </LinearLayout>
 
@@ -204,7 +204,7 @@
                             android:layout_height="wrap_content"
                             android:gravity="center"
                             android:text="S"
-                            android:textColor="#B0BEC5" />
+                            app:tint="@color/text_secondary" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -212,7 +212,7 @@
                             android:layout_height="wrap_content"
                             android:gravity="center"
                             android:text="M"
-                            android:textColor="#B0BEC5" />
+                            app:tint="@color/text_secondary" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -220,7 +220,7 @@
                             android:layout_height="wrap_content"
                             android:gravity="center"
                             android:text="T"
-                            android:textColor="#B0BEC5" />
+                            app:tint="@color/text_secondary" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -228,7 +228,7 @@
                             android:layout_height="wrap_content"
                             android:gravity="center"
                             android:text="W"
-                            android:textColor="#B0BEC5" />
+                            app:tint="@color/text_secondary" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -236,7 +236,7 @@
                             android:layout_height="wrap_content"
                             android:gravity="center"
                             android:text="T"
-                            android:textColor="#B0BEC5" />
+                            app:tint="@color/text_secondary" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -244,7 +244,7 @@
                             android:layout_height="wrap_content"
                             android:gravity="center"
                             android:text="F"
-                            android:textColor="#B0BEC5" />
+                            app:tint="@color/text_secondary" />
 
                         <TextView
                             android:layout_width="0dp"
@@ -252,7 +252,7 @@
                             android:layout_height="wrap_content"
                             android:gravity="center"
                             android:text="S"
-                            android:textColor="#B0BEC5" />
+                            app:tint="@color/text_secondary" />
                     </LinearLayout>
 
                     <androidx.recyclerview.widget.RecyclerView
@@ -268,7 +268,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
                         android:layout_marginVertical="8dp"
-                        android:background="#F5F5F5" />
+                        android:background="@color/divider_color" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -290,14 +290,14 @@
                                 android:clickable="false"
                                 android:focusable="false"
                                 android:text="Period"
-                                android:textColor="#546E7A"
+                                app:tint="@color/text_secondary"
                                 android:textSize="9sp"
-                                app:chipBackgroundColor="#FAFAFA"
+                                app:chipBackgroundColor="@color/chip_bg_unselected"
                                 app:chipIcon="@drawable/ic_drop"
                                 app:chipIconSize="10dp"
                                 app:chipIconTint="#C2185B"
                                 app:chipMinHeight="24dp"
-                                app:chipStrokeColor="#EEEEEE"
+                                app:chipStrokeColor="@color/divider_color"
                                 app:chipStrokeWidth="1dp"
                                 app:ensureMinTouchTargetSize="false"
                                 app:iconEndPadding="0dp"
@@ -318,14 +318,14 @@
                                 android:clickable="false"
                                 android:focusable="false"
                                 android:text="Fertile"
-                                android:textColor="#546E7A"
+                                app:tint="@color/text_secondary"
                                 android:textSize="9sp"
-                                app:chipBackgroundColor="#FAFAFA"
+                                app:chipBackgroundColor="@color/chip_bg_unselected"
                                 app:chipIcon="@drawable/ic_leaf"
                                 app:chipIconSize="10dp"
                                 app:chipIconTint="#66BB6A"
                                 app:chipMinHeight="24dp"
-                                app:chipStrokeColor="#EEEEEE"
+                                app:chipStrokeColor="@color/divider_color"
                                 app:chipStrokeWidth="1dp"
                                 app:ensureMinTouchTargetSize="false"
                                 app:iconEndPadding="0dp"
@@ -346,14 +346,14 @@
                                 android:clickable="false"
                                 android:focusable="false"
                                 android:text="Ovul."
-                                android:textColor="#546E7A"
+                                app:tint="@color/text_secondary"
                                 android:textSize="9sp"
-                                app:chipBackgroundColor="#FAFAFA"
+                                app:chipBackgroundColor="@color/chip_bg_unselected"
                                 app:chipIcon="@drawable/ic_egg"
                                 app:chipIconSize="10dp"
                                 app:chipIconTint="#AB47BC"
                                 app:chipMinHeight="24dp"
-                                app:chipStrokeColor="#EEEEEE"
+                                app:chipStrokeColor="@color/divider_color"
                                 app:chipStrokeWidth="1dp"
                                 app:ensureMinTouchTargetSize="false"
                                 app:iconEndPadding="0dp"
@@ -374,14 +374,14 @@
                                 android:clickable="false"
                                 android:focusable="false"
                                 android:text="Pred."
-                                android:textColor="#546E7A"
+                                app:tint="@color/text_secondary"
                                 android:textSize="9sp"
-                                app:chipBackgroundColor="#FAFAFA"
+                                app:chipBackgroundColor="@color/chip_bg_unselected"
                                 app:chipIcon="@drawable/ic_ring"
                                 app:chipIconSize="10dp"
                                 app:chipIconTint="#EF5350"
                                 app:chipMinHeight="24dp"
-                                app:chipStrokeColor="#EEEEEE"
+                                app:chipStrokeColor="@color/divider_color"
                                 app:chipStrokeWidth="1dp"
                                 app:ensureMinTouchTargetSize="false"
                                 app:iconEndPadding="0dp"
@@ -402,14 +402,14 @@
                                 android:clickable="false"
                                 android:focusable="false"
                                 android:text="Symp."
-                                android:textColor="#546E7A"
+                                app:tint="@color/text_secondary"
                                 android:textSize="9sp"
-                                app:chipBackgroundColor="#FAFAFA"
+                                app:chipBackgroundColor="@color/chip_bg_unselected"
                                 app:chipIcon="@drawable/shape_circle_solid"
                                 app:chipIconSize="10dp"
                                 app:chipIconTint="#FB8C00"
                                 app:chipMinHeight="24dp"
-                                app:chipStrokeColor="#EEEEEE"
+                                app:chipStrokeColor="@color/divider_color"
                                 app:chipStrokeWidth="1dp"
                                 app:ensureMinTouchTargetSize="false"
                                 app:iconEndPadding="0dp"
@@ -428,7 +428,7 @@
                 android:layout_marginStart="24dp"
                 android:layout_marginTop="24dp"
                 android:text="Flow Intensity History"
-                android:textColor="#37474F"
+                android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -437,7 +437,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="16dp"
                 android:layout_marginTop="12dp"
-                app:cardBackgroundColor="#FFFFFF"
+                app:cardBackgroundColor="@color/app_surface"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="2dp">
 
@@ -455,7 +455,7 @@
                 android:layout_marginStart="24dp"
                 android:layout_marginTop="24dp"
                 android:text="Previous Cycles"
-                android:textColor="#37474F"
+                android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -473,7 +473,7 @@
                 android:layout_marginStart="24dp"
                 android:layout_marginTop="24dp"
                 android:text="Symptom Trends"
-                android:textColor="#37474F"
+                android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -483,7 +483,7 @@
                 android:layout_marginHorizontal="16dp"
                 android:layout_marginTop="12dp"
                 android:layout_marginBottom="32dp"
-                app:cardBackgroundColor="#FFFFFF"
+                app:cardBackgroundColor="@color/app_surface"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="2dp">
 
@@ -497,7 +497,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Most Frequent Symptoms"
-                        android:textColor="#90A4AE"
+                        android:textColor="@color/text_secondary"
                         android:textSize="12sp"
                         android:layout_marginBottom="12dp" />
 
@@ -517,11 +517,11 @@
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
         android:text="Today"
-        android:textColor="#00695C"
+        android:textColor="@color/primary"
         android:textStyle="bold"
-        app:backgroundTint="#E0F2F1"
+        app:backgroundTint="@color/chip_bg_selected"
         app:icon="@drawable/ic_calendar_today"
-        app:iconTint="#00695C"
+        app:iconTint="@color/primary"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:visibility="gone" />

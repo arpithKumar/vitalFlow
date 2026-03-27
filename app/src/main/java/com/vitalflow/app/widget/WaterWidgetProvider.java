@@ -57,7 +57,7 @@ public class WaterWidgetProvider extends AppWidgetProvider {
         views.setOnClickPendingIntent(R.id.widget_root, appPendingIntent);
 
         // Setup Visuals
-        setupColors(views);
+        setupColors(context, views);
         setupActions(context, views);
 
         String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
@@ -121,13 +121,28 @@ public class WaterWidgetProvider extends AppWidgetProvider {
                 }, Throwable::printStackTrace);
     }
 
-    private void setupColors(RemoteViews views) {
-        views.setInt(R.id.btnWidgetMood1, "setColorFilter", Color.parseColor("#EF9A9A"));
-        views.setInt(R.id.btnWidgetMood2, "setColorFilter", Color.parseColor("#FFCC80"));
-        views.setInt(R.id.btnWidgetMood3, "setColorFilter", Color.parseColor("#FFF59D"));
-        views.setInt(R.id.btnWidgetMood4, "setColorFilter", Color.parseColor("#A5D6A7"));
-        views.setInt(R.id.btnWidgetMood5, "setColorFilter", Color.parseColor("#66BB6A"));
-        views.setInt(R.id.imgDrop, "setColorFilter", Color.parseColor("#00897B"));
+    private void setupColors(Context context, RemoteViews views) {
+        int nightModeFlags = context.getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+        boolean isDarkMode = nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+
+        if (isDarkMode) {
+            views.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.bg_widget_dark); // Use a darker background
+            views.setTextColor(R.id.tvTitle, Color.WHITE);
+            views.setTextColor(R.id.tvWidgetIntake, Color.parseColor("#B2DFDB")); // Softer teal
+
+            // Slightly brighter "glowy" mood colors for dark backgrounds
+            views.setInt(R.id.btnWidgetMood1, "setColorFilter", Color.parseColor("#E57373"));
+            views.setInt(R.id.btnWidgetMood5, "setColorFilter", Color.parseColor("#81C784"));
+            views.setInt(R.id.imgDrop, "setColorFilter", Color.parseColor("#4DB6AC"));
+        } else {
+            // --- LIGHT MODE COLORS (Your Original Palette) ---
+            views.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.bg_widget_light);
+            views.setTextColor(R.id.tvTitle, Color.BLACK);
+
+            views.setInt(R.id.btnWidgetMood1, "setColorFilter", Color.parseColor("#EF9A9A"));
+            views.setInt(R.id.btnWidgetMood5, "setColorFilter", Color.parseColor("#66BB6A"));
+            views.setInt(R.id.imgDrop, "setColorFilter", Color.parseColor("#00897B"));
+        }
     }
 
     private void setupActions(Context context, RemoteViews views) {

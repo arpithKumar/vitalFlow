@@ -3,14 +3,14 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#00897B">
+    android:background="@color/primary">
 
     <TextView
         android:id="@+id/tvAppName"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="VitalFlow"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/white"
         android:textSize="40sp"
         android:textStyle="bold"
         android:fontFamily="@font/custom_font"
@@ -26,7 +26,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Hydration • Meds • Vitals"
-        android:textColor="#B2DFDB"
+        android:textColor="@color/primary_light"
         android:textSize="16sp"
         android:letterSpacing="0.1"
         android:fontFamily="@font/custom_font"

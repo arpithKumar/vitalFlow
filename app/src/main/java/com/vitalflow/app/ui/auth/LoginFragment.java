@@ -19,6 +19,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.credentials.CredentialManager;
 import androidx.credentials.CustomCredential;
@@ -200,7 +201,7 @@ public class LoginFragment extends Fragment {
         GradientDrawable bg = new GradientDrawable();
         bg.setShape(GradientDrawable.RECTANGLE);
         bg.setCornerRadius(28f * getResources().getDisplayMetrics().density); // Pill shape
-        bg.setColor(Color.parseColor("#00897B")); // Dark Grey background
+        bg.setColor(ContextCompat.getColor(requireContext(), R.color.primary)); // Dark Grey background
         view.setBackground(bg);
 
         // 3. Customize Margins (Floating effect)

@@ -4,10 +4,10 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="8dp"
-    app:cardBackgroundColor="#F1F8E9"
+    app:cardBackgroundColor="@color/bg_food_item"
     app:cardCornerRadius="12dp"
     app:cardElevation="0dp"
-    app:strokeColor="#C5E1A5"
+    app:strokeColor="@color/stroke_food_item"
     app:strokeWidth="1dp">
 
     <LinearLayout
@@ -22,7 +22,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="12:30"
-            android:textColor="#558B2F"
+            android:textColor="@color/text_food_time"
             android:textSize="12sp"
             android:textStyle="bold" />
 
@@ -30,7 +30,7 @@
             android:layout_width="1dp"
             android:layout_height="24dp"
             android:layout_marginHorizontal="12dp"
-            android:background="#C5E1A5" />
+            android:background="@color/stroke_food_item" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -43,7 +43,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Grilled Chicken"
-                android:textColor="#33691E"
+                android:textColor="@color/text_food_primary"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -52,7 +52,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="P: 30g • C: 10g • F: 5g"
-                android:textColor="#689F38"
+                android:textColor="@color/text_food_secondary"
                 android:textSize="12sp" />
         </LinearLayout>
 
@@ -61,7 +61,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="450 kcal"
-            android:textColor="#33691E"
+            android:textColor="@color/text_food_primary"
             android:textSize="14sp"
             android:textStyle="bold" />
 

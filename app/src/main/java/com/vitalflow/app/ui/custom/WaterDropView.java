@@ -3,7 +3,6 @@ package com.vitalflow.app.ui.custom;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.util.AttributeSet;
@@ -12,6 +11,9 @@ import android.view.animation.DecelerateInterpolator;
 import android.view.animation.LinearInterpolator;
 
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
+
+import com.vitalflow.app.R;
 
 public class WaterDropView extends View {
 
@@ -43,15 +45,15 @@ public class WaterDropView extends View {
         // 1. Setup Paints
         // Water Color: Brand Teal
         wavePaint = new Paint();
-        wavePaint.setColor(Color.parseColor("#00897B"));
         wavePaint.setStyle(Paint.Style.FILL);
         wavePaint.setAntiAlias(true);
 
         // Background Color: Very Light Teal (Empty part)
         bgPaint = new Paint();
-        bgPaint.setColor(Color.parseColor("#E0F2F1"));
         bgPaint.setStyle(Paint.Style.FILL);
         bgPaint.setAntiAlias(true);
+
+        updateColors();
 
         // 2. Setup Paths
         wavePath = new Path();
@@ -67,6 +69,19 @@ public class WaterDropView extends View {
             invalidate(); // Redraw view
         });
         waveAnimator.start();
+    }
+
+    public void updateColors() {
+        Context context = getContext();
+
+        // Water Color: Brand Teal (Primary)
+        int waterColor = ContextCompat.getColor(context, R.color.primary);
+        wavePaint.setColor(waterColor);
+
+        int emptyColor = ContextCompat.getColor(context, R.color.app_surface);
+        bgPaint.setColor(emptyColor);
+
+        invalidate();
     }
 
     @Override

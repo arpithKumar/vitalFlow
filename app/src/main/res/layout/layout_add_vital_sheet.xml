@@ -23,7 +23,7 @@
         android:layout_marginStart="24dp"
         android:layout_marginTop="24dp"
         android:text="New Reading"
-        android:textColor="#37474F"
+        android:textColor="@color/text_primary"
         android:textSize="20sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
@@ -135,7 +135,7 @@
                 android:layout_marginTop="20dp"
                 android:layout_marginBottom="8dp"
                 android:text="CONTEXT"
-                android:textColor="#B0BEC5"
+                android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:textStyle="bold" />
 
@@ -176,7 +176,7 @@
                 android:layout_marginTop="16dp"
                 android:layout_marginBottom="8dp"
                 android:text="SYMPTOMS"
-                android:textColor="#B0BEC5"
+                android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:textStyle="bold" />
 
@@ -222,14 +222,14 @@
                     android:layout_width="0dp"
                     android:layout_height="1dp"
                     android:layout_weight="1"
-                    android:background="#EEEEEE" />
+                    android:background="@color/divider_color" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginHorizontal="16dp"
                     android:text="OR"
-                    android:textColor="#B0BEC5"
+                    android:textColor="@color/text_secondary"
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
@@ -237,7 +237,7 @@
                     android:layout_width="0dp"
                     android:layout_height="1dp"
                     android:layout_weight="1"
-                    android:background="#EEEEEE" />
+                    android:background="@color/divider_color" />
             </LinearLayout>
 
             <com.google.android.material.card.MaterialCardView
@@ -246,7 +246,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:layout_marginBottom="24dp"
-                app:cardBackgroundColor="#E0F2F1"
+                app:cardBackgroundColor="@color/chip_bg_selected"
                 app:cardCornerRadius="16dp"
                 app:strokeWidth="0dp">
 
@@ -267,14 +267,14 @@
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:src="@drawable/ic_bluetooth"
-                            app:tint="#00897B" />
+                            app:tint="@color/primary" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="12dp"
                             android:text="Connect Device via Bluetooth"
-                            android:textColor="#00897B"
+                            android:textColor="@color/primary"
                             android:textStyle="bold" />
                     </LinearLayout>
 
@@ -294,7 +294,7 @@
                             <ProgressBar
                                 android:layout_width="20dp"
                                 android:layout_height="20dp"
-                                android:indeterminateTint="#00897B" />
+                                android:indeterminateTint="@color/primary" />
 
                             <TextView
                                 android:id="@+id/tvBtStatus"
@@ -302,7 +302,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_marginStart="12dp"
                                 android:text="Searching for health devices..."
-                                android:textColor="#00897B"
+                                android:textColor="@color/primary"
                                 android:textSize="13sp" />
                         </LinearLayout>
 
@@ -311,7 +311,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="120dp"
                             android:layout_marginTop="12dp"
-                            android:background="#FFFFFF"
+                            android:background="@color/app_surface"
                             android:padding="4dp" />
 
                         <com.google.android.material.button.MaterialButton
@@ -321,7 +321,7 @@
                             android:layout_height="wrap_content"
                             android:layout_gravity="end"
                             android:text="Cancel"
-                            android:textColor="#EF5350" />
+                            android:textColor="@color/warning_red" />
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -336,10 +336,10 @@
         android:layout_marginHorizontal="24dp"
         android:elevation="4dp"
         android:text="Save Reading"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/white"
         android:textSize="16sp"
         android:textStyle="bold"
-        app:backgroundTint="#00897B"
+        app:backgroundTint="@color/primary"
         app:cornerRadius="16dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintTop_toBottomOf="@id/scrollContainer" />

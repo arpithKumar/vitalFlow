@@ -18,6 +18,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.NavController;
@@ -152,7 +153,7 @@ public class ProfileFragment extends Fragment {
             binding.btnProAction.setEnabled(false); // Can't "upgrade" again
         } else {
             // FREE STATE (White)
-            binding.bgPro.setBackgroundColor(0xFFFFFFFF);
+            binding.bgPro.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.app_surface));
             binding.tvProTitle.setText("Upgrade to Pro");
             binding.tvProSubtitle.setText("Unlock advanced insights");
             binding.btnProAction.setText("UPGRADE");
@@ -394,7 +395,7 @@ public class ProfileFragment extends Fragment {
             binding.tvGeminiStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.primary));// Success Green
         } else {
             binding.tvGeminiStatus.setText("Tap to Connect");
-            binding.tvGeminiStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary_light)); // Gray
+            binding.tvGeminiStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary)); // Gray
         }
     }
 
@@ -404,11 +405,14 @@ public class ProfileFragment extends Fragment {
 
     private void setupPreferences() {
 //        // Dark Mode
-//        binding.switchDarkMode.setChecked(prefs.getBoolean("dark_mode", false));
-//        binding.switchDarkMode.setOnCheckedChangeListener((buttonView, isChecked) -> {
-//            prefs.edit().putBoolean("dark_mode", isChecked).apply();
-//            AppCompatDelegate.setDefaultNightMode(isChecked ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
-//        });
+        SharedPreferences themePrefs = requireContext().getSharedPreferences("theme_prefs", Context.MODE_PRIVATE);
+        binding.switchDarkMode.setChecked(themePrefs.getBoolean("is_dark_mode", false));
+        binding.switchDarkMode.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            themePrefs.edit().putBoolean("is_dark_mode", isChecked).apply();
+            AppCompatDelegate.setDefaultNightMode(isChecked ?
+                    AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
+            Toast.makeText(getContext(), isChecked ? "Dark Mode Active 🌙" : "Light Mode Active ☀️", Toast.LENGTH_SHORT).show();
+        });
 
         // 2. Notifications
         binding.switchNotifications.setChecked(prefs.getBoolean("notifications", true));

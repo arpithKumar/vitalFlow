@@ -6,10 +6,10 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="12dp"
-    app:cardBackgroundColor="#FFFFFF"
+    app:cardBackgroundColor="@color/app_surface"
     app:cardCornerRadius="16dp"
     app:cardElevation="2dp"
-    app:strokeColor="#F5F5F5"
+    app:strokeColor="@color/divider_color"
     app:strokeWidth="1dp">
 
     <LinearLayout
@@ -35,7 +35,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Loading..."
-                    android:textColor="#263238"
+                    android:textColor="@color/text_primary"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
@@ -45,7 +45,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="-- mins"
-                    android:textColor="#546E7A"
+                    android:textColor="@color/text_secondary"
                     android:textSize="13sp" />
             </LinearLayout>
 
@@ -55,9 +55,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="32dp"
                 android:text="Yoga"
-                android:textColor="#00695C"
+                android:textColor="@color/primary"
                 android:textSize="12sp"
-                app:chipBackgroundColor="#E0F2F1"
+                app:chipBackgroundColor="@color/bg_chip_selector"
                 app:chipCornerRadius="8dp"
                 app:chipMinHeight="32dp"
                 tools:ignore="TouchTargetSizeCheck" />
@@ -68,7 +68,7 @@
                 android:layout_height="24dp"
                 android:layout_marginStart="12dp"
                 android:src="@drawable/ic_arrow_down"
-                app:tint="#78909C" />
+                app:tint="@color/text_secondary" />
         </LinearLayout>
 
         <LinearLayout
@@ -83,14 +83,14 @@
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginBottom="12dp"
-                android:background="#EEEEEE" />
+                android:background="@color/divider_color" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:letterSpacing="0.1"
                 android:text="INSTRUCTIONS"
-                android:textColor="#90A4AE"
+                android:textColor="@color/text_secondary"
                 android:textSize="11sp"
                 android:textStyle="bold" />
 

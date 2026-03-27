@@ -3,28 +3,69 @@
     <color name="primary">#00897B</color>
     <color name="primary_dark">#00584D</color>
     <color name="primary_light">#4DB6AC</color>
-
     <color name="secondary">#FF8A65</color>
     <color name="secondary_dark">#C75B39</color>
 
-    <color name="background_light">#F5F7FA</color>
-    <color name="surface_light">#FFFFFF</color>
-    <color name="text_primary_light">#1F2937</color>
-    <color name="text_secondary_light">#6B7280</color>
+    <color name="app_background">#F5F7FA</color>
+    <color name="app_surface">#FFFFFF</color>
+    <color name="text_primary">#1F2937</color>
+    <color name="text_secondary">#6B7280</color>
+    <color name="divider_color">#E0E0E0</color>
 
-    <color name="background_dark">#121212</color>
-    <color name="surface_dark">#1E1E1E</color>
-    <color name="text_primary_dark">#E0E0E0</color>
-    <color name="text_secondary_dark">#B0BEC5</color>
-    <color name="divider_dark">#2C2C2C</color>
+    <color name="icon_unselected">#90A4AE</color>
+    <color name="chip_bg_selected">#E0F2F1</color>
+    <color name="chip_bg_unselected">#F5F5F5</color>
+    <color name="chip_text_selected">#00695C</color>
+    <color name="chip_text_unselected">#757575</color>
+    <color name="tab_text_selected">#FFFFFF</color>
 
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="warning_red">#EF5350</color>
     <color name="info_blue">#1565C0</color>
-    <color name="material_grey_300">#E0E0E0</color>
-
     <color name="pink_500">#E91E63</color>
     <color name="pink_100">#F8BBD0</color>
-    <color name="grey_300">#E0E0E0</color>
+
+    <color name="bg_date_start">#E3F2FD</color>
+    <color name="text_date_start_label">#1565C0</color>
+    <color name="text_date_start_val">#0D47A1</color>
+    <color name="bg_date_end">#FFEBEE</color>
+    <color name="text_date_end_label">#C62828</color>
+    <color name="text_date_end_val">#B71C1C</color>
+    <color name="bg_time">#E0F2F1</color>
+    <color name="text_time_label">#4DB6AC</color>
+    <color name="text_time_val">#00695C</color>
+    <color name="bg_doctor_card">#F0F8F6</color>
+    <color name="stroke_doctor_card">#B2DFDB</color>
+
+    <color name="bg_tip_card">#FFFDE7</color>
+    <color name="stroke_tip_card">#FFF59D</color>
+    <color name="text_tip_body">#5D4037</color>
+    <color name="bg_nutrition_card">#FFFFFF</color>
+    <color name="stroke_nutrition_card">#DCEDC8</color>
+
+    <color name="bg_ai_insight">#FCE4EC</color>
+    <color name="stroke_ai_insight">#F8BBD0</color>
+    <color name="text_ai_insight">#880E4F</color>
+    <color name="icon_ai_insight">#C2185B</color>
+
+    <color name="bg_food_item">#F1F8E9</color>
+    <color name="stroke_food_item">#C5E1A5</color>
+    <color name="text_food_primary">#33691E</color>
+    <color name="text_food_secondary">#689F38</color>
+    <color name="text_food_time">#558B2F</color>
+
+    <color name="text_skip">#FF7043</color>
+    <color name="stroke_skip">#FFCCBC</color>
+    <color name="bg_success">#E8F5E9</color>
+    <color name="text_success">#2E7D32</color>
+
+    <color name="bg_tooltip">#37474F</color>
+    <color name="text_tooltip_primary">#FFFFFF</color>
+    <color name="text_tooltip_secondary">#E0E0E0</color>
+    <color name="text_tooltip_tertiary">#B0BEC5</color>
+
+    <color name="warning_yellow">#FBC02D</color>
+
+    <color name="accent_purple">#AB47BC</color>
 </resources>

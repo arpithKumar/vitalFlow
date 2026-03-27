@@ -30,7 +30,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:text="M"
-        android:textColor="#90A4AE"
+        android:textColor="@color/text_secondary"
         android:textSize="12sp"
         android:fontFamily="sans-serif-medium" />
 </LinearLayout>

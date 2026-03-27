@@ -21,7 +21,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         android:text="Title Here"
-        android:textColor="#00695C"
+        android:textColor="@color/primary"
         android:textSize="24sp"
         android:textStyle="bold" />
 
@@ -30,7 +30,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Description goes here"
-        android:textColor="#78909C"
+        android:textColor="@color/text_secondary"
         android:textSize="16sp"
         android:gravity="center"
         android:lineSpacingMultiplier="1.2" />

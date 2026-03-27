@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F5F5">
+    android:background="@color/app_background">
 
     <View
         android:id="@+id/headerBg"
@@ -152,7 +152,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="No medications yet"
-            android:textColor="#90A4AE"
+            android:textColor="@color/text_secondary"
             android:textSize="18sp"
             android:textStyle="bold"
             android:layout_marginTop="16dp" />
@@ -162,7 +162,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Tap + to add your first prescription"
-            android:textColor="#B0BEC5"
+            android:textColor="@color/icon_unselected"
             android:textSize="14sp"
             android:layout_marginTop="4dp" />
     </LinearLayout>
@@ -174,8 +174,8 @@
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="24dp"
         android:src="@android:drawable/ic_menu_camera"
-        app:backgroundTint="#E0F2F1"
-        app:tint="#00897B"
+        app:backgroundTint="@color/chip_bg_selected"
+        app:tint="@color/primary"
         app:fabSize="mini"
         android:contentDescription="Scan Prescription"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -187,9 +187,9 @@
         android:layout_height="wrap_content"
         android:layout_margin="24dp"
         android:src="@drawable/ic_add"
-        app:backgroundTint="#00897B"
+        app:backgroundTint="@color/primary"
         android:contentDescription="Button to add medication"
-        app:tint="#FFFFFF"
+        app:tint="@color/white"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 

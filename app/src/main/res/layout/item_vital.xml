@@ -5,10 +5,10 @@
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="16dp"
     android:layout_marginBottom="12dp"
-    app:cardBackgroundColor="#FFFFFF"
+    app:cardBackgroundColor="@color/app_surface"
     app:cardCornerRadius="20dp"
     app:cardElevation="2dp"
-    app:strokeColor="#E0F2F1"
+    app:strokeColor="@color/divider_color"
     app:strokeWidth="1dp">
 
     <LinearLayout
@@ -22,7 +22,7 @@
             android:layout_width="56dp"
             android:layout_height="56dp"
             android:background="@drawable/circle_shape"
-            android:backgroundTint="#E0F2F1">
+            android:backgroundTint="@color/chip_bg_selected">
 
             <ImageView
                 android:id="@+id/imgIcon"
@@ -30,7 +30,7 @@
                 android:layout_height="28dp"
                 android:layout_gravity="center"
                 android:src="@drawable/ic_heart"
-                app:tint="#00897B" />
+                app:tint="@color/primary" />
         </FrameLayout>
 
         <LinearLayout
@@ -45,7 +45,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Heart Rate"
-                android:textColor="#00897B"
+                android:textColor="@color/primary"
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.05" />
@@ -61,7 +61,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="72"
-                    android:textColor="#37474F"
+                    android:textColor="@color/text_primary"
                     android:textSize="24sp"
                     android:textStyle="bold" />
 
@@ -71,7 +71,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
                     android:text="bpm"
-                    android:textColor="#90A4AE"
+                    android:textColor="@color/text_secondary"
                     android:textSize="14sp" />
             </LinearLayout>
         </LinearLayout>
@@ -81,7 +81,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="10:00 AM"
-            android:textColor="#B0BEC5"
+            android:textColor="@color/icon_unselected"
             android:textSize="12sp" />
 
     </LinearLayout>

@@ -8,10 +8,10 @@
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
-    app:cardBackgroundColor="#FFFFFF"
+    app:cardBackgroundColor="@color/app_surface"
     app:cardCornerRadius="12dp"
     app:cardElevation="2dp"
-    app:strokeColor="#E0F2F1"
+    app:strokeColor="@color/divider_color"
     app:strokeWidth="1dp">
 
     <LinearLayout
@@ -25,14 +25,14 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="@drawable/circle_shape"
-            android:backgroundTint="#E0F2F1">
+            android:backgroundTint="@color/chip_bg_selected">
 
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_gravity="center"
                 android:src="@drawable/ic_bluetooth"
-                app:tint="#00897B" />
+                app:tint="@color/primary" />
         </FrameLayout>
 
         <LinearLayout
@@ -47,7 +47,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Health Watch"
-                android:textColor="#37474F"
+                android:textColor="@color/text_primary"
                 android:textSize="14sp"
                 android:textStyle="bold" />
 
@@ -57,7 +57,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:text="Scanning..."
-                android:textColor="#90A4AE"
+                android:textColor="@color/text_secondary"
                 android:textSize="11sp" />
         </LinearLayout>
 
@@ -65,12 +65,12 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_chip_choice"
-            android:backgroundTint="#E0F2F1"
+            android:backgroundTint="@color/chip_bg_selected"
             android:paddingHorizontal="12dp"
             android:paddingVertical="6dp"
             android:text="Connect"
             android:textAllCaps="true"
-            android:textColor="#00897B"
+            android:textColor="@color/primary"
             android:textSize="10sp"
             android:textStyle="bold"
             android:letterSpacing="0.05" />

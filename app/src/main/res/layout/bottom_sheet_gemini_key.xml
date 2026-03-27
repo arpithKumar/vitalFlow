@@ -20,7 +20,7 @@
         android:layout_gravity="center"
         android:layout_marginTop="16dp"
         android:text="Connect Gemini AI"
-        android:textColor="?android:attr/textColorPrimary"
+        android:textColor="@color/text_primary"
         android:textSize="20sp"
         android:textStyle="bold" />
 
@@ -30,13 +30,13 @@
         android:layout_marginTop="8dp"
         android:gravity="center"
         android:text="To power the Chatbot and Insights, you need your own Google Gemini API Key. It's free and private!"
-        android:textColor="?android:attr/textColorSecondary" />
+        android:textColor="@color/text_secondary" />
 
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
-        app:cardBackgroundColor="?android:attr/colorBackground"
+        app:cardBackgroundColor="@color/app_background"
         app:cardCornerRadius="12dp"
         app:strokeColor="?attr/colorPrimary"
         app:strokeWidth="1dp">
@@ -102,7 +102,7 @@
             android:layout_height="wrap_content"
             android:inputType="none"
             android:text="gemini-3-flash-preview"
-            android:textColor="?android:attr/textColorPrimary" />
+            android:textColor="@color/text_primary" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.button.MaterialButton

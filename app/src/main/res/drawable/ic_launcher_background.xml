@@ -14,8 +14,8 @@
                 android:startY="0"
                 android:endX="108"
                 android:endY="108"
-                android:startColor="#00897B"
-                android:endColor="#004D40" />
+                android:startColor="@color/primary"
+                android:endColor="@color/primary_dark" />
         </aapt:attr>
     </path>
 </vector>

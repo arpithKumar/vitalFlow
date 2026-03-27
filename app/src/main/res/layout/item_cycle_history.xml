@@ -5,10 +5,10 @@
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="4dp"
     android:layout_marginBottom="8dp"
-    app:cardBackgroundColor="#FFFFFF"
+    app:cardBackgroundColor="@color/app_surface"
     app:cardCornerRadius="12dp"
     app:cardElevation="0dp"
-    app:strokeColor="#E0E0E0"
+    app:strokeColor="@color/divider_color"
     app:strokeWidth="1dp">
 
     <LinearLayout
@@ -29,7 +29,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Jan 12 - Jan 16"
-                android:textColor="#37474F"
+                android:textColor="@color/text_primary"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -38,7 +38,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="2024"
-                android:textColor="#90A4AE"
+                android:textColor="@color/text_secondary"
                 android:textSize="12sp" />
         </LinearLayout>
 
@@ -54,7 +54,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="5"
-                android:textColor="#C2185B"
+                android:textColor="@color/pink_500"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -62,14 +62,14 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Days"
-                android:textColor="#C2185B"
+                android:textColor="@color/pink_500"
                 android:textSize="10sp" />
         </LinearLayout>
 
         <View
             android:layout_width="1dp"
             android:layout_height="32dp"
-            android:background="#EEEEEE" />
+            android:background="@color/divider_color" />
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -83,7 +83,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="28"
-                android:textColor="#00897B"
+                android:textColor="@color/primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -91,7 +91,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Cycle"
-                android:textColor="#00897B"
+                android:textColor="@color/primary"
                 android:textSize="10sp" />
         </LinearLayout>
     </LinearLayout>
