@@ -215,6 +215,10 @@ public class FloatingChatManager {
         loadingMsg.setLoading(true);
         adapter.addMessage(loadingMsg);
 
+        rvChat.postDelayed(() -> {
+            rvChat.smoothScrollToPosition(adapter.getItemCount() - 1);
+        }, 150);
+
         geminiRepository.sendMessage(text, imageUri, new GeminiRepository.GeminiCallback() {
             @Override
             public void onSuccess(String response) {

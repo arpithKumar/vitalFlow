@@ -25,7 +25,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.speech.RecognizerIntent;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -34,7 +33,6 @@ import android.view.animation.DecelerateInterpolator;
 import android.view.animation.TranslateAnimation;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -73,6 +71,8 @@ import com.vitalflow.app.data.entity.Vital;
 import com.vitalflow.app.data.repository.GeminiRepository;
 import com.vitalflow.app.databinding.FragmentHomeBinding;
 import com.vitalflow.app.ui.report.ReportViewModel;
+import com.vitalflow.app.ui.story.WrappedDialogFragment;
+import com.vitalflow.app.utils.DataExportHelper;
 import com.vitalflow.app.utils.DataImportHelper;
 import com.vitalflow.app.utils.HealthConnectManager;
 import com.vitalflow.app.utils.InsightEngine;
@@ -84,8 +84,6 @@ import com.vitalflow.app.workers.HealthSyncWorker;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -231,7 +229,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         documentPickerLauncher = registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
             if (uri != null) {
                 showLoadingDialog();
-                DataImportHelper.restoreFromExcel(requireContext(), uri, appDao, new com.vitalflow.app.utils.DataImportHelper.ImportCallback() {
+                DataImportHelper.restoreFromExcel(requireContext(), uri, appDao, new DataImportHelper.ImportCallback() {
                     @Override
                     public void onSuccess(int itemsRestored) {
                         if (getActivity() != null) getActivity().runOnUiThread(() -> {
@@ -289,6 +287,15 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         setupButtons();
         checkAndShowMenuHint();
         setupAdditionalView(view);
+
+        Calendar cal = Calendar.getInstance();
+        int dayOfMonth = cal.get(Calendar.DAY_OF_MONTH);
+        if (dayOfMonth <= 3) {
+            binding.cardWrappedTrigger.setVisibility(View.VISIBLE);
+            binding.cardWrappedTrigger.setOnClickListener(v -> {
+                new WrappedDialogFragment().show(getParentFragmentManager(), "Wrapped");
+            });
+        }
     }
 
     private void checkAndShowMenuHint() {
@@ -398,57 +405,51 @@ public class HomeFragment extends Fragment implements SensorEventListener {
 
     private void setupButtons() {
 
-        binding.imgProfile.setOnClickListener(v -> {
-            PopupMenu popup = new PopupMenu(requireContext(), v);
-
-            // Add items to the menu (GroupID, ItemID, Order, Title)
-            popup.getMenu().add(0, 1, 0, "Export Report (PDF/Excel)");
-            popup.getMenu().add(0, 2, 0, "Share with Caregiver");
-            popup.getMenu().add(0, 3, 0, "Restore from Backup");
-
-            popup.getMenu().findItem(1).setIcon(android.R.drawable.ic_menu_save);
-            popup.getMenu().findItem(2).setIcon(android.R.drawable.ic_menu_share);
-            popup.getMenu().findItem(3).setIcon(android.R.drawable.ic_menu_upload);
-
-            try {
-                Field field = popup.getClass().getDeclaredField("mPopup");
-                field.setAccessible(true);
-                Object menuHelper = field.get(popup);
-                Class<?> classPopupHelper = Class.forName(menuHelper.getClass().getName());
-                Method setForceIcons = classPopupHelper.getMethod("setForceShowIcon", boolean.class);
-                setForceIcons.invoke(menuHelper, true);
-            } catch (Exception e) {
-                Log.e("PopupMenu", "Error showing menu icons", e);
-            }
-
-            // Handle the menu item clicks
-            popup.setOnMenuItemClickListener(item -> {
-                switch (item.getItemId()) {
-                    case 1: // Export Report
-                        Toast.makeText(getContext(), "Gathering data & AI Insights...", Toast.LENGTH_SHORT).show();
-                        NotificationHelper.showDownloadProgress(requireContext());
-                        reportViewModel.generateFullReport();
-                        return true;
-
-                    case 2:
-                        generateAndShareCaregiverReport();
-                        return true;
-
-                    case 3: // Restore Excel
-                        new MaterialAlertDialogBuilder(requireContext())
-                                .setTitle("Restore Data")
-                                .setMessage("Select a previously exported VitalFlow Excel (.xlsx) file to restore your medications.")
-                                .setPositiveButton("Select File", (dialog, which) -> {
-                                    documentPickerLauncher.launch(new String[]{"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-                                })
-                                .setNegativeButton("Cancel", null)
-                                .show();
-                        return true;
+        binding.btnMoreMenu.setOnClickListener(v -> {
+            HomeMenuBottomSheet bottomSheet = new HomeMenuBottomSheet();
+            bottomSheet.setMenuClickListener(new HomeMenuBottomSheet.MenuClickListener() {
+                @Override
+                public void onExportPdfClicked() {
+                    Toast.makeText(getContext(), "Gathering data for PDF...", Toast.LENGTH_SHORT).show();
+                    NotificationHelper.showDownloadProgress(requireContext());
+                    reportViewModel.generateFullReport();
                 }
-                return false;
+
+                @Override
+                public void onExportExcelClicked() {
+                    SharedPreferences prefs = requireContext().getSharedPreferences("vital_prefs", Context.MODE_PRIVATE);
+                    boolean isPro = prefs.getBoolean("is_pro_member", false);
+                    if (isPro) {
+                        Toast.makeText(getContext(), "Generating Excel Backup...", Toast.LENGTH_SHORT).show();
+                        DataExportHelper.exportData(requireContext(), appDao);
+                    } else {
+
+                        showUpgradeDialog();
+                    }
+                }
+
+                @Override
+                public void onShareClicked() {
+                    generateAndShareCaregiverReport();
+                }
+
+                @Override
+                public void onRestoreClicked() {
+                    new MaterialAlertDialogBuilder(requireContext())
+                            .setTitle("Restore Data")
+                            .setMessage("Select a previously exported VitalFlow Excel (.xlsx) file to restore your medications.")
+                            .setPositiveButton("Select File", (dialog, which) -> {
+                                documentPickerLauncher.launch(new String[]{
+                                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                        "application/vnd.ms-excel"
+                                });
+                            })
+                            .setNegativeButton("Cancel", null)
+                            .show();
+                }
             });
 
-            popup.show();
+            bottomSheet.show(getChildFragmentManager(), "HomeMenuSheet");
         });
 
         reportViewModel.getReportData().observe(getViewLifecycleOwner(), reportData -> {
@@ -467,6 +468,30 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                 Toast.makeText(getContext(), errorMsg, Toast.LENGTH_LONG).show();
             }
         });
+    }
+
+    private void showUpgradeDialog() {
+        String[] features = {
+                "📊  Export Data to Excel (Doctor Ready)",
+                "☁️  Secure Cloud Backup & Sync",
+                "🤖  Advanced AI Health Insights",
+                "📈  Unlimited History Trends",
+                "🚫  Ad-Free Experience"
+        };
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Unlock VitalFlow Premium 👑")
+                .setItems(features, null)
+                .setPositiveButton("Subscribe - $4.99/mo", (dialog, which) -> {
+                    // MOCK PURCHASE SUCCESS
+                    SharedPreferences prefs = requireContext().getSharedPreferences("vital_prefs", Context.MODE_PRIVATE);
+                    prefs.edit().putBoolean("is_pro_member", true).apply();
+
+                    playCelebration(); // Pop the confetti on the Home Screen!
+                    Toast.makeText(getContext(), "Welcome to Pro! You can now export to Excel.", Toast.LENGTH_LONG).show();
+                })
+                .setNegativeButton("Maybe Later", (dialog, which) -> dialog.dismiss())
+                .show();
     }
 
     @Override
@@ -511,9 +536,6 @@ public class HomeFragment extends Fragment implements SensorEventListener {
             if (nativeSteps < 0) nativeSteps = 0;
 
             sensorStepsToday = nativeSteps;
-
-            // Sync Logic: Only update if Native is larger (or similar), or simply trust Native for real-time
-            // We update UI immediately for responsiveness
             updateStepsIfHigher(nativeSteps);
         }
     }
@@ -524,8 +546,6 @@ public class HomeFragment extends Fragment implements SensorEventListener {
 
     private void updateStepsIfHigher(int newStepCount) {
         if (currentDayData != null) {
-            // Logic: Update if new count is higher than current DB count
-            // This ensures we capture the maximum value from either source
             if (newStepCount > currentDayData.getStepCount()) {
                 currentDayData.setStepCount(newStepCount);
                 updateStatsUI();
@@ -535,6 +555,48 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                 updateStatsUI();
             }
         }
+    }
+
+    private void updateHealthPetUI() {
+        if (currentDayData == null || binding == null) return;
+
+        int water = currentDayData.getWaterIntakeMl();
+        int waterGoal = currentDayData.getWaterGoalMl();
+        int steps = currentDayData.getStepCount();
+
+        // Calculate progress percentage safely
+        float waterPercent = waterGoal > 0 ? (float) water / waterGoal : 0;
+
+        String emoji;
+        String status;
+
+        if (waterPercent >= 1.0f || steps >= 8000) {
+            emoji = "🌟"; // Thriving!
+            status = "Thriving! You're crushing it today!";
+
+            // Add a fun little continuous bounce animation
+            binding.tvPetEmoji.animate()
+                    .translationY(-15f)
+                    .setDuration(400)
+                    .setInterpolator(new DecelerateInterpolator())
+                    .withEndAction(() -> {
+                        if (binding != null) {
+                            binding.tvPetEmoji.animate().translationY(0f).setDuration(400).start();
+                        }
+                    }).start();
+
+        } else if (waterPercent >= 0.4f || steps >= 3000) {
+            emoji = "🌱"; // Growing
+            status = "Growing steady! Keep up the good work.";
+            binding.tvPetEmoji.setTranslationY(0f); // Reset animation
+        } else {
+            emoji = "🥀"; // Needs attention
+            status = "Feeling sluggish. Feed me water or steps!";
+            binding.tvPetEmoji.setTranslationY(0f); // Reset animation
+        }
+
+        binding.tvPetEmoji.setText(emoji);
+        binding.tvPetStatus.setText(status);
     }
 
     private void setupAdditionalView(View view) {
@@ -557,6 +619,8 @@ public class HomeFragment extends Fragment implements SensorEventListener {
             updateHydrationUI(shouldAnimate);
             updateStatsUI();
             updateMoodUI();
+            updateHealthPetUI();
+
             loadWeeklyData();
             generateGeminiTip();
 
@@ -906,8 +970,8 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         SharedPreferences prefs = requireContext().getSharedPreferences("vital_prefs", Context.MODE_PRIVATE);
 
         binding.btnWaterReminder.setOnClickListener(v -> {
-            String[] options = {"Off (No Reminders)", "Every 1 Hour", "Every 2 Hours", "Every 4 Hours", "Custom..."};
-            int[] predefinedIntervals = {0, 1, 2, 4};
+            String[] options = {"Off (No Reminders)", "Every 30 Mins", "Every 1 Hour", "Every 2 Hours", "Custom..."};
+            int[] predefinedIntervals = {0, 30, 60, 120};
 
             int currentInterval = prefs.getInt("water_reminder_interval", 0);
             int checkedItem = 4;
@@ -932,7 +996,8 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                                 Toast.makeText(getContext(), "Water reminders turned off", Toast.LENGTH_SHORT).show();
                             } else {
                                 NotificationHelper.scheduleDailyReminder(requireContext(), selectedInterval);
-                                Toast.makeText(getContext(), "Reminding every " + selectedInterval + " hours", Toast.LENGTH_SHORT).show();
+                                String timeLabel = selectedInterval >= 60 ? (selectedInterval / 60) + " hours" : selectedInterval + " mins";
+                                Toast.makeText(getContext(), "Reminding every " + timeLabel, Toast.LENGTH_SHORT).show();
                             }
                         } else {
                             showCustomReminderDialog(prefs);
@@ -943,46 +1008,76 @@ public class HomeFragment extends Fragment implements SensorEventListener {
     }
 
     private void showCustomReminderDialog(SharedPreferences prefs) {
-        // Create an EditText programmatically so we don't need a new XML file
-        EditText input = new EditText(requireContext());
-        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-        input.setHint("e.g. 3");
+        // 1. Create a Horizontal Layout
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(requireContext());
+        layout.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        layout.setGravity(android.view.Gravity.CENTER);
 
-        // Add some padding to the input field so it looks nice
-        android.widget.FrameLayout container = new android.widget.FrameLayout(requireContext());
-        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        int margin = (int) (24 * getResources().getDisplayMetrics().density);
-        params.leftMargin = margin;
-        params.rightMargin = margin;
-        input.setLayoutParams(params);
-        container.addView(input);
+        int padding = (int) (24 * getResources().getDisplayMetrics().density);
+        layout.setPadding(padding, padding / 2, padding, padding / 2);
 
-        int currentInterval = prefs.getInt("water_reminder_interval", 0);
-        if (currentInterval > 0) {
-            input.setText(String.valueOf(currentInterval));
-            input.setSelection(input.getText().length());
+        int textColorSecondary = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.text_secondary);
+
+        // 2. Build the "Hours" Scroll Wheel
+        android.widget.NumberPicker hourPicker = new android.widget.NumberPicker(requireContext());
+        hourPicker.setMinValue(0);
+        hourPicker.setMaxValue(24);
+        // This magic line prevents the keyboard from popping up if they tap the numbers!
+        hourPicker.setDescendantFocusability(android.widget.NumberPicker.FOCUS_BLOCK_DESCENDANTS);
+
+        TextView tvHours = new TextView(requireContext());
+        tvHours.setText(" hrs   ");
+        tvHours.setTextSize(16f);
+        tvHours.setTextColor(textColorSecondary);
+
+        // 3. Build the "Minutes" Scroll Wheel
+        android.widget.NumberPicker minPicker = new android.widget.NumberPicker(requireContext());
+        minPicker.setMinValue(0);
+        minPicker.setMaxValue(59);
+        minPicker.setDescendantFocusability(android.widget.NumberPicker.FOCUS_BLOCK_DESCENDANTS);
+
+        TextView tvMins = new TextView(requireContext());
+        tvMins.setText(" mins");
+        tvMins.setTextSize(16f);
+        tvMins.setTextColor(textColorSecondary);
+
+        // 4. Add them to the layout
+        layout.addView(hourPicker);
+        layout.addView(tvHours);
+        layout.addView(minPicker);
+        layout.addView(tvMins);
+
+        // 5. Pre-fill with saved data
+        int currentTotalMins = prefs.getInt("water_reminder_interval", 0);
+        if (currentTotalMins > 0) {
+            hourPicker.setValue(currentTotalMins / 60);
+            minPicker.setValue(currentTotalMins % 60);
+        } else {
+            // Default to 1 hr 0 mins if they haven't set anything yet
+            hourPicker.setValue(1);
+            minPicker.setValue(0);
         }
 
+        // 6. Show the Dialog
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Custom Interval")
-                .setMessage("Remind me to drink water every X hours:")
-                .setView(container)
+                .setMessage("Remind me to drink water every:")
+                .setView(layout)
                 .setPositiveButton("Save", (dialog, whichButton) -> {
-                    String valueStr = input.getText().toString().trim();
-                    if (!valueStr.isEmpty()) {
-                        try {
-                            int hours = Integer.parseInt(valueStr);
-                            if (hours > 0 && hours <= 24) {
-                                prefs.edit().putInt("water_reminder_interval", hours).apply();
-                                NotificationHelper.scheduleDailyReminder(requireContext(), hours);
-                                Toast.makeText(getContext(), "Reminding every " + hours + " hours", Toast.LENGTH_SHORT).show();
-                            } else {
-                                Toast.makeText(getContext(), "Please enter between 1 and 24 hours", Toast.LENGTH_SHORT).show();
-                            }
-                        } catch (NumberFormatException e) {
-                            Toast.makeText(getContext(), "Invalid number", Toast.LENGTH_SHORT).show();
-                        }
+
+                    int hours = hourPicker.getValue();
+                    int minutes = minPicker.getValue();
+                    int totalMinutes = (hours * 60) + minutes;
+
+                    // Ensure they pick at least 15 minutes to prevent notification spam
+                    if (totalMinutes >= 15 && totalMinutes <= 1440) {
+                        prefs.edit().putInt("water_reminder_interval", totalMinutes).apply();
+                        NotificationHelper.scheduleDailyReminder(requireContext(), totalMinutes);
+
+                        String timeLabel = (hours > 0 ? hours + " hrs " : "") + (minutes > 0 ? minutes + " mins" : "");
+                        Toast.makeText(getContext(), "Reminding every " + timeLabel.trim(), Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(getContext(), "Please pick a time of at least 15 mins.", Toast.LENGTH_SHORT).show();
                     }
                 })
                 .setNegativeButton("Cancel", null)

@@ -50,6 +50,21 @@ public class GeminiRepository {
         this.context = context;
     }
 
+    private String getPersonaInstruction() {
+        SharedPreferences prefs = context.getSharedPreferences("vital_prefs", Context.MODE_PRIVATE);
+        String persona = prefs.getString("ai_persona", "Standard Coach");
+
+        if (persona.contains("Zen Master")) {
+            return "Act as a highly spiritual, calming Zen Master. Use peaceful, mindful language. ";
+        } else if (persona.contains("Cheerleader")) {
+            return "Act as an overly enthusiastic, high-energy Cheerleader. Use very excited language and slang! ";
+        } else if (persona.contains("Drill Sergeant")) {
+            return "Act as a tough, loud, no-excuses military Drill Sergeant. Be demanding, strict, and use military terms. ";
+        }
+
+        return "Act as a friendly, motivational health coach. ";
+    }
+
     private String getUserApiKey() {
         SharedPreferences prefs = context.getSharedPreferences("vital_prefs", Context.MODE_PRIVATE);
         return prefs.getString("user_gemini_key", null);
@@ -69,7 +84,7 @@ public class GeminiRepository {
             return;
         }
         // Construct a persona-based prompt
-        String prompt = "Act as a friendly, motivational health coach. " +
+        String prompt = getPersonaInstruction() +
                 "Based on this user data today: [" + userStats + "], " +
                 "give ONE single, concise, actionable health tip (max 15 words). " +
                 "Do not greet. Just give the tip.";
@@ -134,7 +149,7 @@ public class GeminiRepository {
 
         // 2. The Strict JSON Prompt
         String contextBuilderString = contextBuilder.toString();
-        String prompt = "You are an expert Gynecologist, Fitness Coach and Nutritionist. \n" +
+        String prompt = getPersonaInstruction() + "You are an expert Gynecologist, Fitness Coach and Nutritionist. \n" +
                 "Analyze this user's data (Cycle Day, Sleep, Nutrition, Symptoms):\n" +
                 "[" + contextBuilderString + "]\n\n" +
                 "Generate a highly personalized JSON health plan.\n" +
@@ -254,7 +269,7 @@ public class GeminiRepository {
     }
 
     private void executeCall(String apiKey, String model, GeminiRequest request, GeminiCallback callback) {
-        apiService.generateContent(apiKey, model, request).enqueue(new Callback<>() {
+        apiService.generateContent(model, apiKey, request).enqueue(new Callback<>() {
             @Override
             public void onResponse(@NonNull Call<GeminiResponse> call, @NonNull Response<GeminiResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {

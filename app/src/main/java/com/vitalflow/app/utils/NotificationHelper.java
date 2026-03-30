@@ -31,7 +31,10 @@ public class NotificationHelper {
 
 
     public static void scheduleDailyReminder(Context context, int intervalHours) {
-        PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(ReminderWorker.class, intervalHours, TimeUnit.HOURS).build();
+        PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(ReminderWorker.class,
+                intervalHours,
+                TimeUnit.MINUTES)
+                .build();
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 "daily_health_reminder",
                 ExistingPeriodicWorkPolicy.UPDATE,

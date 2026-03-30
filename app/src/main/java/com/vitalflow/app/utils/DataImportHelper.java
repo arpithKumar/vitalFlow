@@ -6,16 +6,21 @@ import android.util.Log;
 
 import com.vitalflow.app.data.dao.AppDao;
 import com.vitalflow.app.data.entity.Medication;
+import com.vitalflow.app.data.entity.PeriodLog;
 
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.InputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class DataImportHelper {
 
@@ -29,64 +34,144 @@ public class DataImportHelper {
         new Thread(() -> {
             try {
                 InputStream inputStream = context.getContentResolver().openInputStream(excelUri);
+                if (inputStream == null) {
+                    callback.onError("Could not open the file. It might be inaccessible or deleted.");
+                    return;
+                }
                 Workbook workbook = new XSSFWorkbook(inputStream);
+
+                List<Medication> restoredMeds = new ArrayList<>();
+                List<PeriodLog> restoredPeriods = new ArrayList<>();
 
                 // 1. Target the Medications Sheet
                 Sheet sheetMeds = workbook.getSheet("Medications");
-                if (sheetMeds == null) {
-                    callback.onError("Could not find 'Medications' sheet in this file.");
-                    return;
-                }
+                if (sheetMeds != null) {
+                    for (int i = 1; i <= sheetMeds.getLastRowNum(); i++) {
+                        Row row = sheetMeds.getRow(i);
+                        if (row == null) continue;
 
-                List<Medication> restoredMeds = new ArrayList<>();
+                        try {
+                            // Column 0-3: Core Details
+                            String name = getCellText(row.getCell(0));
+                            if (name.isEmpty()) continue; // Name is mandatory
 
-                // 2. Loop through rows (Skip row 0 because it's the Header)
-                for (int i = 1; i <= sheetMeds.getLastRowNum(); i++) {
-                    Row row = sheetMeds.getRow(i);
-                    if (row == null) continue;
+                            String dosage = getCellText(row.getCell(1));
 
-                    try {
-                        String name = getCellText(row.getCell(0));
-                        if (name.isEmpty()) continue; // Skip empty rows
+                            String type = getCellText(row.getCell(2));
+                            if (type.isEmpty()) type = "Pill";
 
-                        String dosage = getCellText(row.getCell(1));
+                            String time = getCellText(row.getCell(3));
 
-                        // Parse "2x Daily" back into an integer: 2
-                        String freqString = getCellText(row.getCell(2)).replaceAll("[^0-9]", "");
-                        int frequency = freqString.isEmpty() ? 1 : Integer.parseInt(freqString);
+                            // Column 4-5: Schedule
+                            String freqString = getCellText(row.getCell(4)).replaceAll("[^0-9]", "");
+                            int frequency = freqString.isEmpty() ? 1 : Integer.parseInt(freqString);
 
-                        String scheduledDays = getCellText(row.getCell(3));
-                        String time = getCellText(row.getCell(4));
+                            String scheduledDays = getCellText(row.getCell(5));
 
-                        // Parse Pills Left
-                        String pillsString = getCellText(row.getCell(6)).replaceAll("[^0-9]", "");
-                        int pillsLeft = pillsString.isEmpty() ? 30 : Integer.parseInt(pillsString);
+                            // Column 6-7: Dates
+                            String startDate = getCellText(row.getCell(6));
+                            if (startDate.isEmpty()) {
+                                startDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+                            }
 
-                        // 3. Rebuild the Medication Object
-                        // Note: We leave doctor, hospital, dates empty for now, and set prescriptionUri to null.
-                        Medication med = new Medication(
-                                name, dosage, "Pill", time,
-                                "", "", "Today", "Forever",
-                                pillsLeft, frequency, scheduledDays, null
-                        );
+                            String endDate = getCellText(row.getCell(7));
+                            if (endDate.isEmpty()) endDate = "Forever";
 
-                        restoredMeds.add(med);
-                    } catch (Exception e) {
-                        Log.e("ImportHelper", "Skipped corrupted row: " + i);
+                            // Column 8-9: Medical Contacts
+                            String doctor = getCellText(row.getCell(8));
+                            String hospital = getCellText(row.getCell(9));
+
+                            // Column 10: Inventory
+                            String pillsString = getCellText(row.getCell(10)).replaceAll("[^0-9]", "");
+                            int pillsLeft = pillsString.isEmpty() ? 30 : Integer.parseInt(pillsString);
+
+                            // Column 11-13: Live Status Tracking
+                            String takenString = getCellText(row.getCell(11)).replaceAll("[^0-9]", "");
+                            int takenToday = takenString.isEmpty() ? 0 : Integer.parseInt(takenString);
+
+                            String status = getCellText(row.getCell(12));
+                            if (status.isEmpty()) status = "PENDING";
+
+                            String lastActionDate = getCellText(row.getCell(13));
+
+                            // Column 14: URI
+                            String rxUri = getCellText(row.getCell(14));
+
+                            // BUILD THE EXACT MIRROR OBJECT
+                            Medication med = new Medication(
+                                    name, dosage, type, time,
+                                    doctor, hospital, startDate, endDate,
+                                    pillsLeft, frequency, scheduledDays, rxUri
+                            );
+
+                            // Restore exact state counters
+                            med.setTimesTakenToday(takenToday);
+                            med.setDbStatus(status);
+                            med.setLastActionDate(lastActionDate);
+
+                            restoredMeds.add(med);
+                        } catch (Exception e) {
+                            Log.e("ImportHelper", "Skipped corrupted meds row: " + i);
+                        }
                     }
                 }
 
+                Sheet sheetCycle = workbook.getSheet("Cycle History");
+                if (sheetCycle != null) {
+                    for (int i = 1; i <= sheetCycle.getLastRowNum(); i++) {
+                        Row row = sheetCycle.getRow(i);
+                        if (row == null) continue;
+
+                        try {
+                            String date = getCellText(row.getCell(0));
+                            if (date.isEmpty()) continue;
+
+                            // Convert "Yes"/"No" back to boolean
+                            String flowStr = getCellText(row.getCell(1));
+                            boolean isFlow = flowStr.equalsIgnoreCase("Yes");
+
+                            // Convert "Light/Medium/Heavy" back to int
+                            String intensityStr = getCellText(row.getCell(2));
+                            int intensity = 0;
+                            if (intensityStr.equalsIgnoreCase("Light")) intensity = 1;
+                            else if (intensityStr.equalsIgnoreCase("Medium")) intensity = 2;
+                            else if (intensityStr.equalsIgnoreCase("Heavy")) intensity = 3;
+
+                            String symptoms = getCellText(row.getCell(3));
+
+                            PeriodLog period = new PeriodLog(date, isFlow, intensity, symptoms);
+                            restoredPeriods.add(period);
+                        } catch (Exception e) {
+                            Log.e("ImportHelper", "Skipped corrupted cycle row: " + i);
+                        }
+                    }
+                }
+
+
                 workbook.close();
                 inputStream.close();
+
+                int totalRestored = 0;
 
                 // 4. Save to Room Database
                 if (!restoredMeds.isEmpty()) {
                     for (Medication m : restoredMeds) {
                         appDao.insertMedication(m).blockingSubscribe();
                     }
-                    callback.onSuccess(restoredMeds.size());
+                    totalRestored += restoredMeds.size();
+                }
+
+                if (!restoredPeriods.isEmpty()) {
+                    for (PeriodLog p : restoredPeriods) {
+                        appDao.insertPeriodLog(p).blockingSubscribe();
+                    }
+                    totalRestored += restoredPeriods.size();
+                }
+
+                if (totalRestored > 0) {
+                    callback.onSuccess(totalRestored);
                 } else {
-                    callback.onError("No valid medications found to restore.");
+                    callback.onError("No valid data found to restore. Check the Excel file format.");
                 }
 
             } catch (Exception e) {
@@ -102,7 +187,16 @@ public class DataImportHelper {
             case STRING:
                 return cell.getStringCellValue().trim();
             case NUMERIC:
-                return String.valueOf((int) cell.getNumericCellValue());
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+                    return sdf.format(cell.getDateCellValue());
+                }
+                // Otherwise treat as plain number (removing decimals if it's a whole number)
+                double val = cell.getNumericCellValue();
+                if (val == (long) val) {
+                    return String.valueOf((long) val);
+                }
+                return String.valueOf(val);
             case BOOLEAN:
                 return String.valueOf(cell.getBooleanCellValue());
             default:

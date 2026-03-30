@@ -107,4 +107,10 @@ public interface AppDao {
 
     @Query("SELECT * FROM medications WHERE id = :id LIMIT 1")
     Single<Medication> getMedicationById(String id);
+
+    @Query("SELECT * FROM daily_health WHERE date LIKE :monthPrefix || '%'")
+    Single<List<DailyHealth>> getDailyHealthForMonthSync(String monthPrefix);
+
+    @Query("SELECT * FROM period_logs WHERE date LIKE :monthPrefix || '%'")
+    Single<List<PeriodLog>> getPeriodLogsForMonthSync(String monthPrefix);
 }

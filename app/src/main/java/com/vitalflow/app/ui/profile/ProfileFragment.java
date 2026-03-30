@@ -14,6 +14,7 @@ import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -112,6 +113,7 @@ public class ProfileFragment extends Fragment {
 
         // 7. Sync Logic (Dropdown & Button)
         setupSyncDropdown();
+        setupPersonaSelector();
         binding.cardSync.setOnClickListener(v -> startSync());
 
         // -----------------------------------------------------------
@@ -393,9 +395,11 @@ public class ProfileFragment extends Fragment {
         if (key != null && !key.isEmpty()) {
             binding.tvGeminiStatus.setText("Connected");
             binding.tvGeminiStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.primary));// Success Green
+            binding.cardAiPersona.setVisibility(View.VISIBLE);
         } else {
             binding.tvGeminiStatus.setText("Tap to Connect");
             binding.tvGeminiStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary)); // Gray
+            binding.cardAiPersona.setVisibility(View.GONE);
         }
     }
 
@@ -454,5 +458,56 @@ public class ProfileFragment extends Fragment {
         if (timeHandler != null && timeRunnable != null) {
             timeHandler.removeCallbacks(timeRunnable);
         }
+    }
+
+    private static class Persona {
+        String name, description, example;
+
+        Persona(String name, String description, String example) {
+            this.name = name;
+            this.description = description;
+            this.example = example;
+        }
+    }
+
+    private void setupPersonaSelector() {
+        String savedPersona = prefs.getString("ai_persona", "Standard Coach");
+        binding.tvCurrentPersona.setText(savedPersona);
+
+        Persona[] personas = new Persona[]{
+                new Persona("Standard Coach", "A friendly, balanced health assistant.", "\"Great job hitting your step goal today! Keep it up.\""),
+                new Persona("Zen Master 🧘‍♀️", "Highly spiritual, calming and mindful.", "\"Breathe deeply. Your body needs rest today to find harmony.\""),
+                new Persona("Cheerleader 📣", "Overly enthusiastic, high-energy hype.", "\"OMG you absolutely crushed your water goal! You're a Rockstar!\""),
+                new Persona("Drill Sergeant 🪖", "Tough, loud, no-excuses military style.", "\"You are 500ml short on water. Drink up, soldier! No excuses.\"")
+        };
+
+        ArrayAdapter<Persona> adapter = new ArrayAdapter<>(requireContext(), 0, personas) {
+            @NonNull
+            @Override
+            public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+                if (convertView == null) {
+                    convertView = LayoutInflater.from(getContext()).inflate(R.layout.item_persona, parent, false);
+                }
+                Persona p = getItem(position);
+                if (p != null) {
+                    ((TextView) convertView.findViewById(R.id.tvPersonaName)).setText(p.name);
+                    ((TextView) convertView.findViewById(R.id.tvPersonaDesc)).setText(p.description);
+                    ((TextView) convertView.findViewById(R.id.tvPersonaExample)).setText(p.example);
+                }
+                return convertView;
+            }
+        };
+
+        binding.cardAiPersona.setOnClickListener(v -> {
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Select Coach Personality")
+                    .setAdapter(adapter, (dialog, which) -> {
+                        String selectedName = personas[which].name;
+                        prefs.edit().putString("ai_persona", selectedName).apply();
+                        binding.tvCurrentPersona.setText(selectedName);
+                        Toast.makeText(getContext(), "Coach set to: " + selectedName, Toast.LENGTH_SHORT).show();
+                    })
+                    .show();
+        });
     }
 }

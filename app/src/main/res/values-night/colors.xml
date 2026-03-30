@@ -68,4 +68,7 @@
     <color name="warning_yellow">#FFF59D</color>
 
     <color name="accent_purple">#CE93D8</color>
+
+    <color name="icon_pdf">#EF5350</color>
+    <color name="icon_excel">#66BB6A</color>
 </resources>

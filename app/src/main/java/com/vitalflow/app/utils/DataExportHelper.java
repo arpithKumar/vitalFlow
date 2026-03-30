@@ -46,19 +46,30 @@ public class DataExportHelper {
 
                 // --- SHEET 1: MEDICATIONS ---
                 Sheet sheetMeds = workbook.createSheet("Medications");
-                createHeader(sheetMeds, "Name", "Dosage", "Frequency", "Scheduled Days", "Time", "Status", "Pills Left", "Rx Saved?");
+                createHeader(sheetMeds,
+                        "Name", "Dosage", "Type", "Time", "Frequency/Day",
+                        "Scheduled Days", "Start Date", "End Date", "Doctor Name",
+                        "Hospital Name", "Pills Left", "Times Taken Today", "Status",
+                        "Last Action Date", "Prescription URI (Rx)");
                 int rowNum = 1;
                 for (Medication m : meds) {
                     Row row = sheetMeds.createRow(rowNum++);
                     row.createCell(0).setCellValue(m.getName());
                     row.createCell(1).setCellValue(m.getDosage());
-                    row.createCell(2).setCellValue(m.getFrequencyPerDay() + "x Daily");
-                    row.createCell(3).setCellValue(m.getSelectedDays());
-                    row.createCell(4).setCellValue(m.getTime());
-                    row.createCell(5).setCellValue(m.getStatus()); // Taken/Skipped
-                    row.createCell(6).setCellValue(m.getPillsLeft());
-                    boolean hasRx = m.getPrescriptionUri() != null && !m.getPrescriptionUri().isEmpty();
-                    row.createCell(7).setCellValue(hasRx ? "Yes" : "No");
+                    row.createCell(2).setCellValue(m.getType() != null ? m.getType() : "Pill");
+                    row.createCell(3).setCellValue(m.getTime());
+                    row.createCell(4).setCellValue(m.getFrequencyPerDay());
+                    row.createCell(5).setCellValue(m.getSelectedDays());
+                    row.createCell(6).setCellValue(m.getStartDate());
+                    row.createCell(7).setCellValue(m.getEndDate());
+                    row.createCell(8).setCellValue(m.getDoctorName() != null ? m.getDoctorName() : "");
+                    row.createCell(9).setCellValue(m.getHospitalName() != null ? m.getHospitalName() : "");
+                    row.createCell(10).setCellValue(m.getPillsLeft());
+                    row.createCell(11).setCellValue(m.getTimesTakenToday());
+                    row.createCell(12).setCellValue(m.getDbStatus() != null ? m.getDbStatus() : "PENDING");
+                    row.createCell(13).setCellValue(m.getLastActionDate() != null ? m.getLastActionDate() : "");
+                    // Save the ACTUAL URI string, not just "Yes" or "No"
+                    row.createCell(14).setCellValue(m.getPrescriptionUri() != null ? m.getPrescriptionUri() : "");
                 }
 
                 // --- SHEET 2: VITALS ---
