@@ -6,7 +6,7 @@
             <item android:gravity="center">
                 <shape android:shape="rectangle">
                     <corners android:radius="4dp" /> <size android:width="24dp" android:height="6dp" />
-                    <solid android:color="#00897B" />
+                    <solid android:color="@color/primary" />
                 </shape>
             </item>
         </layer-list>
@@ -18,7 +18,7 @@
                 <shape android:shape="rectangle">
                     <corners android:radius="4dp" />
                     <size android:width="8dp" android:height="6dp" />
-                    <solid android:color="#E0E0E0" />
+                    <solid android:color="@color/divider_color" />
                 </shape>
             </item>
         </layer-list>

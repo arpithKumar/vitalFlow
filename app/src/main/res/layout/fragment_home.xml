@@ -28,7 +28,7 @@
             android:layout_marginTop="48dp"
             android:fontFamily="sans-serif-medium"
             android:text="Good Morning,"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_on_primary"
             android:textSize="18sp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -51,7 +51,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif-black"
                 android:text="User"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/text_on_primary"
                 android:textSize="28sp" />
 
             <com.google.android.material.card.MaterialCardView
@@ -59,7 +59,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
-                app:cardBackgroundColor="#FFECB3"
+                app:cardBackgroundColor="@color/bg_streak_card"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="0dp"
                 app:strokeWidth="0dp">
@@ -71,7 +71,7 @@
                     android:paddingHorizontal="8dp"
                     android:paddingVertical="4dp"
                     android:text="🔥 0 Days"
-                    android:textColor="#F57F17"
+                    android:textColor="@color/text_streak_label"
                     android:textSize="12sp"
                     android:textStyle="bold" />
             </com.google.android.material.card.MaterialCardView>
@@ -106,7 +106,7 @@
             app:layout_constraintTop_toTopOf="@id/tvGreeting"
             app:shapeAppearanceOverlay="@style/CircleImageStyle"
             android:contentDescription="Profile Picture"
-            app:strokeColor="#FFFFFF"
+            app:strokeColor="@color/text_on_primary"
             app:strokeWidth="1dp" />
 
         <com.google.android.material.imageview.ShapeableImageView
@@ -121,7 +121,7 @@
             app:layout_constraintBottom_toBottomOf="@id/imgProfile"
             app:layout_constraintEnd_toStartOf="@id/imgProfile"
             app:layout_constraintTop_toTopOf="@id/imgProfile"
-            app:tint="#FFFFFF" />
+            app:tint="@color/text_on_primary" />
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardHealthPet"
@@ -260,7 +260,7 @@
                         android:layout_height="wrap_content"
                         android:includeFontPadding="false"
                         android:text="0"
-                        android:textColor="#FFFFFF"
+                        android:textColor="@color/text_on_primary"
                         android:shadowColor="#004D40"
                         android:shadowDx="1"
                         android:shadowDy="1"
@@ -274,7 +274,7 @@
                         android:layout_height="wrap_content"
                         android:includeFontPadding="false"
                         android:text="ml"
-                        android:textColor="#E0F2F1"
+                        android:textColor="@color/text_on_primary_soft"
                         android:shadowColor="#004D40"
                         android:shadowDx="1"
                         android:shadowDy="1"
@@ -306,7 +306,7 @@
                     android:textColor="@color/primary"
                     app:chipBackgroundColor="@color/chip_bg_selected"
                     app:chipIcon="@drawable/ic_edit"
-                    app:chipIconTint="#90A4AE"
+                    app:chipIconTint="@color/chart_axis_text"
                     app:chipIconVisible="true"
                     app:chipStrokeColor="@color/primary"
                     app:chipStrokeWidth="1dp"
@@ -322,7 +322,7 @@
                     android:layout_height="48dp"
                     android:layout_marginStart="8dp"
                     app:icon="@drawable/ic_reset"
-                    app:iconTint="#D32F2F"
+                    app:iconTint="@color/warning_red"
                     app:iconSize="24dp"
                     app:iconGravity="textStart"
                     app:iconPadding="0dp"
@@ -362,7 +362,7 @@
                             android:textColor="@color/primary"
                             app:chipBackgroundColor="@color/chip_bg_selected"
                             app:chipIcon="@drawable/ic_water_drop"
-                            app:chipIconTint="#00897B"
+                            app:chipIconTint="@color/primary"
                             app:chipIconVisible="true"
                             app:chipStrokeColor="@color/primary"
                             app:chipStrokeWidth="1dp" />
@@ -376,7 +376,7 @@
                             android:textColor="@color/primary"
                             app:chipBackgroundColor="@color/chip_bg_selected"
                             app:chipIcon="@drawable/ic_water_drop"
-                            app:chipIconTint="#00897B"
+                            app:chipIconTint="@color/primary"
                             app:chipIconVisible="true"
                             app:chipStrokeColor="@color/primary"
                             app:chipStrokeWidth="1dp" />
@@ -390,7 +390,7 @@
                             android:textColor="@color/primary"
                             app:chipBackgroundColor="@color/chip_bg_selected"
                             app:chipIcon="@drawable/ic_water_drop"
-                            app:chipIconTint="#00897B"
+                            app:chipIconTint="@color/primary"
                             app:chipIconVisible="true"
                             app:chipStrokeColor="@color/primary"
                             app:chipStrokeWidth="1dp" />
@@ -401,10 +401,10 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Custom"
-                            android:textColor="#FFFFFF"
+                            android:textColor="@color/text_on_primary"
                             app:chipBackgroundColor="@color/primary"
                             app:chipIcon="@drawable/ic_edit"
-                            app:chipIconTint="#FFFFFF"
+                            app:chipIconTint="@color/text_on_primary"
                             app:chipIconVisible="true" />
 
                     </com.google.android.material.chip.ChipGroup>
@@ -454,7 +454,7 @@
                         android:layout_height="wrap_content"
                         android:letterSpacing="0.1"
                         android:text="UP NEXT"
-                        android:textColor="#80CBC4"
+                        android:textColor="@color/primary_light"
                         android:textSize="10sp"
                         android:textStyle="bold" />
 
@@ -483,7 +483,7 @@
                             android:layout_height="12dp"
                             android:src="@drawable/ic_clock"
                             android:contentDescription="Clock Icon"
-                            app:tint="#004D40" />
+                            app:tint="@color/text_on_primary_dark" />
 
                         <TextView
                             android:id="@+id/tvNextMedTime"
@@ -492,7 +492,7 @@
                             android:layout_marginStart="4dp"
                             android:text="--:--"
                             tools:text="2:00 PM"
-                            android:textColor="#004D40"
+                            android:textColor="@color/text_on_primary_dark"
                             android:textSize="12sp"
                             android:textStyle="bold" />
                     </LinearLayout>
@@ -524,14 +524,14 @@
                         android:layout_height="24dp"
                         android:layout_marginBottom="12dp"
                         android:src="@drawable/ic_heart"
-                        app:tint="#C62828" />
+                        app:tint="@color/icon_swipe_delete" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:letterSpacing="0.1"
                         android:text="HEART RATE"
-                        android:textColor="#EF9A9A"
+                        android:textColor="@color/chart_limit_line"
                         android:textSize="10sp"
                         android:textStyle="bold" />
 
@@ -542,7 +542,7 @@
                         android:layout_marginTop="2dp"
                         android:text="-- bpm"
                         tools:text="72 bpm"
-                        android:textColor="#C62828"
+                        android:textColor="@color/icon_swipe_delete"
                         android:textSize="18sp"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -583,7 +583,7 @@
                         android:layout_height="24dp"
                         android:layout_marginBottom="12dp"
                         android:src="@drawable/ic_moon"
-                        app:tint="#5E35B1" />
+                        app:tint="@color/accent_purple" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -595,6 +595,7 @@
                         android:textStyle="bold" />
 
                     <TextView
+                        android:id="@+id/tvSleepValue"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
@@ -630,7 +631,7 @@
                         android:layout_height="24dp"
                         android:layout_marginBottom="12dp"
                         android:src="@drawable/ic_steps"
-                        app:tint="#D84315" />
+                        app:tint="@color/secondary_dark" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -642,6 +643,7 @@
                         android:textStyle="bold" />
 
                     <TextView
+                        android:id="@+id/tvStepsValue"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
@@ -824,7 +826,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="Your Monthly Recap is Ready! 🎊"
-                    android:textColor="#FFFFFF"
+                    android:textColor="@color/text_on_primary"
                     android:textStyle="bold"
                     android:textSize="16sp" />
 
@@ -832,7 +834,7 @@
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:src="@drawable/ic_chevron_right"
-                    app:tint="#FFFFFF" />
+                    app:tint="@color/text_on_primary" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -861,7 +863,7 @@
                     android:layout_height="32dp"
                     android:layout_marginEnd="16dp"
                     android:src="@drawable/ic_lightbulb"
-                    app:tint="#FBC02D" />
+                    app:tint="@color/text_streak_label" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -919,7 +921,7 @@
                         android:layout_width="40dp"
                         android:layout_height="40dp"
                         android:src="@drawable/ic_food_apple"
-                        app:tint="#558B2F" />
+                        app:tint="@color/text_food_secondary" />
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -935,14 +937,14 @@
                             android:text="0 kcal"
                             android:textSize="22sp"
                             android:textStyle="bold"
-                            android:textColor="#33691E" />
+                            android:textColor="@color/text_food_primary" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Consumed Today"
                             android:textSize="12sp"
-                            android:textColor="#689F38" />
+                            android:textColor="@color/text_food_secondary" />
                     </LinearLayout>
 
                     <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -950,8 +952,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:src="@android:drawable/ic_menu_camera"
-                        app:backgroundTint="#DCEDC8"
-                        app:tint="#33691E"
+                        app:backgroundTint="@color/bg_nutrition_card"
+                        app:tint="@color/text_food_primary"
                         app:fabSize="mini"
                         app:elevation="0dp"
                         android:contentDescription="Scan Food" />

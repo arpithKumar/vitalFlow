@@ -2,6 +2,8 @@ package com.vitalflow.app.ui.period;
 
 import android.content.Context;
 import android.graphics.Color;
+
+import androidx.core.content.ContextCompat;
 import android.graphics.Typeface;
 import android.transition.AutoTransition;
 import android.transition.TransitionManager;
@@ -135,7 +137,7 @@ public class ExerciseAdapter extends RecyclerView.Adapter<ExerciseAdapter.Holder
         badge.setText(String.valueOf(stepNum));
         badge.setTextSize(12);
         badge.setTypeface(null, Typeface.BOLD);
-        badge.setTextColor(Color.parseColor("#00695C"));
+        badge.setTextColor(ContextCompat.getColor(context, R.color.primary_dark));
         badge.setGravity(Gravity.CENTER);
         badge.setBackgroundResource(R.drawable.bg_step_circle);
 
@@ -147,7 +149,7 @@ public class ExerciseAdapter extends RecyclerView.Adapter<ExerciseAdapter.Holder
         // Text
         TextView text = new TextView(context);
         text.setText(stepText);
-        text.setTextColor(Color.parseColor("#37474F"));
+        text.setTextColor(ContextCompat.getColor(context, R.color.text_profile_tertiary));
         text.setTextSize(14);
         text.setLineSpacing(0, 1.2f);
 

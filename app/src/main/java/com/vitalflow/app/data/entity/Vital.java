@@ -15,7 +15,7 @@ public class Vital {
     private String value1;       // Primary value (e.g. 72)
     private String value2;       // Secondary value (e.g. 80 for BP), can be null
     private String unit;         // "bpm", "mmHg", "%"
-    private String date;         // Display date string
+    private String date;         // ISO date string "yyyy-MM-dd HH:mm:ss"
     private long timestamp;      // Sorting timestamp
     private String contextTags;  // "Missed Meds, Stressed"
     private String symptoms;     // "Dizziness"

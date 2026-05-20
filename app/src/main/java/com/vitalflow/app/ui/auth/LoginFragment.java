@@ -47,6 +47,10 @@ import java.util.concurrent.Executors;
 import javax.inject.Inject;
 
 import dagger.hilt.android.AndroidEntryPoint;
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.core.Single;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 
 @AndroidEntryPoint
 public class LoginFragment extends Fragment {
@@ -56,6 +60,7 @@ public class LoginFragment extends Fragment {
     private boolean isLoginMode = true; // True = Login, False = SignUp
     private CredentialManager credentialManager;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final CompositeDisposable disposables = new CompositeDisposable();
 
     @Inject
     SyncRepository syncRepository;
@@ -65,6 +70,13 @@ public class LoginFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         binding = FragmentLoginBinding.inflate(inflater, container, false);
         return binding.getRoot();
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        disposables.clear();
+        binding = null;
     }
 
     @Override
@@ -251,7 +263,7 @@ public class LoginFragment extends Fragment {
 
         // 4. Customize Text Colors
         snackbar.setTextColor(Color.WHITE);
-        snackbar.setActionTextColor(Color.parseColor("#E0F2F1")); // Teal Action Text
+        snackbar.setActionTextColor(ContextCompat.getColor(requireContext(), R.color.text_on_primary_soft));
 
         // 5. Set the Action
         snackbar.setAction("ADD ACCOUNT", v -> {
@@ -320,27 +332,28 @@ public class LoginFragment extends Fragment {
         setLoading(true);
         binding.btnAuthAction.setText("Restoring Data...");
 
-        new Thread(() -> {
-            boolean success = syncRepository.syncDataBlocking();
-
-            if (isAdded() && getActivity() != null) {
-                requireActivity().runOnUiThread(() -> {
-                    NavController navController = Navigation.findNavController(requireView());
-                    try {
-                        navController.navigate(R.id.action_login_to_home);
-                    } catch (Exception e) {
-                        // Fallback in case action ID is missing in graph
-                        navController.navigate(R.id.homeFragment);
-                    }
-
-                    if (success) {
-                        Toast.makeText(getContext(), "Account Synced Successfully ✅", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(getContext(), "Welcome Back! (Offline Mode)", Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-        }).start();
+        disposables.add(
+                Single.fromCallable(() -> syncRepository.syncDataBlocking())
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(
+                                success -> {
+                                    NavController navController = Navigation.findNavController(requireView());
+                                    try {
+                                        navController.navigate(R.id.action_login_to_home);
+                                    } catch (Exception e) {
+                                        navController.navigate(R.id.homeFragment);
+                                    }
+                                    Toast.makeText(getContext(),
+                                            success ? "Account Synced Successfully ✅" : "Welcome Back! (Offline Mode)",
+                                            Toast.LENGTH_SHORT).show();
+                                },
+                                error -> {
+                                    setLoading(false);
+                                    Toast.makeText(getContext(), "Sync failed. Try again.", Toast.LENGTH_SHORT).show();
+                                }
+                        )
+        );
     }
 
     private void setLoading(boolean isLoading) {

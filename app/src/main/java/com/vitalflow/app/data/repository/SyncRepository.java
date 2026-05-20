@@ -1,5 +1,7 @@
 package com.vitalflow.app.data.repository;
 
+import static io.reactivex.rxjava3.core.Completable.fromAction;
+
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -23,9 +25,12 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
 import io.reactivex.rxjava3.core.Completable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 
+@Singleton
 public class SyncRepository {
 
     private final AppDao appDao;
@@ -65,17 +70,15 @@ public class SyncRepository {
             notifyComplete(listener, false, "User not logged in");
             return;
         }
-
-        // Run the heavy sync logic on a background thread
-        new Thread(() -> {
-            try {
-                performFullSync(listener);
-                notifyComplete(listener, true, "Sync Complete");
-            } catch (Exception e) {
-                Log.e("SyncRepo", "Async Sync Error", e);
-                notifyComplete(listener, false, e.getMessage());
-            }
-        }).start();
+        fromAction(() -> performFullSync(listener))
+                .subscribeOn(Schedulers.io())
+                .subscribe(
+                        () -> notifyComplete(listener, true, "Sync Complete"),
+                        e -> {
+                            Log.e("SyncRepo", "Async Sync Error", e);
+                            notifyComplete(listener, false, e.getMessage());
+                        }
+                ).notifyAll();
     }
 
     // --- THE CORE LOGIC (Safe Order: Download -> Merge -> Upload) ---
@@ -103,7 +106,7 @@ public class SyncRepository {
     }
 
     // --- HELPER: UPLOAD ---
-    private <T> void uploadCollection(String uid, String collectionName, List<T> items) throws ExecutionException, InterruptedException {
+    private <T> void uploadCollection(String uid, String collectionName, List<T> items) {
         if (items == null || items.isEmpty()) return;
 
         CollectionReference ref = firestore.collection("users").document(uid).collection(collectionName);

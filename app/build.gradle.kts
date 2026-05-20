@@ -13,11 +13,17 @@ android {
     defaultConfig {
         applicationId = "com.vitalflow.app"
         minSdk = 26
+        //noinspection OldTargetApi
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         multiDexEnabled = true
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments["room.schemaLocation"] = "$projectDir/schemas"
+            }
+        }
     }
 
     buildTypes {
@@ -56,8 +62,6 @@ dependencies {
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
 
-    implementation(libs.androidx.work.runtime)
-
     implementation(libs.mpAndroidChart)
 
     implementation(libs.androidx.core.splashscreen)
@@ -86,12 +90,12 @@ dependencies {
 
     implementation(libs.androidx.health.connect)
     implementation(libs.guava)
+    implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.kotlinx.coroutines.guava)
 
     // Core Library Desugaring (Fixes API 26 LocalDateTime error on older phones)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
-    implementation(libs.google.ai.client.generativeai)
     implementation(libs.gson)
 
     implementation(libs.retrofit)
@@ -115,4 +119,10 @@ dependencies {
     implementation(libs.poi.ooxml)
 
 //    debugImplementation(libs.leakcanary.android)
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.add("-Xlint:deprecation")
+    options.compilerArgs.add("-Xlint:unchecked")
+    options.compilerArgs.add("-Werror")
 }

@@ -102,7 +102,7 @@
         android:id="@+id/medsFragment"
         android:name="com.vitalflow.app.ui.meds.MedsFragment"
         android:label="Meds"
-        tools:layout="@layout/fragment_meds"></fragment>
+        tools:layout="@layout/fragment_meds" />
 
     <fragment
         android:id="@+id/vitalsFragment"

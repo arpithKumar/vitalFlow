@@ -11,8 +11,13 @@ import com.vitalflow.app.R;
 import com.vitalflow.app.data.entity.Vital;
 import com.vitalflow.app.databinding.ItemVitalBinding;
 
+import java.text.MessageFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class VitalsAdapter extends RecyclerView.Adapter<VitalsAdapter.VitalViewHolder> {
 
@@ -23,11 +28,11 @@ public class VitalsAdapter extends RecyclerView.Adapter<VitalsAdapter.VitalViewH
     }
 
     public void updateData(List<Vital> newList) {
-        this.list = newList;
+        List<Vital> oldList = this.list;
         DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new DiffUtil.Callback() {
             @Override
             public int getOldListSize() {
-                return list.size();
+                return oldList.size();
             }
 
             @Override
@@ -36,27 +41,21 @@ public class VitalsAdapter extends RecyclerView.Adapter<VitalsAdapter.VitalViewH
             }
 
             @Override
-            public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
-                // Assuming timestamp + type creates a unique ID for Vitals
-                Vital oldItem = list.get(oldItemPosition);
-                Vital newItem = newList.get(newItemPosition);
-                return oldItem.getTimestamp() == newItem.getTimestamp() &&
-                        oldItem.getType().equals(newItem.getType());
+            public boolean areItemsTheSame(int oldPos, int newPos) {
+                Vital o = oldList.get(oldPos);
+                Vital n = newList.get(newPos);
+                return o.getTimestamp() == n.getTimestamp() && o.getType().equals(n.getType());
             }
 
             @Override
-            public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
-                Vital oldItem = list.get(oldItemPosition);
-                Vital newItem = newList.get(newItemPosition);
-
-                // Compare values
-                boolean value2Match = (oldItem.getValue2() == null && newItem.getValue2() == null) ||
-                        (oldItem.getValue2() != null && oldItem.getValue2().equals(newItem.getValue2()));
-
-                return oldItem.getValue1().equals(newItem.getValue1()) && value2Match;
+            public boolean areContentsTheSame(int oldPos, int newPos) {
+                Vital o = oldList.get(oldPos);
+                Vital n = newList.get(newPos);
+                boolean value2Match = (o.getValue2() == null && n.getValue2() == null) ||
+                        (o.getValue2() != null && o.getValue2().equals(n.getValue2()));
+                return o.getValue1().equals(n.getValue1()) && value2Match;
             }
         });
-
         this.list = new ArrayList<>(newList);
         diffResult.dispatchUpdatesTo(this);
     }
@@ -74,12 +73,17 @@ public class VitalsAdapter extends RecyclerView.Adapter<VitalsAdapter.VitalViewH
         Vital item = list.get(position);
 
         holder.binding.tvTitle.setText(item.getType().toUpperCase());
-        holder.binding.tvDate.setText(item.getDate());
+        try {
+            Date parsed = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(item.getDate());
+            holder.binding.tvDate.setText(new SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(parsed));
+        } catch (ParseException e) {
+            holder.binding.tvDate.setText(item.getDate());
+        }
         holder.binding.tvUnit.setText(item.getUnit());
 
         // Display Logic (e.g. "120/80")
         if (item.getValue2() != null && !item.getValue2().isEmpty()) {
-            holder.binding.tvValue.setText(item.getValue1() + "/" + item.getValue2());
+            holder.binding.tvValue.setText(MessageFormat.format("{0}/{1}", item.getValue1(), item.getValue2()));
         } else {
             holder.binding.tvValue.setText(item.getValue1());
         }

@@ -11,6 +11,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
@@ -33,7 +34,6 @@ import javax.inject.Inject;
 
 import dagger.hilt.android.AndroidEntryPoint;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
-import io.reactivex.rxjava3.schedulers.Schedulers;
 
 @AndroidEntryPoint
 public class VitalsFragment extends Fragment {
@@ -45,10 +45,12 @@ public class VitalsFragment extends Fragment {
     private VitalsAdapter adapter;
     private List<Vital> vitalsList = new ArrayList<>();
     private final CompositeDisposable disposables = new CompositeDisposable();
+    private VitalsViewModel viewModel;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        viewModel = new ViewModelProvider(this).get(VitalsViewModel.class);
         binding = FragmentVitalsBinding.inflate(inflater, container, false);
         return binding.getRoot();
     }
@@ -65,24 +67,16 @@ public class VitalsFragment extends Fragment {
 
         binding.fabAddVital.setOnClickListener(v -> showAddVitalSheet());
 
-        // 3. OBSERVE LIVE DATA FROM DATABASE
-        appDao.getAllVitals().observe(getViewLifecycleOwner(), vitals -> {
-            // Update local list
+        viewModel.getAllVitals().observe(getViewLifecycleOwner(), vitals -> {
             this.vitalsList = vitals;
-
-            // Update UI Adapter
-            adapter = new VitalsAdapter(vitals);
-            binding.rvVitals.setAdapter(adapter);
-
-            // Refresh Analytics
+            adapter.updateData(vitals);
             setupGraph();
             updateEmergencyCards();
             runInsightEngine();
         });
-    }
 
-    // --- VISUAL TRENDS ---
-    // Inside VitalsFragment.java
+        binding.chipGroupTimeFrame.setOnCheckedStateChangeListener((group, checkedIds) -> setupGraph());
+    }
 
     private long calculateCutoff(int id, long now) {
         if (id == R.id.chip1W) return now - (7L * 24 * 60 * 60 * 1000);
@@ -126,7 +120,7 @@ public class VitalsFragment extends Fragment {
         LineDataSet dataSet = new LineDataSet(entries, "Heart Rate");
 
         // 1. THEME COLOR
-        int themeColor = Color.parseColor("#00897B");
+        int themeColor = ContextCompat.getColor(requireContext(), R.color.primary);
 
         // 2. SMOOTH CURVES (Like the reference image)
         dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
@@ -141,7 +135,7 @@ public class VitalsFragment extends Fragment {
         dataSet.setCircleRadius(5f);       // Visible size
         dataSet.setCircleHoleRadius(3f);   // Large white hole
         dataSet.setCircleColor(themeColor);// Border is Teal
-        dataSet.setCircleHoleColor(Color.WHITE); // Center is White
+        dataSet.setCircleHoleColor(ContextCompat.getColor(requireContext(), R.color.chart_circle_hole));
         dataSet.setDrawValues(false);      // Clean look
 
         // 5. GRADIENT FILL
@@ -162,19 +156,19 @@ public class VitalsFragment extends Fragment {
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         xAxis.setDrawGridLines(false);
         xAxis.setDrawAxisLine(false);
-        xAxis.setTextColor(Color.parseColor("#90A4AE")); // Grey text
+        xAxis.setTextColor(ContextCompat.getColor(requireContext(), R.color.chart_axis_text));
 
         // Y-Axis (Left)
         chart.getAxisLeft().setDrawGridLines(true);
-        chart.getAxisLeft().setGridColor(Color.parseColor("#EEEEEE")); // Very subtle grid
+        chart.getAxisLeft().setGridColor(ContextCompat.getColor(requireContext(), R.color.chart_grid_line));
         chart.getAxisLeft().setDrawAxisLine(false);
-        chart.getAxisLeft().setTextColor(Color.parseColor("#90A4AE"));
+        chart.getAxisLeft().setTextColor(ContextCompat.getColor(requireContext(), R.color.chart_axis_text));
 
         chart.getAxisRight().setEnabled(false); // Hide right axis
 
         // 7. ALERT LINE (Optional, keeps medical context)
         LimitLine ll = new LimitLine(100f, "");
-        ll.setLineColor(Color.parseColor("#FFCDD2")); // Soft Red
+        ll.setLineColor(ContextCompat.getColor(requireContext(), R.color.chart_limit_line));
         ll.setLineWidth(1f);
         ll.enableDashedLine(10f, 10f, 0f);
         chart.getAxisLeft().removeAllLimitLines();
@@ -200,13 +194,13 @@ public class VitalsFragment extends Fragment {
                     int hr = Integer.parseInt(latest.getValue1());
                     if (hr > 100 && missedMeds) {
                         binding.tvInsightText.setText("Alert: High HR (" + hr + " bpm) likely due to missed medication.");
-                        binding.cardInsight.setCardBackgroundColor(Color.parseColor("#FFEBEE"));
+                        binding.cardInsight.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.bg_insight_alert));
                     } else if (hr > 100) {
                         binding.tvInsightText.setText("Heart rate elevated. Try drinking 500ml water to lower it.");
-                        binding.cardInsight.setCardBackgroundColor(Color.parseColor("#E3F2FD"));
+                        binding.cardInsight.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.bg_insight_info));
                     } else {
                         binding.tvInsightText.setText("Did you know? Regular sleep lowers resting HR.");
-                        binding.cardInsight.setCardBackgroundColor(Color.parseColor("#E0F2F1"));
+                        binding.cardInsight.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.bg_insight_positive));
                     }
                 } catch (Exception e) {
                     binding.cardInsight.setVisibility(View.GONE);
@@ -217,7 +211,7 @@ public class VitalsFragment extends Fragment {
                     int spo2 = Integer.parseInt(latest.getValue1());
                     if (spo2 < 95) {
                         binding.tvInsightText.setText("Warning: Low Oxygen (" + spo2 + "%). Seek fresh air or help.");
-                        binding.cardInsight.setCardBackgroundColor(Color.parseColor("#FFEBEE"));
+                        binding.cardInsight.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.bg_insight_alert));
                     } else {
                         binding.cardInsight.setVisibility(View.GONE);
                     }
@@ -246,11 +240,7 @@ public class VitalsFragment extends Fragment {
 
     private void showAddVitalSheet() {
         AddVitalBottomSheet sheet = new AddVitalBottomSheet();
-        sheet.setListener(vital -> {
-            disposables.add(appDao.insertVital(vital)
-                    .subscribeOn(Schedulers.io())
-                    .subscribe());
-        });
+        sheet.setListener(vital -> viewModel.insertVital(vital));
         sheet.show(getParentFragmentManager(), "AddVitalSheet");
     }
 

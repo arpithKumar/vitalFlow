@@ -32,7 +32,7 @@
             android:layout_height="5dp"
             android:layout_marginTop="2dp"
             android:background="@drawable/shape_circle_solid"
-            android:backgroundTint="#FB8C00"
+            android:backgroundTint="@color/secondary"
             android:visibility="gone" />
     </LinearLayout>
 

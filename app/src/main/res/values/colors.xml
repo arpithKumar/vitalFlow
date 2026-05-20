@@ -1,74 +1,158 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  BRAND                                          -->
+    <!-- ═══════════════════════════════════════════════ -->
     <color name="primary">#00897B</color>
-    <color name="primary_dark">#00584D</color>
+    <color name="primary_dark">#00695C</color>
     <color name="primary_light">#4DB6AC</color>
-    <color name="secondary">#FF8A65</color>
-    <color name="secondary_dark">#C75B39</color>
+    <color name="secondary">#FF7043</color>
+    <color name="secondary_dark">#E64A19</color>
 
-    <color name="app_background">#F5F7FA</color>
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  SURFACES                                       -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="app_background">#F0F4F8</color>
     <color name="app_surface">#FFFFFF</color>
-    <color name="text_primary">#1F2937</color>
-    <color name="text_secondary">#6B7280</color>
-    <color name="divider_color">#E0E0E0</color>
+    <color name="surface_variant">#F8FAFC</color>
 
-    <color name="icon_unselected">#90A4AE</color>
-    <color name="chip_bg_selected">#E0F2F1</color>
-    <color name="chip_bg_unselected">#F5F5F5</color>
-    <color name="chip_text_selected">#00695C</color>
-    <color name="chip_text_unselected">#757575</color>
-    <color name="tab_text_selected">#FFFFFF</color>
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  TEXT                                           -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="text_primary">#0D1B2A</color>
+    <color name="text_secondary">#64748B</color>
+    <color name="text_tertiary">#94A3B8</color>
+    <color name="text_on_primary">#FFFFFF</color>
+    <color name="text_on_primary_soft">#E0F2F1</color>
+    <color name="text_on_primary_dark">#004D40</color>
 
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  SYSTEM                                         -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="divider_color">#E2E8F0</color>
+    <color name="icon_unselected">#94A3B8</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="warning_red">#EF5350</color>
-    <color name="info_blue">#1565C0</color>
-    <color name="pink_500">#E91E63</color>
-    <color name="pink_100">#F8BBD0</color>
 
-    <color name="bg_date_start">#E3F2FD</color>
-    <color name="text_date_start_label">#1565C0</color>
-    <color name="text_date_start_val">#0D47A1</color>
-    <color name="bg_date_end">#FFEBEE</color>
-    <color name="text_date_end_label">#C62828</color>
-    <color name="text_date_end_val">#B71C1C</color>
-    <color name="bg_time">#E0F2F1</color>
-    <color name="text_time_label">#4DB6AC</color>
-    <color name="text_time_val">#00695C</color>
-    <color name="bg_doctor_card">#F0F8F6</color>
-    <color name="stroke_doctor_card">#B2DFDB</color>
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  CHIPS &amp; TABS                               -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="chip_bg_selected">#CCFBF1</color>
+    <color name="chip_bg_unselected">#F1F5F9</color>
+    <color name="chip_text_selected">#00695C</color>
+    <color name="chip_text_unselected">#64748B</color>
+    <color name="tab_text_selected">#FFFFFF</color>
 
-    <color name="bg_tip_card">#FFFDE7</color>
-    <color name="stroke_tip_card">#FFF59D</color>
-    <color name="text_tip_body">#5D4037</color>
-    <color name="bg_nutrition_card">#FFFFFF</color>
-    <color name="stroke_nutrition_card">#DCEDC8</color>
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  SEMANTIC STATUS                                -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="warning_red">#EF4444</color>
+    <color name="info_blue">#3B82F6</color>
+    <color name="warning_yellow">#F59E0B</color>
+    <color name="bg_success">#ECFDF5</color>
+    <color name="text_success">#059669</color>
+    <color name="accent_purple">#8B5CF6</color>
 
-    <color name="bg_ai_insight">#FCE4EC</color>
-    <color name="stroke_ai_insight">#F8BBD0</color>
-    <color name="text_ai_insight">#880E4F</color>
-    <color name="icon_ai_insight">#C2185B</color>
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  CHARTS (MPAndroidChart)                        -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="chart_axis_text">#94A3B8</color>
+    <color name="chart_grid_line">#E2E8F0</color>
+    <color name="chart_limit_line">#FECDD3</color>
+    <color name="chart_circle_hole">#FFFFFF</color>
 
-    <color name="bg_food_item">#F1F8E9</color>
-    <color name="stroke_food_item">#C5E1A5</color>
-    <color name="text_food_primary">#33691E</color>
-    <color name="text_food_secondary">#689F38</color>
-    <color name="text_food_time">#558B2F</color>
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  PERIOD / CALENDAR                              -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="pink_500">#EC4899</color>
+    <color name="pink_100">#FCE7F3</color>
+    <color name="bg_day_period">#FECDD3</color>
+    <color name="text_day_period">#BE123C</color>
+    <color name="bg_day_fertile">#BBF7D0</color>
+    <color name="text_day_fertile">#15803D</color>
+    <color name="bg_day_ovulation">#DDD6FE</color>
+    <color name="text_day_ovulation">#6D28D9</color>
+    <color name="bg_day_prediction">#FDE8D8</color>
+    <color name="text_day_normal">#334155</color>
+    <color name="text_day_other_month">#CBD5E1</color>
 
-    <color name="text_skip">#FF7043</color>
-    <color name="stroke_skip">#FFCCBC</color>
-    <color name="bg_success">#E8F5E9</color>
-    <color name="text_success">#2E7D32</color>
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  MEDS DATE CARDS                                -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="bg_date_start">#DBEAFE</color>
+    <color name="text_date_start_label">#2563EB</color>
+    <color name="text_date_start_val">#1E40AF</color>
+    <color name="bg_date_end">#FEE2E2</color>
+    <color name="text_date_end_label">#DC2626</color>
+    <color name="text_date_end_val">#991B1B</color>
+    <color name="bg_time">#CCFBF1</color>
+    <color name="text_time_label">#0D9488</color>
+    <color name="text_time_val">#115E59</color>
 
-    <color name="bg_tooltip">#37474F</color>
-    <color name="text_tooltip_primary">#FFFFFF</color>
-    <color name="text_tooltip_secondary">#E0E0E0</color>
-    <color name="text_tooltip_tertiary">#B0BEC5</color>
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  THEMED CARDS                                   -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="bg_doctor_card">#F0FDF9</color>
+    <color name="stroke_doctor_card">#99F6E4</color>
 
-    <color name="warning_yellow">#FBC02D</color>
+    <color name="bg_tip_card">#FFFBEB</color>
+    <color name="stroke_tip_card">#FDE68A</color>
+    <color name="text_tip_body">#78350F</color>
 
-    <color name="accent_purple">#AB47BC</color>
+    <color name="bg_nutrition_card">#F0FDF4</color>
+    <color name="stroke_nutrition_card">#BBF7D0</color>
 
-    <color name="icon_pdf">#D32F2F</color>
-    <color name="icon_excel">#388E3C</color>
+    <color name="bg_ai_insight">#FDF2F8</color>
+    <color name="stroke_ai_insight">#FBCFE8</color>
+    <color name="text_ai_insight">#831843</color>
+    <color name="icon_ai_insight">#DB2777</color>
+
+    <color name="bg_food_item">#F0FDF4</color>
+    <color name="stroke_food_item">#BBF7D0</color>
+    <color name="text_food_primary">#166534</color>
+    <color name="text_food_secondary">#16A34A</color>
+    <color name="text_food_time">#15803D</color>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  INSIGHT CARD STATES                            -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="bg_insight_alert">#FEF2F2</color>
+    <color name="bg_insight_info">#EFF6FF</color>
+    <color name="bg_insight_positive">#F0FDF4</color>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  STREAK / HOME BANNER                           -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="bg_streak_card">#FFF8E7</color>
+    <color name="text_streak_label">#D97706</color>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  SWIPE TO DELETE                                -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="bg_swipe_delete">#FEF2F2</color>
+    <color name="icon_swipe_delete">#DC2626</color>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  PROFILE / MISC TEXT                            -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="text_profile_tertiary">#475569</color>
+    <color name="text_pro_badge">#D97706</color>
+    <color name="text_skip">#F97316</color>
+    <color name="stroke_skip">#FED7AA</color>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  TOOLTIP                                        -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="bg_tooltip">#1E293B</color>
+    <color name="text_tooltip_primary">#F8FAFC</color>
+    <color name="text_tooltip_secondary">#CBD5E1</color>
+    <color name="text_tooltip_tertiary">#94A3B8</color>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  REPORTS                                        -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="icon_pdf">#EF4444</color>
+    <color name="icon_excel">#22C55E</color>
+
 </resources>

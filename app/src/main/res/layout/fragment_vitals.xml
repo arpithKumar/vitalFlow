@@ -51,14 +51,14 @@
                             android:focusable="true"
                             android:padding="8dp"
                             android:src="@drawable/ic_arrow_back"
-                            app:tint="#FFFFFF"
+                            app:tint="@color/text_on_primary"
                             tools:ignore="TouchTargetSizeCheck,SpeakableTextPresentCheck" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Health Dashboard"
-                            android:textColor="#FFFFFF"
+                            android:textColor="@color/text_on_primary"
                             android:textSize="26sp"
                             android:textStyle="bold" />
                     </LinearLayout>
@@ -67,7 +67,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Latest critical readings"
-                        android:textColor="#B2DFDB"
+                        android:textColor="@color/text_on_primary_soft"
                         android:layout_marginStart="52dp"
                         android:textSize="14sp" />
 
@@ -99,7 +99,7 @@
                                     android:layout_width="20dp"
                                     android:layout_height="20dp"
                                     android:src="@drawable/ic_heart"
-                                    app:tint="#EF5350" />
+                                    app:tint="@color/warning_red" />
 
                                 <TextView
                                     android:id="@+id/tvLatestHR"
@@ -139,7 +139,7 @@
                                     android:layout_width="20dp"
                                     android:layout_height="20dp"
                                     android:src="@drawable/ic_water_drop"
-                                    app:tint="#FFA726" />
+                                    app:tint="@color/warning_yellow" />
 
                                 <TextView
                                     android:id="@+id/tvLatestBP"
@@ -179,7 +179,7 @@
                                     android:layout_width="20dp"
                                     android:layout_height="20dp"
                                     android:src="@drawable/ic_water_drop"
-                                    app:tint="#1976D2" />
+                                    app:tint="@color/info_blue" />
 
                                 <TextView
                                     android:id="@+id/tvLatestSpO2"

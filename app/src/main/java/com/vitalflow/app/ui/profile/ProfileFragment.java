@@ -126,9 +126,6 @@ public class ProfileFragment extends Fragment {
         });
         updateGeminiStatusUI();
 
-        // 9. Start the "Last Synced" ticker
-        startLiveTimeUpdater();
-
         // 10. Preferences (Dark Mode/Notifs) & Logout
         setupPreferences();
         binding.btnLogout.setOnClickListener(v -> {
@@ -422,7 +419,7 @@ public class ProfileFragment extends Fragment {
         binding.switchNotifications.setChecked(prefs.getBoolean("notifications", true));
         binding.switchNotifications.setOnCheckedChangeListener((buttonView, isChecked) -> {
             prefs.edit().putBoolean("notifications", isChecked).apply();
-            if (isChecked) NotificationHelper.scheduleDailyReminder(requireContext(), 24);
+            if (isChecked) NotificationHelper.scheduleDailyReminder(requireContext(), 24 * 60);
             else NotificationHelper.cancelReminders(requireContext());
         });
 
@@ -449,6 +446,20 @@ public class ProfileFragment extends Fragment {
                 .setDuration(400)
                 .setInterpolator(new DecelerateInterpolator())
                 .start();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        startLiveTimeUpdater();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (timeHandler != null && timeRunnable != null) {
+            timeHandler.removeCallbacks(timeRunnable);
+        }
     }
 
     @Override

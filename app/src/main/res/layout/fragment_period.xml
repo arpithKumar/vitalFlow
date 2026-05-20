@@ -31,7 +31,7 @@
             android:contentDescription="back button"
             android:padding="12dp"
             android:src="@drawable/ic_arrow_back"
-            app:tint="#FFFFFF" />
+            app:tint="@color/text_on_primary" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -45,7 +45,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Cycle Tracking"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/text_on_primary"
                 android:textSize="20sp"
                 android:textStyle="bold" />
 
@@ -54,7 +54,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Loading..."
-                android:textColor="#E0F2F1"
+                android:textColor="@color/text_on_primary_soft"
                 android:textSize="14sp" />
         </LinearLayout>
 
@@ -79,7 +79,7 @@
                 android:layout_gravity="center"
                 android:text="Day\n--"
                 android:gravity="center"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/text_on_primary"
                 android:textSize="12sp"
                 android:textStyle="bold" />
         </FrameLayout>
@@ -295,7 +295,7 @@
                                 app:chipBackgroundColor="@color/chip_bg_unselected"
                                 app:chipIcon="@drawable/ic_drop"
                                 app:chipIconSize="10dp"
-                                app:chipIconTint="#C2185B"
+                                app:chipIconTint="@color/icon_ai_insight"
                                 app:chipMinHeight="24dp"
                                 app:chipStrokeColor="@color/divider_color"
                                 app:chipStrokeWidth="1dp"
@@ -323,7 +323,7 @@
                                 app:chipBackgroundColor="@color/chip_bg_unselected"
                                 app:chipIcon="@drawable/ic_leaf"
                                 app:chipIconSize="10dp"
-                                app:chipIconTint="#66BB6A"
+                                app:chipIconTint="@color/text_success"
                                 app:chipMinHeight="24dp"
                                 app:chipStrokeColor="@color/divider_color"
                                 app:chipStrokeWidth="1dp"
@@ -351,7 +351,7 @@
                                 app:chipBackgroundColor="@color/chip_bg_unselected"
                                 app:chipIcon="@drawable/ic_egg"
                                 app:chipIconSize="10dp"
-                                app:chipIconTint="#AB47BC"
+                                app:chipIconTint="@color/accent_purple"
                                 app:chipMinHeight="24dp"
                                 app:chipStrokeColor="@color/divider_color"
                                 app:chipStrokeWidth="1dp"
@@ -379,7 +379,7 @@
                                 app:chipBackgroundColor="@color/chip_bg_unselected"
                                 app:chipIcon="@drawable/ic_ring"
                                 app:chipIconSize="10dp"
-                                app:chipIconTint="#EF5350"
+                                app:chipIconTint="@color/warning_red"
                                 app:chipMinHeight="24dp"
                                 app:chipStrokeColor="@color/divider_color"
                                 app:chipStrokeWidth="1dp"
@@ -407,7 +407,7 @@
                                 app:chipBackgroundColor="@color/chip_bg_unselected"
                                 app:chipIcon="@drawable/shape_circle_solid"
                                 app:chipIconSize="10dp"
-                                app:chipIconTint="#FB8C00"
+                                app:chipIconTint="@color/secondary"
                                 app:chipMinHeight="24dp"
                                 app:chipStrokeColor="@color/divider_color"
                                 app:chipStrokeWidth="1dp"

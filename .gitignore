@@ -29,3 +29,4 @@ local.properties
 *.aab
 *.dm
 /app/release/
+CLAUDE.md

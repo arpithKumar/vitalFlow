@@ -2,8 +2,9 @@ package com.vitalflow.app.ui.meds;
 
 import static androidx.core.content.ContextCompat.getDrawable;
 
+import androidx.core.content.ContextCompat;
+
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
@@ -14,7 +15,6 @@ import android.transition.TransitionManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -24,6 +24,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -31,13 +32,13 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.chip.Chip;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.snackbar.Snackbar;
 import com.vitalflow.app.R;
-import com.vitalflow.app.data.dao.AppDao;
 import com.vitalflow.app.data.entity.Medication;
 import com.vitalflow.app.data.repository.GeminiRepository;
 import com.vitalflow.app.databinding.FragmentMedsBinding;
+import com.vitalflow.app.utils.BitmapUtils;
 import com.vitalflow.app.utils.NotificationHelper;
+import com.vitalflow.app.utils.UiUtils;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -49,21 +50,17 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
-import javax.inject.Inject;
-
 import dagger.hilt.android.AndroidEntryPoint;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
 @AndroidEntryPoint
 public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedicationAddedListener {
 
-    @Inject
-    GeminiRepository geminiRepository;
-
-    @Inject
-    AppDao appDao;
+    private MedsViewModel viewModel;
+    private GeminiRepository geminiRepository;
 
     private FragmentMedsBinding binding;
     private MedsAdapter adapter;
@@ -95,6 +92,8 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        viewModel = new ViewModelProvider(this).get(MedsViewModel.class);
+        geminiRepository = viewModel.getGeminiRepository();
 
         binding.btnBack.setOnClickListener(v -> Navigation.findNavController(view).popBackStack());
         binding.fabScanMed.setOnClickListener(v -> launchCamera());
@@ -102,7 +101,7 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
         setupRecyclerView();
 
         // OBSERVE DATABASE
-        appDao.getAllMedications().observe(getViewLifecycleOwner(), meds -> {
+        viewModel.getAllMedications().observe(getViewLifecycleOwner(), meds -> {
             this.allMeds = meds;
             checkDailyResets(meds);
             applyFilters();
@@ -125,69 +124,59 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
         }
     }
 
-    private void saveToVaultAndAnalyze(android.net.Uri tempUri) {
+    private void saveToVaultAndAnalyze(Uri tempUri) {
         showLoadingDialog();
-        new Thread(() -> {
-            try {
-                // 1. SAVE TO VAULT (Permanent internal storage)
-                File vaultFile = new File(requireContext().getFilesDir(), "rx_" + System.currentTimeMillis() + ".jpg");
-                InputStream in = requireContext().getContentResolver().openInputStream(tempUri);
-                FileOutputStream out = new FileOutputStream(vaultFile);
-                byte[] buffer = new byte[1024];
-                int read;
-                while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
-                in.close();
-                out.close();
-                String finalVaultUri = Uri.fromFile(vaultFile).toString();
+        disposables.add(
+                Single.fromCallable(() -> {
+                            File vaultFile = new File(requireContext().getFilesDir(), "rx_" + System.currentTimeMillis() + ".jpg");
+                            InputStream in = requireContext().getContentResolver().openInputStream(tempUri);
+                            FileOutputStream out = new FileOutputStream(vaultFile);
+                            byte[] buffer = new byte[1024];
+                            int read;
+                            while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+                            in.close();
+                            out.close();
+                            String finalVaultUri = Uri.fromFile(vaultFile).toString();
 
-                // 2. SHRINK FOR AI (Prevent Crash)
-                InputStream is = requireContext().getContentResolver().openInputStream(tempUri);
-                BitmapFactory.Options options = new BitmapFactory.Options();
-                options.inJustDecodeBounds = true;
-                BitmapFactory.decodeStream(is, null, options);
-                is.close();
+                            Bitmap bitmap = BitmapUtils.decodeSampledBitmap(
+                                    requireContext().getContentResolver(), tempUri, 800, 800);
+                            return new android.util.Pair<>(bitmap, finalVaultUri);
+                        })
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(
+                                pair -> {
+                                    Bitmap bitmap = pair.first;
+                                    String finalVaultUri = pair.second;
+                                    geminiRepository.analyzePrescription(bitmap, new GeminiRepository.PrescriptionCallback() {
+                                        @Override
+                                        public void onSuccess(GeminiRepository.PrescriptionResult result) {
+                                            if (getActivity() != null)
+                                                getActivity().runOnUiThread(() -> {
+                                                    dismissLoadingDialog();
+                                                    AddMedBottomSheet sheet = new AddMedBottomSheet();
+                                                    sheet.setAutoFillData(result.name, result.dosage, result.type, result.frequency, finalVaultUri);
+                                                    sheet.setListener(MedsFragment.this);
+                                                    sheet.show(getParentFragmentManager(), "AddMedSheet");
+                                                });
+                                        }
 
-                int inSampleSize = 1;
-                if (options.outHeight > 800 || options.outWidth > 800) {
-                    final int halfH = options.outHeight / 2, halfW = options.outWidth / 2;
-                    while ((halfH / inSampleSize) >= 800 && (halfW / inSampleSize) >= 800)
-                        inSampleSize *= 2;
-                }
-
-                options.inJustDecodeBounds = false;
-                options.inSampleSize = inSampleSize;
-                is = requireContext().getContentResolver().openInputStream(tempUri);
-                Bitmap bitmap = android.graphics.BitmapFactory.decodeStream(is, null, options);
-                is.close();
-
-                // 3. CALL GEMINI
-                geminiRepository.analyzePrescription(bitmap, new GeminiRepository.PrescriptionCallback() {
-                    @Override
-                    public void onSuccess(GeminiRepository.PrescriptionResult result) {
-                        if (getActivity() != null) getActivity().runOnUiThread(() -> {
-                            dismissLoadingDialog();
-                            AddMedBottomSheet sheet = new AddMedBottomSheet();
-                            sheet.setAutoFillData(result.name, result.dosage, result.type, result.frequency, finalVaultUri);
-                            sheet.setListener(MedsFragment.this);
-                            sheet.show(getParentFragmentManager(), "AddMedSheet");
-                        });
-                    }
-
-                    @Override
-                    public void onError(Throwable t) {
-                        if (getActivity() != null) getActivity().runOnUiThread(() -> {
-                            dismissLoadingDialog();
-                            Toast.makeText(getContext(), "AI couldn't read label", Toast.LENGTH_SHORT).show();
-                        });
-                    }
-                });
-            } catch (Exception e) {
-                if (getActivity() != null) getActivity().runOnUiThread(() -> {
-                    dismissLoadingDialog();
-                    Toast.makeText(getContext(), "Processing error", Toast.LENGTH_SHORT).show();
-                });
-            }
-        }).start();
+                                        @Override
+                                        public void onError(Throwable t) {
+                                            if (getActivity() != null)
+                                                getActivity().runOnUiThread(() -> {
+                                                    dismissLoadingDialog();
+                                                    Toast.makeText(getContext(), "AI couldn't read label", Toast.LENGTH_SHORT).show();
+                                                });
+                                        }
+                                    });
+                                },
+                                error -> {
+                                    dismissLoadingDialog();
+                                    Toast.makeText(getContext(), "Processing error", Toast.LENGTH_SHORT).show();
+                                }
+                        )
+        );
     }
 
     private void showLoadingDialog() {
@@ -211,9 +200,7 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
             m.checkDailyReset();
             // If the date changed, it means the logic ran and reset the counters
             if (!m.getLastActionDate().equals(previousDate)) {
-                disposables.add(appDao.insertMedication(m)
-                        .subscribeOn(Schedulers.io())
-                        .subscribe());
+                viewModel.insertMedication(m);
             }
         }
     }
@@ -227,9 +214,9 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
 
     @Override
     public void onMedicationAdded(Medication medication) {
-        disposables.add(appDao.insertMedication(medication)
+        disposables.add(viewModel.insertMedicationCompletable(medication)
                 .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread()) // Observe on Main for Toast
+                .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(() -> {
                     // 1. Show Feedback
                     Toast.makeText(getContext(), "Medication Saved", Toast.LENGTH_SHORT).show();
@@ -255,9 +242,10 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
         int checkedId = binding.chipGroupFilters.getCheckedChipId();
         List<Medication> filteredList;
 
-        if (checkedId == R.id.chipMorning) filteredList = filterByTime("Morning");
-        else if (checkedId == R.id.chipAfternoon) filteredList = filterByTime("Afternoon");
-        else if (checkedId == R.id.chipNight) filteredList = filterByTime("Night");
+        if (checkedId == R.id.chipMorning) filteredList = filterByTime("Morning", activeMeds);
+        else if (checkedId == R.id.chipAfternoon)
+            filteredList = filterByTime("Afternoon", activeMeds);
+        else if (checkedId == R.id.chipNight) filteredList = filterByTime("Night", activeMeds);
         else {
             filteredList = new ArrayList<>(activeMeds);
             if (checkedId == -1) binding.chipAll.setChecked(true);
@@ -285,8 +273,8 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
         }
     }
 
-    private List<Medication> filterByTime(String category) {
-        return allMeds.stream()
+    private List<Medication> filterByTime(String category, List<Medication> source) {
+        return source.stream()
                 .filter(m -> m.getTimeCategory().equals(category))
                 .collect(Collectors.toList());
     }
@@ -330,26 +318,20 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
                     med.setDbStatus("PENDING");
                 }
 
-                disposables.add(appDao.insertMedication(med)
-                        .subscribeOn(Schedulers.io())
-                        .subscribe());
+                viewModel.insertMedication(med);
 
                 // NEW: Use the helper to show success snackbar
                 if ("TAKEN".equals(newStatus)) {
-                    showCustomSnackbar(
-                            "Marked as Taken",
-                            Color.parseColor("#00897B"), // Teal
-                            Color.parseColor("#E0F2F1"), // Light Teal
-                            R.drawable.ic_check_circle,
+                    UiUtils.showCustomSnackbar(binding.getRoot(), requireContext(), "Marked as Taken",
+                            ContextCompat.getColor(requireContext(), R.color.primary),
+                            ContextCompat.getColor(requireContext(), R.color.text_on_primary_soft),
+                            R.drawable.ic_check_circle, binding.fabAddMed,
                             v -> {
                                 med.setDbStatus(oldStatus);
                                 med.setTimesTakenToday(oldTaken);
                                 med.setPillsLeft(oldStock);
-                                disposables.add(appDao.insertMedication(med)
-                                        .subscribeOn(Schedulers.io())
-                                        .subscribe());
-                            }
-                    );
+                                viewModel.insertMedication(med);
+                            });
                 }
             }
 
@@ -377,37 +359,30 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
 
                 final Medication deletedItem = adapter.getItem(position);
                 if (deletedItem != null) {
-                    disposables.add(appDao.deleteMedication(deletedItem)
-                            .subscribeOn(Schedulers.io())
-                            .subscribe());
+                    viewModel.deleteMedication(deletedItem);
                 }
 
-                // NEW: Use the helper to show delete snackbar
-                showCustomSnackbar(
-                        "Medication deleted",
-                        Color.parseColor("#EF5350"), // Red
-                        Color.parseColor("#B71C1C"), // Dark Red
-                        android.R.drawable.ic_menu_delete, // Trash Icon
+                UiUtils.showCustomSnackbar(binding.getRoot(), requireContext(), "Medication deleted",
+                        ContextCompat.getColor(requireContext(), R.color.bg_swipe_delete),
+                        ContextCompat.getColor(requireContext(), R.color.icon_swipe_delete),
+                        android.R.drawable.ic_menu_delete, binding.fabAddMed,
                         v -> {
                             if (deletedItem != null) {
-                                disposables.add(appDao.insertMedication(deletedItem)
-                                        .subscribeOn(Schedulers.io())
-                                        .subscribe());
+                                viewModel.insertMedication(deletedItem);
                             }
-                        }
-                );
+                        });
             }
 
             @Override
             public void onChildDraw(@NonNull Canvas c, @NonNull RecyclerView r, @NonNull RecyclerView.ViewHolder v, float dX, float dY, int action, boolean isActive) {
                 if (action == ItemTouchHelper.ACTION_STATE_SWIPE && dX < 0) {
                     View itemView = v.itemView;
-                    ColorDrawable bg = new ColorDrawable(Color.parseColor("#FFEBEE"));
+                    ColorDrawable bg = new ColorDrawable(ContextCompat.getColor(requireContext(), R.color.bg_swipe_delete));
                     bg.setBounds(itemView.getRight() + (int) dX, itemView.getTop(), itemView.getRight(), itemView.getBottom());
                     bg.draw(c);
                     Drawable icon = getDrawable(requireContext(), R.drawable.ic_trash_can);
                     if (icon != null) {
-                        icon.setTint(Color.parseColor("#C62828"));
+                        icon.setTint(ContextCompat.getColor(requireContext(), R.color.icon_swipe_delete));
                         int h = itemView.getBottom() - itemView.getTop();
                         int m = (h - icon.getIntrinsicHeight()) / 2;
                         int top = itemView.getTop() + m;
@@ -422,58 +397,6 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
 
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(simpleItemTouchCallback);
         itemTouchHelper.attachToRecyclerView(binding.rvMeds);
-    }
-
-    // --- REUSABLE HELPER METHOD ---
-    private void showCustomSnackbar(String message, int backgroundColor, int actionTextColor, int iconResId, View.OnClickListener onUndo) {
-        Snackbar snackbar = Snackbar.make(binding.getRoot(), message, 4000);
-
-        // 1. Background Styling
-        View view = snackbar.getView();
-        view.setBackgroundTintList(null);
-        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-        bg.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-        bg.setCornerRadius(28f * getResources().getDisplayMetrics().density);
-        bg.setColor(backgroundColor);
-        view.setBackground(bg);
-
-        // 2. Positioning (Anchored to FAB)
-        // This is better than hardcoded margins!
-        if (binding.fabAddMed != null) {
-            snackbar.setAnchorView(binding.fabAddMed);
-        }
-
-        // 3. Text & Colors
-        snackbar.setTextColor(Color.WHITE);
-        snackbar.setActionTextColor(actionTextColor);
-
-        // 4. Message Icon
-        TextView tvMessage = view.findViewById(com.google.android.material.R.id.snackbar_text);
-        Drawable icon = getDrawable(requireContext(), iconResId);
-        float d = getResources().getDisplayMetrics().density;
-
-        if (icon != null) {
-            int iconSize = (int) (24 * d);
-            icon.setBounds(0, 0, iconSize, iconSize);
-            androidx.core.graphics.drawable.DrawableCompat.setTint(icon, Color.WHITE);
-            tvMessage.setCompoundDrawables(icon, null, null, null);
-            tvMessage.setCompoundDrawablePadding((int) (12 * d));
-        }
-
-        // 5. Action Arrow Icon
-        TextView btnAction = view.findViewById(com.google.android.material.R.id.snackbar_action);
-        Drawable arrowIcon = getDrawable(requireContext(), R.drawable.ic_arrow_right);
-
-        if (arrowIcon != null) {
-            int arrowSize = (int) (18 * d);
-            arrowIcon.setBounds(0, 0, arrowSize, arrowSize);
-            androidx.core.graphics.drawable.DrawableCompat.setTint(arrowIcon, actionTextColor);
-            btnAction.setCompoundDrawables(null, null, arrowIcon, null);
-            btnAction.setCompoundDrawablePadding((int) (4 * d));
-        }
-
-        snackbar.setAction("UNDO", onUndo);
-        snackbar.show();
     }
 
     @Override

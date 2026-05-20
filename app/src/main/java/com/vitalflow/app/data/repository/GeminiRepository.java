@@ -4,8 +4,8 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.Build;
 import android.util.Base64;
 import android.util.Log;
 
@@ -20,9 +20,9 @@ import com.vitalflow.app.data.entity.PeriodLog;
 import com.vitalflow.app.data.entity.gemini.GeminiRequest;
 import com.vitalflow.app.data.entity.gemini.GeminiResponse;
 import com.vitalflow.app.data.network.GeminiApiService;
+import com.vitalflow.app.utils.BitmapUtils;
 
 import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -223,31 +223,7 @@ public class GeminiRepository {
                     String mimeType = resolver.getType(imageUri);
                     if (mimeType == null) mimeType = "image/jpeg";
 
-                    InputStream is = resolver.openInputStream(imageUri);
-                    BitmapFactory.Options options = new BitmapFactory.Options();
-                    options.inJustDecodeBounds = true;
-                    BitmapFactory.decodeStream(is, null, options);
-                    is.close();
-
-                    // 2. Calculate Shrink Factor (Target ~800px)
-                    int reqWidth = 800;
-                    int reqHeight = 800;
-                    int inSampleSize = 1;
-
-                    if (options.outHeight > reqHeight || options.outWidth > reqWidth) {
-                        final int halfHeight = options.outHeight / 2;
-                        final int halfWidth = options.outWidth / 2;
-                        while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= reqWidth) {
-                            inSampleSize *= 2;
-                        }
-                    }
-
-                    options.inJustDecodeBounds = false;
-                    options.inSampleSize = inSampleSize;
-                    is = resolver.openInputStream(imageUri);
-                    Bitmap bitmap = BitmapFactory.decodeStream(is, null, options);
-                    is.close();
-
+                    Bitmap bitmap = BitmapUtils.decodeSampledBitmap(resolver, imageUri, 800, 800);
                     if (bitmap == null) {
                         callback.onError(new Exception("Failed to decode image"));
                         return;
@@ -294,8 +270,17 @@ public class GeminiRepository {
     private String bitmapToBase64(Bitmap bitmap, String mimeType) {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         Bitmap.CompressFormat format = Bitmap.CompressFormat.JPEG;
-        if (mimeType.contains("png")) format = Bitmap.CompressFormat.PNG;
-        else if (mimeType.contains("webp")) format = Bitmap.CompressFormat.WEBP;
+        if (mimeType.contains("png")) {
+            format = Bitmap.CompressFormat.PNG;
+        } else if (mimeType.contains("webp")) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                format = Bitmap.CompressFormat.WEBP_LOSSY;
+            } else {
+                @SuppressWarnings("deprecation")
+                Bitmap.CompressFormat legacy = Bitmap.CompressFormat.WEBP;
+                format = legacy;
+            }
+        }
 
         bitmap.compress(format, 80, byteArrayOutputStream);
         byte[] byteArray = byteArrayOutputStream.toByteArray();

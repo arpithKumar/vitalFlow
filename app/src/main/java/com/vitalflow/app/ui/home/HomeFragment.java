@@ -12,7 +12,6 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.drawable.ColorDrawable;
@@ -45,6 +44,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -63,7 +63,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.vitalflow.app.R;
-import com.vitalflow.app.data.dao.AppDao;
 import com.vitalflow.app.data.entity.DailyHealth;
 import com.vitalflow.app.data.entity.FoodLog;
 import com.vitalflow.app.data.entity.Medication;
@@ -72,18 +71,19 @@ import com.vitalflow.app.data.repository.GeminiRepository;
 import com.vitalflow.app.databinding.FragmentHomeBinding;
 import com.vitalflow.app.ui.report.ReportViewModel;
 import com.vitalflow.app.ui.story.WrappedDialogFragment;
+import com.vitalflow.app.utils.BitmapUtils;
 import com.vitalflow.app.utils.DataExportHelper;
 import com.vitalflow.app.utils.DataImportHelper;
 import com.vitalflow.app.utils.HealthConnectManager;
 import com.vitalflow.app.utils.InsightEngine;
 import com.vitalflow.app.utils.NotificationHelper;
 import com.vitalflow.app.utils.PdfReportManager;
+import com.vitalflow.app.utils.UiUtils;
 import com.vitalflow.app.utils.WidgetUpdateHelper;
 import com.vitalflow.app.workers.HealthSyncWorker;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -99,17 +99,15 @@ import javax.inject.Inject;
 
 import dagger.hilt.android.AndroidEntryPoint;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
 @AndroidEntryPoint
 public class HomeFragment extends Fragment implements SensorEventListener {
 
-    @Inject
-    AppDao appDao;
-
-    @Inject
-    GeminiRepository geminiRepository;
+    private HomeViewModel viewModel;
+    private GeminiRepository geminiRepository;
 
     ReportViewModel reportViewModel;
 
@@ -265,14 +263,18 @@ public class HomeFragment extends Fragment implements SensorEventListener {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        reportViewModel = new androidx.lifecycle.ViewModelProvider(this).get(ReportViewModel.class);
+        viewModel = new ViewModelProvider(this).get(HomeViewModel.class);
+        geminiRepository = viewModel.getGeminiRepository();
+        reportViewModel = new ViewModelProvider(this).get(ReportViewModel.class);
         loadUserData();
         updateGreeting();
-        displayStreak();
 
         // 1. Calculate Today's Date Key (YYYY-MM-DD)
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
         todayDateKey = sdf.format(new Date());
+        viewModel.setDate(todayDateKey);
+
+        displayStreak();
 
         // 2. CHECK & REQUEST HEALTH PERMISSIONS (Auto-Sync Steps & HR)
         checkHealthConnectPermissions();
@@ -311,13 +313,13 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         showLoadingDialog(); // Reuse your existing loading dialog!
 
         // 1. Fetch the last 7 days of health data
-        disposables.add(appDao.getLastSevenDaysSync()
+        disposables.add(viewModel.getLastSevenDaysSync()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(history -> {
 
                     // 2. Fetch their active medications
-                    disposables.add(appDao.getAllMedicationsSync()
+                    disposables.add(viewModel.getAllMedicationsSync()
                             .subscribeOn(Schedulers.io())
                             .observeOn(AndroidSchedulers.mainThread())
                             .subscribe(meds -> {
@@ -600,12 +602,10 @@ public class HomeFragment extends Fragment implements SensorEventListener {
     }
 
     private void setupAdditionalView(View view) {
-        appDao.getDailyHealth(todayDateKey).observe(getViewLifecycleOwner(), dailyHealth -> {
+        viewModel.getDailyHealth().observe(getViewLifecycleOwner(), dailyHealth -> {
             if (dailyHealth == null) {
                 DailyHealth newEntry = new DailyHealth(todayDateKey, 0, 2000, 0, "0h 0m", 0);
-                disposables.add(appDao.insertDailyHealth(newEntry)
-                        .subscribeOn(Schedulers.io())
-                        .subscribe());
+                viewModel.insertDailyHealth(newEntry);
                 return;
             }
             currentDayData = dailyHealth;
@@ -624,7 +624,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
             loadWeeklyData();
             generateGeminiTip();
 
-            disposables.add(appDao.getLastSevenDaysSync()
+            disposables.add(viewModel.getLastSevenDaysSync()
                     .subscribeOn(Schedulers.io())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(history -> {
@@ -634,16 +634,14 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                     }, Throwable::printStackTrace));
         });
 
-        appDao.getLatestVital("Heart Rate").observe(getViewLifecycleOwner(), vital -> {
+        viewModel.getLatestHeartRate().observe(getViewLifecycleOwner(), vital -> {
             if (binding == null) return;
-            ViewGroup cardContent = (ViewGroup) binding.cardVitals.getChildAt(0);
-            TextView tvRate = (TextView) cardContent.getChildAt(2);
             if (vital != null)
-                tvRate.setText(MessageFormat.format("{0} {1}", vital.getValue1(), vital.getUnit()));
-            else tvRate.setText("-- bpm");
+                binding.tvHeartRateValue.setText(MessageFormat.format("{0} {1}", vital.getValue1(), vital.getUnit()));
+            else binding.tvHeartRateValue.setText("-- bpm");
         });
 
-        appDao.getAllMedications().observe(getViewLifecycleOwner(), meds -> {
+        viewModel.getAllMedications().observe(getViewLifecycleOwner(), meds -> {
             this.activeMedsList = meds;
             calculateNextMedicationSmart(meds);
         });
@@ -697,7 +695,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                         } else if ("FOOD".equals(a.action)) {
                             String time = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
                             FoodLog log = new FoodLog(todayDateKey, time, a.food_name, a.calories, a.macros);
-                            disposables.add(appDao.insertFoodLog(log).subscribeOn(Schedulers.io()).subscribe());
+                            viewModel.insertFoodLog(log);
                             summary.append(a.food_name).append(", ");
                             actionsLogged++;
                         } else if ("MEDICATION".equals(a.action)) {
@@ -706,7 +704,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                                 if (m.getId().equals(a.med_id)) {
                                     m.setTimesTakenToday(m.getTimesTakenToday() + 1);
                                     if (m.getPillsLeft() > 0) m.setPillsLeft(m.getPillsLeft() - 1);
-                                    disposables.add(appDao.insertMedication(m).subscribeOn(Schedulers.io()).subscribe());
+                                    viewModel.insertMedication(m);
                                     summary.append(m.getName()).append(", ");
                                     actionsLogged++;
                                     break;
@@ -718,9 +716,13 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                     if (actionsLogged > 0) {
                         // Clean up the trailing comma
                         String finalSummary = summary.substring(0, summary.length() - 2);
-                        showCustomSnackbar(finalSummary, Color.parseColor("#00897B"), Color.WHITE, R.drawable.ic_check_circle, v -> {
-                        });
-                        playCelebration(); // Pop the confetti!
+                        UiUtils.showCustomSnackbar(binding.getRoot(), requireContext(), finalSummary,
+                                ContextCompat.getColor(requireContext(), R.color.primary),
+                                ContextCompat.getColor(requireContext(), R.color.text_on_primary_soft),
+                                R.drawable.ic_check_circle,
+                                binding.btnScanFood, v -> {
+                                });
+                        playCelebration();
                     } else {
                         Toast.makeText(getContext(), "AI couldn't find any health actions.", Toast.LENGTH_SHORT).show();
                     }
@@ -745,14 +747,14 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         binding.rvFoodLogs.setAdapter(foodAdapter);
 
         // 1. Load Logs
-        appDao.getFoodLogsForDate(todayDateKey).observe(getViewLifecycleOwner(), logs -> {
+        viewModel.getFoodLogs().observe(getViewLifecycleOwner(), logs -> {
             if (binding == null) return;
             foodAdapter.submitList(logs);
             binding.rvFoodLogs.setVisibility(logs.isEmpty() ? View.GONE : View.VISIBLE);
         });
 
         // 2. Load Total Calories
-        appDao.getTotalCaloriesForDate(todayDateKey).observe(getViewLifecycleOwner(), total -> {
+        viewModel.getTotalCalories().observe(getViewLifecycleOwner(), total -> {
             if (binding == null) return;
             int cal = total != null ? total : 0;
             binding.tvCaloriesTotal.setText(MessageFormat.format("{0} kcal", cal));
@@ -853,65 +855,41 @@ public class HomeFragment extends Fragment implements SensorEventListener {
     private void analyzeFood(Uri imageUri) {
         showLoadingDialog();
 
-        new Thread(() -> {
-            try {
-                InputStream is = requireContext().getContentResolver().openInputStream(imageUri);
-                BitmapFactory.Options options = new BitmapFactory.Options();
-                options.inJustDecodeBounds = true;
-                BitmapFactory.decodeStream(is, null, options);
-                is.close();
+        disposables.add(
+                Single.fromCallable(() -> {
+                            Bitmap bitmap = BitmapUtils.decodeSampledBitmap(
+                                    requireContext().getContentResolver(), imageUri, 800, 800);
+                            if (bitmap == null) throw new IOException("Image decode failed");
+                            return bitmap;
+                        })
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(
+                                bitmap -> geminiRepository.analyzeFoodImage(bitmap, new GeminiRepository.FoodAnalysisCallback() {
+                                    @Override
+                                    public void onSuccess(GeminiRepository.FoodAnalysisResult result) {
+                                        if (getActivity() != null)
+                                            getActivity().runOnUiThread(() -> {
+                                                dismissLoadingDialog();
+                                                showConfirmFoodDialog(result);
+                                            });
+                                    }
 
-                int reqWidth = 800;
-                int reqHeight = 800;
-                int inSampleSize = 1;
-
-                if (options.outHeight > reqHeight || options.outWidth > reqWidth) {
-                    final int halfHeight = options.outHeight / 2;
-                    final int halfWidth = options.outWidth / 2;
-                    while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= reqWidth) {
-                        inSampleSize *= 2;
-                    }
-                }
-
-                options.inJustDecodeBounds = false;
-                options.inSampleSize = inSampleSize;
-                is = requireContext().getContentResolver().openInputStream(imageUri);
-                Bitmap bitmap = BitmapFactory.decodeStream(is, null, options);
-                is.close();
-
-                if (bitmap == null) throw new IOException("Image decode failed");
-
-                geminiRepository.analyzeFoodImage(bitmap, new GeminiRepository.FoodAnalysisCallback() {
-                    @Override
-                    public void onSuccess(GeminiRepository.FoodAnalysisResult result) {
-                        if (getActivity() != null) {
-                            getActivity().runOnUiThread(() -> {
-                                dismissLoadingDialog();
-                                showConfirmFoodDialog(result);
-                            });
-                        }
-                    }
-
-                    @Override
-                    public void onError(Throwable t) {
-                        if (getActivity() != null) {
-                            getActivity().runOnUiThread(() -> {
-                                dismissLoadingDialog();
-                                Toast.makeText(getContext(), "AI Error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                            });
-                        }
-                    }
-                });
-
-            } catch (Exception e) {
-                if (getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
-                        dismissLoadingDialog();
-                        Toast.makeText(getContext(), "Failed to load image", Toast.LENGTH_SHORT).show();
-                    });
-                }
-            }
-        }).start();
+                                    @Override
+                                    public void onError(Throwable t) {
+                                        if (getActivity() != null)
+                                            getActivity().runOnUiThread(() -> {
+                                                dismissLoadingDialog();
+                                                Toast.makeText(getContext(), "AI Error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                                            });
+                                    }
+                                }),
+                                error -> {
+                                    dismissLoadingDialog();
+                                    Toast.makeText(getContext(), "Failed to load image", Toast.LENGTH_SHORT).show();
+                                }
+                        )
+        );
     }
 
     private void showLoadingDialog() {
@@ -954,10 +932,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                             result.macros
                     );
 
-                    disposables.add(appDao.insertFoodLog(log)
-                            .subscribeOn(Schedulers.io())
-                            .subscribe());
-
+                    viewModel.insertFoodLog(log);
                     Toast.makeText(getContext(), "Food Logged! ✅", Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton("Retake", (dialog, which) -> {
@@ -1131,10 +1106,11 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                     int intervalHours = 6;
                     target.add(Calendar.HOUR_OF_DAY, takenCount * intervalHours);
 
-                    long timeOfDayMillis = target.getTimeInMillis();
+                    long now = System.currentTimeMillis();
+                    long diff = target.getTimeInMillis() - now;
 
-                    if (timeOfDayMillis < minDiffMillis) {
-                        minDiffMillis = timeOfDayMillis;
+                    if (diff >= 0 && diff < minDiffMillis) {
+                        minDiffMillis = diff;
                         nextMed = m;
                     }
                 }
@@ -1210,9 +1186,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                     String date = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
                     // Check if we already have this reading to avoid duplicates (optional logic)
                     Vital hrVital = new Vital("Heart Rate", String.valueOf(avgBpm), null, "bpm", date, System.currentTimeMillis(), "Health Connect", null);
-                    disposables.add(appDao.insertVital(hrVital)
-                            .subscribeOn(Schedulers.io())
-                            .subscribe());
+                    viewModel.insertVital(hrVital);
                 });
             }
             return null;
@@ -1332,9 +1306,9 @@ public class HomeFragment extends Fragment implements SensorEventListener {
             int extra = current - goal;
             String goalText = (extra > 0) ? "Goal Reached! (+" + extra + "ml)" : "Goal Reached!";
             binding.chipGoal.setText(goalText);
-            binding.chipGoal.setTextColor(Color.parseColor("#00897B"));
+            binding.chipGoal.setTextColor(ContextCompat.getColor(requireContext(), R.color.primary));
             binding.chipGoal.setChipIconResource(R.drawable.ic_check_circle);
-            binding.chipGoal.setChipIconTint(ColorStateList.valueOf(Color.parseColor("#00897B")));
+            binding.chipGoal.setChipIconTint(ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.primary)));
             binding.chipGoal.setClickable(false);
 
             if (!goalReachedTriggered && animate) {
@@ -1344,9 +1318,9 @@ public class HomeFragment extends Fragment implements SensorEventListener {
             }
         } else {
             binding.chipGoal.setText(MessageFormat.format("Goal: {0}ml", goal));
-            binding.chipGoal.setTextColor(Color.parseColor("#546E7A"));
+            binding.chipGoal.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_day_normal));
             binding.chipGoal.setChipIconResource(R.drawable.ic_edit);
-            binding.chipGoal.setChipIconTint(ColorStateList.valueOf(Color.parseColor("#90A4AE")));
+            binding.chipGoal.setChipIconTint(ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.chart_axis_text)));
             binding.chipGoal.setClickable(true);
         }
     }
@@ -1392,7 +1366,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                 m.setColorFilter(colors[i]);
                 m.animate().scaleX(1.3f).scaleY(1.3f).setDuration(200).start();
             } else {
-                m.setColorFilter(Color.parseColor("#CFD8DC"));
+                m.setColorFilter(ContextCompat.getColor(requireContext(), R.color.text_day_other_month));
                 m.animate().scaleX(1f).scaleY(1f).setDuration(200).start();
             }
         }
@@ -1416,22 +1390,22 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         xAxis.setDrawGridLines(false);
         xAxis.setDrawAxisLine(false);
-        xAxis.setTextColor(Color.parseColor("#90A4AE"));
+        xAxis.setTextColor(ContextCompat.getColor(requireContext(), R.color.chart_axis_text));
         xAxis.setTextSize(12f);
         xAxis.setGranularity(1f);
 
         // 3. Y-Axis (Left - Amounts)
         chart.getAxisRight().setEnabled(false);
-        chart.getAxisLeft().setEnabled(false); // Hide Y-Axis for minimal look
+        chart.getAxisLeft().setEnabled(false);
         chart.getAxisLeft().setAxisMinimum(0f);
 
         // 4. Empty State
         chart.setNoDataText("Loading history...");
-        chart.setNoDataTextColor(Color.parseColor("#00897B"));
+        chart.setNoDataTextColor(ContextCompat.getColor(requireContext(), R.color.primary));
     }
 
     private void loadWeeklyData() {
-        disposables.add(appDao.getLastSevenDaysSync()
+        disposables.add(viewModel.getLastSevenDaysSync()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(history -> {
@@ -1467,7 +1441,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
             binding.chartWeekly.notifyDataSetChanged();
         } else {
             set = new BarDataSet(entries, "Hydration");
-            set.setColor(Color.parseColor("#00897B")); // Brand Teal
+            set.setColor(ContextCompat.getColor(requireContext(), R.color.primary));
             set.setDrawValues(false); // Hide numbers on bars
             set.setHighLightAlpha(0); // Disable tap highlight
 
@@ -1502,7 +1476,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
 
     private void saveToDb() {
         if (currentDayData != null) {
-            disposables.add(appDao.insertDailyHealth(currentDayData)
+            disposables.add(viewModel.insertDailyHealthCompletable(currentDayData)
                     .subscribeOn(Schedulers.io())
                     .subscribe(() -> {
                         if (getContext() != null) {
@@ -1514,13 +1488,8 @@ public class HomeFragment extends Fragment implements SensorEventListener {
 
     private void updateStatsUI() {
         if (currentDayData == null) return;
-        ViewGroup stepCard = (ViewGroup) binding.cardSteps.getChildAt(0);
-        TextView tvSteps = (TextView) stepCard.getChildAt(2);
-        tvSteps.setText(String.format(Locale.US, "%,d", currentDayData.getStepCount()));
-
-        ViewGroup sleepCard = (ViewGroup) binding.cardSleep.getChildAt(0);
-        TextView tvSleep = (TextView) sleepCard.getChildAt(2);
-        tvSleep.setText(currentDayData.getSleepDuration());
+        binding.tvStepsValue.setText(String.format(Locale.US, "%,d", currentDayData.getStepCount()));
+        binding.tvSleepValue.setText(currentDayData.getSleepDuration());
     }
 
     private void showSetGoalDialog() {
@@ -1655,62 +1624,6 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         });
     }
 
-    private void showCustomSnackbar(String message, int backgroundColor, int actionTextColor, int iconResId, View.OnClickListener onUndo) {
-        if (binding == null) return;
-
-        com.google.android.material.snackbar.Snackbar snackbar = com.google.android.material.snackbar.Snackbar.make(binding.getRoot(), message, 4000);
-
-        // 1. Background Styling
-        View view = snackbar.getView();
-        view.setBackgroundTintList(null);
-        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-        bg.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-        // Convert dp to px for corner radius
-        bg.setCornerRadius(28f * getResources().getDisplayMetrics().density);
-        bg.setColor(backgroundColor);
-        view.setBackground(bg);
-
-        // 2. Positioning (Anchored to the Scan FAB)
-        if (binding.btnScanFood != null) {
-            snackbar.setAnchorView(binding.btnScanFood);
-        }
-
-        // 3. Text & Colors
-        snackbar.setTextColor(Color.WHITE);
-        snackbar.setActionTextColor(actionTextColor);
-
-        // 4. Message Icon
-        TextView tvMessage = view.findViewById(com.google.android.material.R.id.snackbar_text);
-        // Using ContextCompat.getDrawable is safer
-        android.graphics.drawable.Drawable icon = androidx.core.content.ContextCompat.getDrawable(requireContext(), iconResId);
-        float d = getResources().getDisplayMetrics().density;
-
-        if (icon != null) {
-            int iconSize = (int) (24 * d);
-            icon.setBounds(0, 0, iconSize, iconSize);
-            androidx.core.graphics.drawable.DrawableCompat.setTint(icon, Color.WHITE);
-            tvMessage.setCompoundDrawables(icon, null, null, null);
-            tvMessage.setCompoundDrawablePadding((int) (12 * d));
-        }
-
-        // 5. Action Arrow Icon (Optional, check if you have ic_arrow_right, otherwise standard text is fine)
-        TextView btnAction = view.findViewById(com.google.android.material.R.id.snackbar_action);
-        // Using a standard android icon as fallback if you don't have ic_arrow_right locally
-        android.graphics.drawable.Drawable arrowIcon = androidx.core.content.ContextCompat.getDrawable(requireContext(), android.R.drawable.ic_media_play);
-        // OR use R.drawable.ic_arrow_right if you have it from MedsFragment
-
-        if (arrowIcon != null) {
-            int arrowSize = (int) (14 * d); // Slightly smaller for arrow
-            arrowIcon.setBounds(0, 0, arrowSize, arrowSize);
-            androidx.core.graphics.drawable.DrawableCompat.setTint(arrowIcon, actionTextColor);
-            btnAction.setCompoundDrawables(null, null, arrowIcon, null); // Uncomment if you want the arrow
-            btnAction.setCompoundDrawablePadding((int) (4 * d));
-        }
-
-        snackbar.setAction("UNDO", onUndo);
-        snackbar.show();
-    }
-
     private void setupSwipeToDelete() {
         androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback simpleItemTouchCallback =
                 new androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(0, androidx.recyclerview.widget.ItemTouchHelper.LEFT) {
@@ -1741,15 +1654,13 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                         if (action == androidx.recyclerview.widget.ItemTouchHelper.ACTION_STATE_SWIPE && dX < 0) {
                             View itemView = v.itemView;
                             Paint p = new Paint();
-                            p.setColor(Color.parseColor("#FFEBEE"));
+                            p.setColor(ContextCompat.getColor(requireContext(), R.color.bg_swipe_delete));
                             c.drawRect(itemView.getRight() + dX, itemView.getTop(), itemView.getRight(), itemView.getBottom(), p);
 
-                            // Draw Trash Icon
-                            // Ensure you have R.drawable.ic_trash_can or use android.R.drawable.ic_menu_delete
                             Drawable icon = ContextCompat.getDrawable(requireContext(), android.R.drawable.ic_menu_delete);
 
                             if (icon != null) {
-                                icon.setTint(Color.parseColor("#C62828")); // Dark Red
+                                icon.setTint(ContextCompat.getColor(requireContext(), R.color.icon_swipe_delete));
                                 int itemHeight = itemView.getBottom() - itemView.getTop();
                                 int intrinsicHeight = icon.getIntrinsicHeight();
                                 int intrinsicWidth = icon.getIntrinsicWidth();
@@ -1775,23 +1686,15 @@ public class HomeFragment extends Fragment implements SensorEventListener {
 
     // Internal delete method that triggers the Snack bar
     private void deleteFoodLogInternal(FoodLog log) {
-        disposables.add(appDao.deleteFoodLog(log)
+        disposables.add(viewModel.deleteFoodLogCompletable(log)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(() -> {
-                    // Show Custom Snackbar
-                    showCustomSnackbar(
-                            "Food log deleted",
-                            Color.parseColor("#EF5350"), // Red
-                            Color.parseColor("#B71C1C"), // Dark Red
-                            android.R.drawable.ic_menu_delete, // Icon
-                            v -> {
-                                // Undo Logic: Re-insert
-                                disposables.add(appDao.insertFoodLog(log)
-                                        .subscribeOn(Schedulers.io())
-                                        .subscribe());
-                            }
-                    );
+                    UiUtils.showCustomSnackbar(binding.getRoot(), requireContext(), "Food log deleted",
+                            ContextCompat.getColor(requireContext(), R.color.bg_swipe_delete),
+                            ContextCompat.getColor(requireContext(), R.color.icon_swipe_delete),
+                            android.R.drawable.ic_menu_delete, binding.btnScanFood,
+                            v -> viewModel.insertFoodLog(log));
                 }, Throwable::printStackTrace));
     }
 

@@ -33,7 +33,7 @@
                 android:layout_width="8dp"
                 android:layout_height="8dp"
                 android:background="@drawable/shape_circle_solid"
-                android:backgroundTint="#AB47BC" />
+                android:backgroundTint="@color/accent_purple" />
 
             <TextView
                 android:id="@+id/tvTooltipStatus"

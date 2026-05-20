@@ -30,7 +30,7 @@
             android:padding="12dp"
             android:src="@drawable/ic_arrow_back"
             android:contentDescription="back button"
-            app:tint="#FFFFFF"
+            app:tint="@color/text_on_primary"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:clickable="true"
             android:focusable="true" />
@@ -40,7 +40,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="My Medications"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_on_primary"
             android:textSize="24sp"
             android:textStyle="bold"
             android:layout_marginStart="8dp" />

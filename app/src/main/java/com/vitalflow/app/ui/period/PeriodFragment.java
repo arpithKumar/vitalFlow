@@ -8,6 +8,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -17,7 +18,9 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.GridLayoutManager;
@@ -35,7 +38,6 @@ import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
 import com.github.mikephil.charting.formatter.ValueFormatter;
 import com.google.android.material.chip.Chip;
 import com.vitalflow.app.R;
-import com.vitalflow.app.data.dao.AppDao;
 import com.vitalflow.app.data.entity.CycleHistory;
 import com.vitalflow.app.data.entity.FoodLog;
 import com.vitalflow.app.data.entity.HealthPlan;
@@ -61,8 +63,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import javax.inject.Inject;
-
 import dagger.hilt.android.AndroidEntryPoint;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Completable;
@@ -72,10 +72,8 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 @AndroidEntryPoint
 public class PeriodFragment extends Fragment {
 
-    @Inject
-    AppDao appDao;
-    @Inject
-    GeminiRepository geminiRepository;
+    private PeriodViewModel viewModel;
+    private GeminiRepository geminiRepository;
 
     private int dragStartPosition = -1;
 
@@ -102,7 +100,7 @@ public class PeriodFragment extends Fragment {
     private HistoryAdapter historyAdapter;
 
     private boolean isSelectionMode = false;
-    private final Handler handler = new Handler();
+    private final Handler handler = new Handler(Looper.getMainLooper(), null);
     private Runnable longPressRunnable;
 
     private android.widget.PopupWindow currentTooltip;
@@ -123,6 +121,8 @@ public class PeriodFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        viewModel = new ViewModelProvider(this).get(PeriodViewModel.class);
+        geminiRepository = viewModel.getGeminiRepository();
 
         binding.btnBack.setOnClickListener(v -> Navigation.findNavController(view).navigateUp());
 
@@ -218,18 +218,17 @@ public class PeriodFragment extends Fragment {
                     v.getParent().requestDisallowInterceptTouchEvent(false);
 
                     if (isSelectionMode) {
-                        // WAS SELECTION DRAG -> Open Sheet
                         if (!tempSelectedDates.isEmpty()) {
                             openBatchLogSheet(new ArrayList<>(tempSelectedDates));
                         }
 
+                        Set<String> toDeHighlight = new HashSet<>(tempSelectedDates);
                         tempSelectedDates.clear();
 
-                        // Only refresh the items that were actually highlighted
                         for (int i = 0; i < daysInMonth.size(); i++) {
                             String key = getKey(daysInMonth.get(i));
-                            if (tempSelectedDates.contains(key)) {
-                                adapter.notifyItemChanged(i); // Turn off highlight
+                            if (toDeHighlight.contains(key)) {
+                                adapter.notifyItemChanged(i);
                             }
                         }
 
@@ -287,13 +286,13 @@ public class PeriodFragment extends Fragment {
             status = "Period";
             if (log.flowIntensity == 1) {
                 status += " (Light)";
-                color = Color.parseColor("#F8BBD0");
+                color = ContextCompat.getColor(requireContext(), R.color.bg_day_period);
             } else if (log.flowIntensity == 2) {
                 status += " (Medium)";
-                color = Color.parseColor("#F06292");
+                color = ContextCompat.getColor(requireContext(), R.color.pink_500);
             } else {
                 status += " (Heavy)";
-                color = Color.parseColor("#C2185B");
+                color = ContextCompat.getColor(requireContext(), R.color.icon_ai_insight);
             }
 
             if (log.symptoms != null && !log.symptoms.isEmpty() && !log.symptoms.equals("None")) {
@@ -301,24 +300,24 @@ public class PeriodFragment extends Fragment {
             }
         } else if (key.equals(ovulationDateKey)) {
             status = "Ovulation Day 🥚";
-            color = Color.parseColor("#AB47BC");
+            color = ContextCompat.getColor(requireContext(), R.color.accent_purple);
             details = "Peak Fertility. High chance of pregnancy.";
         } else if (fertileDateKeys.contains(key)) {
             status = "Fertile Window 🌿";
-            color = Color.parseColor("#E1BEE7");
+            color = ContextCompat.getColor(requireContext(), R.color.bg_day_fertile);
             details = "High chance of pregnancy.";
         } else if (predictedDateKeys.contains(key)) {
             status = "Predicted Period";
-            color = Color.parseColor("#FFCDD2");
+            color = ContextCompat.getColor(requireContext(), R.color.bg_day_period);
         } else {
             // Handle "Just Symptoms" logs (Spotting/Cramps without flow)
             if (log != null && log.symptoms != null && !log.symptoms.equals("None")) {
                 status = "Symptoms Logged";
-                color = Color.parseColor("#FFCC80"); // Orange
+                color = ContextCompat.getColor(requireContext(), R.color.warning_yellow);
                 details = log.symptoms;
             } else {
                 status = "Low Chance of Pregnancy";
-                color = Color.parseColor("#CFD8DC");
+                color = ContextCompat.getColor(requireContext(), R.color.text_tertiary);
             }
         }
 
@@ -410,7 +409,7 @@ public class PeriodFragment extends Fragment {
     private void saveBatchLogs(List<String> keys, boolean isFlow, int intensity, String symptoms) {
         List<Completable> tasks = new ArrayList<>();
         for (String key : keys) {
-            tasks.add(appDao.insertPeriodLog(new PeriodLog(key, isFlow, intensity, symptoms)));
+            tasks.add(viewModel.insertPeriodLogCompletable(new PeriodLog(key, isFlow, intensity, symptoms)));
         }
 
         disposables.add(Completable.merge(tasks) // Run all inserts
@@ -421,7 +420,7 @@ public class PeriodFragment extends Fragment {
 
     // --- 3. DATA & UI LOADING ---
     private void loadFlowData() {
-        disposables.add(appDao.getAllLogsSync()
+        disposables.add(viewModel.getAllLogsSync()
                 .subscribeOn(Schedulers.io())
                 .map(allLogs -> {
                     // --- BACKGROUND CALCULATIONS ---
@@ -615,21 +614,21 @@ public class PeriodFragment extends Fragment {
             // Visual Weight: High Frequency = Darker Color
             if (count >= 5) {
                 // Tier 1: Very High Frequency -> Deep Purple & Bold
-                chip.setChipBackgroundColor(ColorStateList.valueOf(Color.parseColor("#D1C4E9"))); // Deep Purple 100
-                chip.setTextColor(Color.parseColor("#311B92")); // Deep Purple 900
+                chip.setChipBackgroundColor(ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.bg_day_ovulation)));
+                chip.setTextColor(ContextCompat.getColor(requireContext(), R.color.text_day_ovulation));
                 chip.setTypeface(null, android.graphics.Typeface.BOLD);
             } else if (count >= 3) {
                 // Tier 2: High Frequency -> Medium Purple
-                chip.setChipBackgroundColor(ColorStateList.valueOf(Color.parseColor("#E1BEE7"))); // Purple 100
-                chip.setTextColor(Color.parseColor("#4A148C")); // Purple 900
+                chip.setChipBackgroundColor(ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.bg_day_ovulation)));
+                chip.setTextColor(ContextCompat.getColor(requireContext(), R.color.accent_purple));
             } else if (count == 2) {
                 // Tier 3: Moderate Frequency -> Light Purple
-                chip.setChipBackgroundColor(ColorStateList.valueOf(Color.parseColor("#F3E5F5"))); // Purple 50
-                chip.setTextColor(Color.parseColor("#7B1FA2")); // Purple 700
+                chip.setChipBackgroundColor(ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.chip_bg_unselected)));
+                chip.setTextColor(ContextCompat.getColor(requireContext(), R.color.accent_purple));
             } else {
-                // Tier 4: Low Frequency (1) -> Subtle Pinkish Grey
-                chip.setChipBackgroundColor(ColorStateList.valueOf(Color.parseColor("#FCE4EC"))); // Pink 50
-                chip.setTextColor(Color.parseColor("#C2185B")); // Pink 700
+                // Tier 4: Low Frequency (1) -> Subtle Pinkish
+                chip.setChipBackgroundColor(ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.pink_100)));
+                chip.setTextColor(ContextCompat.getColor(requireContext(), R.color.icon_ai_insight));
             }
 
             chip.setClickable(false);
@@ -697,7 +696,7 @@ public class PeriodFragment extends Fragment {
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         xAxis.setDrawGridLines(false);
         xAxis.setGranularity(1f);
-        xAxis.setTextColor(Color.parseColor("#90A4AE"));
+        xAxis.setTextColor(ContextCompat.getColor(requireContext(), R.color.chart_axis_text));
 
         YAxis yAxis = chart.getAxisLeft();
         yAxis.setEnabled(true); // Must be enabled to show labels
@@ -753,20 +752,21 @@ public class PeriodFragment extends Fragment {
 
         if (entries.isEmpty()) return;
 
+        int periodColor = ContextCompat.getColor(requireContext(), R.color.icon_ai_insight);
         LineDataSet set = new LineDataSet(entries, "Intensity");
-        set.setColor(Color.parseColor("#C2185B"));
+        set.setColor(periodColor);
         set.setLineWidth(3f);
-        set.setCircleColor(Color.parseColor("#C2185B"));
+        set.setCircleColor(periodColor);
         set.setCircleRadius(5f);
         set.setDrawCircleHole(true);
-        set.setCircleHoleColor(Color.WHITE);
-        set.setDrawValues(false); // Clean look
+        set.setCircleHoleColor(ContextCompat.getColor(requireContext(), R.color.chart_circle_hole));
+        set.setDrawValues(false);
 
         set.setMode(LineDataSet.Mode.CUBIC_BEZIER);
 
         set.setDrawFilled(true);
-        set.setFillColor(Color.parseColor("#C2185B"));
-        set.setFillAlpha(40); // Transparent pink fill
+        set.setFillColor(periodColor);
+        set.setFillAlpha(40);
 
         LineData data = new LineData(set);
         binding.chartCycle.setData(data);
@@ -847,9 +847,9 @@ public class PeriodFragment extends Fragment {
 
         disposables.add(
                 io.reactivex.rxjava3.core.Single.zip(
-                                appDao.getFoodLogsSync(todayKey),
-                                appDao.getDailyHealthListSync(todayKey),
-                                appDao.getAllMedicationsSync(),
+                                viewModel.getFoodLogsSync(todayKey),
+                                viewModel.getDailyHealthListSync(todayKey),
+                                viewModel.getAllMedicationsSync(),
                                 (foodLogs, dailyHealthList, meds) -> {
                                     String sleep = "Unknown";
                                     if (!dailyHealthList.isEmpty()) {
@@ -983,17 +983,18 @@ public class PeriodFragment extends Fragment {
             holder.binding.tvDayNumber.setText(String.valueOf(cal.get(Calendar.DAY_OF_MONTH)));
 
             // 1. Reset State
+            android.content.Context ctx = PeriodFragment.this.requireContext();
             holder.binding.viewBackground.setBackgroundResource(R.drawable.bg_heatmap_square);
-            holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#F5F5F5"))); // Default Empty
-            holder.binding.tvDayNumber.setTextColor(Color.parseColor("#546E7A"));
+            holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(ctx, R.color.surface_variant)));
+            holder.binding.tvDayNumber.setTextColor(ContextCompat.getColor(ctx, R.color.text_day_normal));
             holder.binding.viewSymptomDot.setVisibility(View.GONE);
             holder.binding.viewSelectionBorder.setVisibility(View.GONE);
 
             // Gray out non-current month days
             boolean isSameMonth = cal.get(Calendar.MONTH) == currentMonth.get(Calendar.MONTH);
             if (!isSameMonth) {
-                holder.binding.tvDayNumber.setTextColor(Color.parseColor("#CFD8DC"));
-                holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FAFAFA"))); // Lighter
+                holder.binding.tvDayNumber.setTextColor(ContextCompat.getColor(ctx, R.color.text_day_other_month));
+                holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(ctx, R.color.app_surface)));
                 return;
             }
 
@@ -1003,12 +1004,11 @@ public class PeriodFragment extends Fragment {
                 Integer phase = cyclePhaseMap.get(key);
                 if (phase != null) {
                     if (phase == 1) { // Follicular (Energy)
-                        holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#E1F5FE"))); // Light Blue
+                        holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(ctx, R.color.bg_insight_info)));
                     } else if (phase == 2) { // Ovulatory (Libido)
-                        // (Handled below by fertile keys usually, but backup here)
-                        holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#E8F5E9"))); // Green
+                        holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(ctx, R.color.bg_insight_positive)));
                     } else if (phase == 3) { // Luteal (PMS)
-                        holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FFF3E0"))); // Light Orange
+                        holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(ctx, R.color.bg_streak_card)));
                     }
                 }
             }
@@ -1018,24 +1018,24 @@ public class PeriodFragment extends Fragment {
             if (log != null && log.isFlow) {
                 // FLOW EXISTS -> Color based on intensity
                 int color;
-                if (log.flowIntensity == 1) color = Color.parseColor("#F8BBD0"); // Light Pink
-                else if (log.flowIntensity == 2) color = Color.parseColor("#F06292"); // Med Pink
-                else color = Color.parseColor("#C2185B"); // Heavy Pink
+                if (log.flowIntensity == 1) color = ContextCompat.getColor(ctx, R.color.bg_day_period);
+                else if (log.flowIntensity == 2) color = ContextCompat.getColor(ctx, R.color.pink_500);
+                else color = ContextCompat.getColor(ctx, R.color.icon_ai_insight);
 
                 holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(color));
-                holder.binding.tvDayNumber.setTextColor(Color.WHITE);
+                holder.binding.tvDayNumber.setTextColor(ContextCompat.getColor(ctx, R.color.text_on_primary));
             } else if (key.equals(ovulationDateKey)) {
                 // OVULATION -> Purple
-                holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#AB47BC")));
-                holder.binding.tvDayNumber.setTextColor(Color.WHITE);
+                holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(ctx, R.color.accent_purple)));
+                holder.binding.tvDayNumber.setTextColor(ContextCompat.getColor(ctx, R.color.text_on_primary));
             } else if (fertileDateKeys.contains(key)) {
-                // FERTILE -> Light Purple
-                holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#C8E6C9")));
-                holder.binding.tvDayNumber.setTextColor(Color.parseColor("#1B5E20"));
+                // FERTILE -> Green
+                holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(ctx, R.color.bg_day_fertile)));
+                holder.binding.tvDayNumber.setTextColor(ContextCompat.getColor(ctx, R.color.text_day_fertile));
             } else if (predictedDateKeys.contains(key)) {
-                // PREDICTED PERIOD -> Dashed/Light Red (Simulated with color here)
-                holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FFCDD2")));
-                holder.binding.tvDayNumber.setTextColor(Color.parseColor("#B71C1C"));
+                // PREDICTED PERIOD -> Light Red
+                holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(ctx, R.color.bg_day_period)));
+                holder.binding.tvDayNumber.setTextColor(ContextCompat.getColor(ctx, R.color.text_day_period));
             }
 
             if (log != null && log.symptoms != null && !log.symptoms.isEmpty() && !log.symptoms.equalsIgnoreCase("None")) {

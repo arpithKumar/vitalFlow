@@ -138,13 +138,15 @@ public class NotificationHelper {
     }
 
     public static void sendMedicationReminder(Context context, Medication med) {
-        try {
-            int uniqueId = (med.getId() + med.getTime()).hashCode();
+        sendMedicationReminder(context, med, med.getTime());
+    }
 
-            // Intent to open the app normally
+    public static void sendMedicationReminder(Context context, Medication med, String displayTime) {
+        try {
+            int uniqueId = (med.getId() + displayTime).hashCode();
+
             PendingIntent appPendingIntent = getOpenAppIntent(context);
 
-            // Action 1: Mark as Taken
             Intent takenIntent = new Intent(context, MedicationActionReceiver.class);
             takenIntent.setAction("ACTION_MARK_TAKEN");
             takenIntent.putExtra("med_id", med.getId());
@@ -152,7 +154,6 @@ public class NotificationHelper {
             PendingIntent takenPending = PendingIntent.getBroadcast(
                     context, uniqueId + 1, takenIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-            // Action 2: Snooze for 1 Hour
             Intent snoozeIntent = new Intent(context, MedicationActionReceiver.class);
             snoozeIntent.setAction("ACTION_SNOOZE");
             snoozeIntent.putExtra("med_id", med.getId());

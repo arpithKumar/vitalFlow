@@ -2,6 +2,8 @@ package com.vitalflow.app.ui.meds;
 
 import android.graphics.Color;
 import android.graphics.Paint;
+
+import androidx.core.content.ContextCompat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -128,7 +130,9 @@ public class MedsAdapter extends RecyclerView.Adapter<MedsAdapter.MedViewHolder>
             unit = medType + "s";
         }
         holder.binding.tvRefill.setText(MessageFormat.format("{0} {1} left", med.getPillsLeft(), unit));
-        holder.binding.tvRefill.setTextColor(med.getPillsLeft() <= 5 ? Color.RED : Color.parseColor("#00897B"));
+        holder.binding.tvRefill.setTextColor(med.getPillsLeft() <= 5
+                ? ContextCompat.getColor(holder.itemView.getContext(), R.color.warning_red)
+                : ContextCompat.getColor(holder.itemView.getContext(), R.color.primary));
 
         if (med.getPrescriptionUri() != null && !med.getPrescriptionUri().isEmpty()) {
             holder.binding.btnViewPrescription.setVisibility(View.VISIBLE);
@@ -182,14 +186,15 @@ public class MedsAdapter extends RecyclerView.Adapter<MedsAdapter.MedViewHolder>
     }
 
     private void updateVisuals(MedViewHolder holder, String status, int taken, int total) {
+        android.content.Context ctx = holder.itemView.getContext();
         if ("TAKEN".equals(status)) {
             // SHOW COMPLETED STATE
             holder.binding.layoutActions.setVisibility(View.GONE);
             holder.binding.tvStatus.setVisibility(View.VISIBLE);
 
             holder.binding.tvStatus.setText("ALL DONE");
-            holder.binding.tvStatus.setTextColor(Color.parseColor("#2E7D32")); // Green
-            holder.binding.tvStatus.setBackgroundColor(Color.parseColor("#E8F5E9")); // Light Green BG
+            holder.binding.tvStatus.setTextColor(ContextCompat.getColor(ctx, R.color.text_success));
+            holder.binding.tvStatus.setBackgroundColor(ContextCompat.getColor(ctx, R.color.bg_success));
 
             holder.binding.cardRoot.setAlpha(0.8f);
 
@@ -202,8 +207,8 @@ public class MedsAdapter extends RecyclerView.Adapter<MedsAdapter.MedViewHolder>
             holder.binding.tvStatus.setVisibility(View.VISIBLE);
 
             holder.binding.tvStatus.setText("SKIPPED");
-            holder.binding.tvStatus.setTextColor(Color.parseColor("#C62828")); // Red
-            holder.binding.tvStatus.setBackgroundColor(Color.parseColor("#FFEBEE")); // Light Red BG
+            holder.binding.tvStatus.setTextColor(ContextCompat.getColor(ctx, R.color.icon_swipe_delete));
+            holder.binding.tvStatus.setBackgroundColor(ContextCompat.getColor(ctx, R.color.bg_swipe_delete));
 
             holder.binding.cardRoot.setAlpha(0.8f);
 
@@ -222,8 +227,8 @@ public class MedsAdapter extends RecyclerView.Adapter<MedsAdapter.MedViewHolder>
             if (total > 1 && taken > 0) {
                 holder.binding.tvStatus.setVisibility(View.VISIBLE);
                 holder.binding.tvStatus.setText(taken + " / " + total + " Taken");
-                holder.binding.tvStatus.setTextColor(Color.parseColor("#00897B")); // Teal
-                holder.binding.tvStatus.setBackgroundColor(Color.parseColor("#E0F2F1")); // Light Teal BG
+                holder.binding.tvStatus.setTextColor(ContextCompat.getColor(ctx, R.color.primary));
+                holder.binding.tvStatus.setBackgroundColor(ContextCompat.getColor(ctx, R.color.chip_bg_selected));
             } else {
                 holder.binding.tvStatus.setVisibility(View.GONE);
             }

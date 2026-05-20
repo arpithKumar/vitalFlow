@@ -25,6 +25,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelUuid;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -51,12 +52,14 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 public class AddVitalBottomSheet extends BottomSheetDialogFragment {
 
     private LayoutAddVitalSheetBinding binding;
     private OnVitalAddedListener listener;
+    private static final String TAG = "AddVitalBottomSheet";
 
     // --- BLUETOOTH VARIABLES ---
     private BluetoothAdapter bluetoothAdapter;
@@ -138,13 +141,16 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
         super.onViewCreated(view, savedInstanceState);
 
         // Chip Logic to toggle 2nd input field (BP needs diastolic)
-        binding.chipGroupType.setOnCheckedChangeListener((group, checkedId) -> {
-            if (checkedId == R.id.chipBP) {
-                binding.inputLayout2.setVisibility(View.VISIBLE);
-                binding.inputLayout1.setHint("Systolic");
-            } else {
-                binding.inputLayout2.setVisibility(View.GONE);
-                binding.inputLayout1.setHint("Value");
+        binding.chipGroupType.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            if (!checkedIds.isEmpty()) {
+                int checkedId = checkedIds.get(0);
+                if (checkedId == R.id.chipBP) {
+                    binding.inputLayout2.setVisibility(View.VISIBLE);
+                    binding.inputLayout1.setHint("Systolic");
+                } else {
+                    binding.inputLayout2.setVisibility(View.GONE);
+                    binding.inputLayout1.setHint("Value");
+                }
             }
         });
 
@@ -165,8 +171,8 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
     }
 
     private void saveVital() {
-        String val1 = binding.etValue1.getText().toString();
-        String val2 = binding.etValue2.getText().toString(); // Can be empty
+        String val1 = Objects.requireNonNull(binding.etValue1.getText()).toString();
+        String val2 = Objects.requireNonNull(binding.etValue2.getText()).toString(); // Can be empty
 
         if (val1.isEmpty()) {
             Toast.makeText(getContext(), "Please enter a value", Toast.LENGTH_SHORT).show();
@@ -204,7 +210,7 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
             if (c != null) symptoms.append(c.getText()).append(", ");
         }
 
-        String date = new SimpleDateFormat("Today, h:mm a", Locale.getDefault()).format(new Date());
+        String date = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
 
         // Create Object
         Vital nv = new Vital(type, val1, val2.isEmpty() ? null : val2, unit, date, System.currentTimeMillis(), ctx.toString().trim(), symptoms.toString().trim());
@@ -290,14 +296,18 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
             try {
                 bleScanner.stopScan(leScanCallback);
             } catch (Exception e) {
-                e.printStackTrace();
+                Log.e(TAG, "Failed to stop BLE scan", e);
             }
         }
         isScanning = false;
 
-        // Hide loading spinner if visible
         if (binding != null && binding.layoutBtScanning.getVisibility() == View.VISIBLE) {
-            // Optional: You can indicate scan finished
+            handler.post(() -> {
+                if (binding != null) {
+                    binding.layoutBtScanning.setVisibility(View.GONE);
+                    binding.layoutBtInitial.setVisibility(View.VISIBLE);
+                }
+            });
         }
     }
 
@@ -318,7 +328,7 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
         }
     };
 
-    @SuppressLint("MissingPermission")
+    @SuppressLint({"MissingPermission", "SetTextI18n"})
     private void connectGatt(BluetoothDevice device) {
         if (!hasPermissions()) return;
         stopScan();
@@ -333,7 +343,10 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
                         if (binding != null)
                             binding.tvBtStatus.setText("Connected! Discovering Services...");
                     });
-                    if (hasPermissions()) gatt.discoverServices();
+                    if (hasPermissions()) {
+                        gatt.requestMtu(247);
+                        gatt.discoverServices();
+                    }
                 } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                     handler.post(() -> {
                         if (binding != null) binding.tvBtStatus.setText("Disconnected. Try again.");
@@ -351,42 +364,46 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
                 if (spo2Service != null) enableNotification(gatt, spo2Service, CHAR_SPO2);
             }
 
+            @SuppressLint("MissingPermission")
             private void enableNotification(BluetoothGatt gatt, BluetoothGattService service, UUID charUuid) {
                 if (!hasPermissions()) return;
-                BluetoothGattCharacteristic c = service.getCharacteristic(charUuid);
-                if (c != null) {
-                    gatt.setCharacteristicNotification(c, true);
-                    BluetoothGattDescriptor d = c.getDescriptor(CONFIG_DESCRIPTOR);
-                    if (d != null) {
-                        d.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                        gatt.writeDescriptor(d);
-                    }
+
+                BluetoothGattCharacteristic characteristic = service.getCharacteristic(charUuid);
+                if (characteristic == null) return;
+
+                gatt.setCharacteristicNotification(characteristic, true);
+
+                BluetoothGattDescriptor descriptor = characteristic.getDescriptor(CONFIG_DESCRIPTOR);
+                if (descriptor == null) return;
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    gatt.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                } else {
+                    writeDescriptorLegacy(gatt, descriptor);
                 }
             }
 
+            @SuppressWarnings("deprecation")
+            private void writeDescriptorLegacy(BluetoothGatt gatt, BluetoothGattDescriptor descriptor) {
+                descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                gatt.writeDescriptor(descriptor);
+            }
+
             @Override
-            public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic c) {
-                if (CHAR_HR.equals(c.getUuid())) {
-                    int flag = c.getProperties();
-                    int format = (flag & 0x01) != 0 ? BluetoothGattCharacteristic.FORMAT_UINT16 : BluetoothGattCharacteristic.FORMAT_UINT8;
-                    final int hr = c.getIntValue(format, 1);
-                    handler.post(() -> {
-                        if (binding != null) {
-                            binding.etValue1.setText(String.valueOf(hr));
-                            binding.chipGroupType.check(R.id.chipHeartRate);
-                            binding.tvBtStatus.setText("Live Data: " + hr + " bpm");
-                        }
-                    });
-                } else if (CHAR_SPO2.equals(c.getUuid())) {
-                    final int spo2 = c.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, 1);
-                    handler.post(() -> {
-                        if (binding != null) {
-                            binding.etValue1.setText(String.valueOf(spo2));
-                            binding.chipGroupType.check(R.id.chipOxygen);
-                            binding.tvBtStatus.setText("Live Data: " + spo2 + "% SpO2");
-                        }
-                    });
-                }
+            public void onCharacteristicChanged(@NonNull BluetoothGatt gatt,
+                                                @NonNull BluetoothGattCharacteristic characteristic,
+                                                @NonNull byte[] value
+            ) {
+                handleCharacteristic(characteristic.getUuid(), value);
+            }
+
+            @Override
+            @SuppressWarnings("deprecation")
+            public void onCharacteristicChanged(
+                    BluetoothGatt gatt,
+                    BluetoothGattCharacteristic characteristic
+            ) {
+                handleCharacteristic(characteristic.getUuid(), characteristic.getValue());
             }
         });
     }
@@ -401,9 +418,44 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
                     gatt.disconnect();
                     gatt.close();
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                Log.e(TAG, "Error disconnecting/closing GATT", e);
             }
         }
         binding = null;
+    }
+
+    private void handleCharacteristic(UUID uuid, byte[] data) {
+        if (data == null || data.length < 2) return;
+
+        if (CHAR_HR.equals(uuid)) {
+
+            int flag = data[0] & 0xFF;
+            boolean is16Bit = (flag & 0x01) != 0;
+
+            int hr = is16Bit
+                    ? ((data[2] & 0xFF) << 8) | (data[1] & 0xFF)
+                    : data[1] & 0xFF;
+
+            handler.post(() -> {
+                if (binding != null) {
+                    binding.etValue1.setText(String.valueOf(hr));
+                    binding.chipGroupType.check(R.id.chipHeartRate);
+                    binding.tvBtStatus.setText("Live Data: " + hr + " bpm");
+                }
+            });
+
+        } else if (CHAR_SPO2.equals(uuid)) {
+
+            int spo2 = data[1] & 0xFF;
+
+            handler.post(() -> {
+                if (binding != null) {
+                    binding.etValue1.setText(String.valueOf(spo2));
+                    binding.chipGroupType.check(R.id.chipOxygen);
+                    binding.tvBtStatus.setText("Live Data: " + spo2 + "% SpO2");
+                }
+            });
+        }
     }
 }
