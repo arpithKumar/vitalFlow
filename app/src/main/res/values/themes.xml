@@ -19,6 +19,9 @@
 
     <style name="Theme.VitalFlow" parent="Base.Theme.VitalFlow" />
 
+    <!-- OLED variant: no-op in light mode, active in values-night/themes.xml -->
+    <style name="Theme.VitalFlow.OLED" parent="Base.Theme.VitalFlow" />
+
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/primary</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/logo</item>

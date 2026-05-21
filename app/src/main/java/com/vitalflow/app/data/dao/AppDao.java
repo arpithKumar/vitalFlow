@@ -105,6 +105,9 @@ public interface AppDao {
     @Query("SELECT * FROM food_logs")
     Single<List<FoodLog>> getAllFoodLogsSync();
 
+    @Query("SELECT * FROM food_logs WHERE date >= :startDate ORDER BY date ASC")
+    Single<List<FoodLog>> getFoodLogsFromDate(String startDate);
+
     @Query("SELECT * FROM medications WHERE id = :id LIMIT 1")
     Single<Medication> getMedicationById(String id);
 

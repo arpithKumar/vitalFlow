@@ -116,6 +116,7 @@ public class MainActivity extends AppCompatActivity {
         binding.getRoot().post(() -> chatManager.attachToActivity());
 
         setupNavigation();
+        setupOfflineBanner();
     }
 
     private void setupNavigation() {
@@ -321,5 +322,46 @@ public class MainActivity extends AppCompatActivity {
         if (itemId == R.id.vitalsFragment) return 2;
         if (itemId == R.id.periodFragment) return 3;
         return 0;
+    }
+
+    // -------------------------------------------------------------------------
+    // OFFLINE BANNER
+    // -------------------------------------------------------------------------
+    private android.net.ConnectivityManager.NetworkCallback networkCallback;
+
+    private void setupOfflineBanner() {
+        android.net.ConnectivityManager cm = (android.net.ConnectivityManager)
+                getSystemService(android.content.Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return;
+
+        networkCallback = new android.net.ConnectivityManager.NetworkCallback() {
+            @Override
+            public void onAvailable(@androidx.annotation.NonNull android.net.Network network) {
+                runOnUiThread(() -> binding.bannerOffline.setVisibility(View.GONE));
+            }
+            @Override
+            public void onLost(@androidx.annotation.NonNull android.net.Network network) {
+                runOnUiThread(() -> binding.bannerOffline.setVisibility(View.VISIBLE));
+            }
+        };
+
+        android.net.NetworkRequest request = new android.net.NetworkRequest.Builder()
+                .addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build();
+        cm.registerNetworkCallback(request, networkCallback);
+
+        // Set initial state
+        android.net.Network active = cm.getActiveNetwork();
+        android.net.NetworkCapabilities caps = active != null ? cm.getNetworkCapabilities(active) : null;
+        boolean online = caps != null && caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET);
+        binding.bannerOffline.setVisibility(online ? View.GONE : View.VISIBLE);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        android.net.ConnectivityManager cm = (android.net.ConnectivityManager)
+                getSystemService(android.content.Context.CONNECTIVITY_SERVICE);
+        if (cm != null && networkCallback != null) cm.unregisterNetworkCallback(networkCallback);
     }
 }

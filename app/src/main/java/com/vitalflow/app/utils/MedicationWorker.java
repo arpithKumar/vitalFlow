@@ -112,6 +112,11 @@ public class MedicationWorker extends Worker {
             } catch (Exception e) {
                 Log.e("MedWorker", "Date parsing error", e);
             }
+
+            // Low stock proactive alert (≤ 7 pills left)
+            if (m.getPillsLeft() > 0 && m.getPillsLeft() <= 7) {
+                NotificationHelper.sendLowStockAlert(context, m.getName(), m.getPillsLeft());
+            }
         }
     }
 }

@@ -19,6 +19,12 @@
 
     <style name="Theme.VitalFlow" parent="Base.Theme.VitalFlow" />
 
+    <!-- OLED variant: true black window background -->
+    <style name="Theme.VitalFlow.OLED" parent="Base.Theme.VitalFlow">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:colorBackground">@android:color/black</item>
+    </style>
+
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/primary</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/logo</item>

@@ -407,6 +407,17 @@ public class ProfileFragment extends Fragment {
     // SECTION: PREFERENCES & UTILS
     // ------------------------------------------------------------------------
 
+    private void applyOledMode(boolean enabled) {
+        android.view.Window window = requireActivity().getWindow();
+        if (enabled) {
+            window.getDecorView().setBackgroundColor(android.graphics.Color.BLACK);
+            requireView().setBackgroundColor(android.graphics.Color.BLACK);
+        } else {
+            window.getDecorView().setBackgroundResource(R.drawable.bg_page_gradient);
+            requireView().setBackgroundResource(R.drawable.bg_page_gradient);
+        }
+    }
+
     private void setupPreferences() {
 //        // Dark Mode
         SharedPreferences themePrefs = requireContext().getSharedPreferences("theme_prefs", Context.MODE_PRIVATE);
@@ -416,6 +427,14 @@ public class ProfileFragment extends Fragment {
             AppCompatDelegate.setDefaultNightMode(isChecked ?
                     AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
             Toast.makeText(getContext(), isChecked ? "Dark Mode Active 🌙" : "Light Mode Active ☀️", Toast.LENGTH_SHORT).show();
+        });
+
+        // OLED True Black
+        binding.switchOled.setChecked(themePrefs.getBoolean("oled_mode", false));
+        binding.switchOled.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            themePrefs.edit().putBoolean("oled_mode", isChecked).apply();
+            applyOledMode(isChecked);
+            Toast.makeText(getContext(), isChecked ? "OLED Black Active ⬛" : "OLED Mode Off", Toast.LENGTH_SHORT).show();
         });
 
         // 2. Notifications

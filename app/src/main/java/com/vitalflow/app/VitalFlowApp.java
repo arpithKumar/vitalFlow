@@ -18,5 +18,10 @@ public class VitalFlowApp extends Application {
                 prefs.getBoolean("is_dark_mode", false)
                         ? AppCompatDelegate.MODE_NIGHT_YES
                         : AppCompatDelegate.MODE_NIGHT_NO);
+
+        // OLED true-black: set window background to black before Activity inflates
+        if (prefs.getBoolean("oled_mode", false) && prefs.getBoolean("is_dark_mode", false)) {
+            setTheme(R.style.Theme_VitalFlow_OLED);
+        }
     }
 }

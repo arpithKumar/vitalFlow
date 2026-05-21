@@ -106,9 +106,30 @@ public class OnboardingFragment extends Fragment {
     }
 
     private void finishOnboarding() {
-        // Save flag
         SharedPreferences prefs = requireContext().getSharedPreferences("vital_prefs", Context.MODE_PRIVATE);
-        prefs.edit().putBoolean("IS_FIRST_RUN", false).apply();
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putBoolean("IS_FIRST_RUN", false);
+
+        // Save profile form values from last slide if filled in
+        try {
+            android.view.View lastPage = binding.viewPager.findViewWithTag("page_4");
+            if (lastPage != null) {
+                com.google.android.material.textfield.TextInputEditText etName =
+                        lastPage.findViewById(R.id.etOnboardName);
+                com.google.android.material.textfield.TextInputEditText etWater =
+                        lastPage.findViewById(R.id.etOnboardWater);
+                com.google.android.material.textfield.TextInputEditText etSleep =
+                        lastPage.findViewById(R.id.etOnboardSleep);
+                if (etName != null && etName.getText() != null && etName.getText().length() > 0)
+                    editor.putString("onboard_name", etName.getText().toString().trim());
+                if (etWater != null && etWater.getText() != null && etWater.getText().length() > 0)
+                    editor.putInt("daily_water_goal_ml", Integer.parseInt(etWater.getText().toString().trim()));
+                if (etSleep != null && etSleep.getText() != null && etSleep.getText().length() > 0)
+                    editor.putFloat("sleep_goal_hours", Float.parseFloat(etSleep.getText().toString().trim()));
+            }
+        } catch (Exception ignored) {}
+
+        editor.apply();
         Navigation.findNavController(requireView()).navigate(R.id.action_onboarding_to_login);
     }
 
@@ -121,21 +142,24 @@ public class OnboardingFragment extends Fragment {
                 R.drawable.ic_medicine_pro,
                 R.drawable.ic_heart,
                 R.drawable.ic_period,
-                R.drawable.ic_robot_face
+                R.drawable.ic_robot_face,
+                R.drawable.ic_ai_stars
         };
 
         private final String[] titles = {
                 "Smart Medication Tracking",
                 "Monitor Critical Vitals",
                 "Cycle & Health Predictions",
-                "Meet Your AI Coach"
+                "Meet Your AI Coach",
+                "Set Your Health Goals"
         };
 
         private final String[] descriptionPerPage = {
                 "Never miss a dose again. Set schedules, track inventory, and get timely reminders.",
                 "Connect devices via Bluetooth or log manually to keep track of Heart Rate, BP, and Weight.",
                 "AI-powered insights for your cycle and hydration to keep your health in perfect flow.",
-                "Connect your Gemini API key now to unlock personalized health tips and a 24/7 chat assistant." // New Desc
+                "Connect your Gemini API key now to unlock personalized health tips and a 24/7 chat assistant.",
+                "Personalise VitalFlow with your name and daily targets."
         };
 
         public OnboardingAdapter(Fragment fragment) {
@@ -174,6 +198,13 @@ public class OnboardingFragment extends Fragment {
             } else {
                 holder.btnConnect.setVisibility(View.GONE);
             }
+
+            // Slide 4: profile form
+            if (position == 4) {
+                holder.layoutProfileForm.setVisibility(View.VISIBLE);
+            } else {
+                holder.layoutProfileForm.setVisibility(View.GONE);
+            }
         }
 
         @Override
@@ -185,6 +216,8 @@ public class OnboardingFragment extends Fragment {
             ImageView img;
             TextView title, desc;
             MaterialButton btnConnect;
+            android.view.View layoutProfileForm;
+            com.google.android.material.textfield.TextInputEditText etName, etWater, etSleep;
 
             SlideHolder(View v) {
                 super(v);
@@ -192,6 +225,10 @@ public class OnboardingFragment extends Fragment {
                 title = v.findViewById(R.id.tvTitle);
                 desc = v.findViewById(R.id.tvDesc);
                 btnConnect = v.findViewById(R.id.btnAction);
+                layoutProfileForm = v.findViewById(R.id.layoutProfileForm);
+                etName = v.findViewById(R.id.etOnboardName);
+                etWater = v.findViewById(R.id.etOnboardWater);
+                etSleep = v.findViewById(R.id.etOnboardSleep);
             }
         }
     }

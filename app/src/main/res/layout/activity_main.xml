@@ -5,6 +5,23 @@
     android:layout_height="match_parent"
     android:background="@drawable/bg_page_gradient">
 
+    <!-- Offline banner — shown when network is unavailable -->
+    <TextView
+        android:id="@+id/bannerOffline"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/secondary"
+        android:gravity="center"
+        android:paddingVertical="6dp"
+        android:text="⚠ No internet connection — data won't sync"
+        android:textColor="@color/text_on_primary"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <!-- Full screen fragment container — bottom constrained to top of floating nav -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/nav_host_fragment"
@@ -13,7 +30,7 @@
         android:layout_height="0dp"
         app:defaultNavHost="true"
         app:navGraph="@navigation/nav_graph"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/bannerOffline"
         app:layout_constraintBottom_toTopOf="@id/nav_card"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />

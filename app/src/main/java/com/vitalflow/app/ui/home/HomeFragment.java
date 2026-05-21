@@ -23,8 +23,8 @@ import android.hardware.SensorManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.view.HapticFeedbackConstants;
 import android.speech.RecognizerIntent;
+import android.view.HapticFeedbackConstants;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -769,6 +769,74 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         binding.btnScanFood.setOnClickListener(v -> showImageSourceDialog());
 
         setupSwipeToDelete();
+        setupCalorieChart();
+    }
+
+    @android.annotation.SuppressLint("DefaultLocale")
+    private void setupCalorieChart() {
+        if (binding == null) return;
+        com.github.mikephil.charting.charts.BarChart chart = binding.chartCalories;
+        chart.getDescription().setEnabled(false);
+        chart.setDrawGridBackground(false);
+        chart.setDrawBarShadow(false);
+        chart.getLegend().setEnabled(false);
+        chart.getAxisRight().setEnabled(false);
+        chart.getAxisLeft().setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary));
+        chart.getAxisLeft().setGridColor(ContextCompat.getColor(requireContext(), R.color.glass_card_stroke));
+        chart.getXAxis().setPosition(com.github.mikephil.charting.components.XAxis.XAxisPosition.BOTTOM);
+        chart.getXAxis().setTextColor(ContextCompat.getColor(requireContext(), R.color.text_secondary));
+        chart.getXAxis().setGridColor(ContextCompat.getColor(requireContext(), R.color.glass_card_stroke));
+        chart.getXAxis().setGranularity(1f);
+        chart.setTouchEnabled(false);
+
+        // Last 7 days: build labels
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.format.DateTimeFormatter storeFmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        java.time.format.DateTimeFormatter labelFmt = java.time.format.DateTimeFormatter.ofPattern("EEE", java.util.Locale.getDefault());
+        String startDate = today.minusDays(6).format(storeFmt);
+        String[] labels = new String[7];
+        java.util.Map<String, Integer> dayIndex = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < 7; i++) {
+            java.time.LocalDate d = today.minusDays(6 - i);
+            labels[i] = d.format(labelFmt);
+            dayIndex.put(d.format(storeFmt), i);
+        }
+        chart.getXAxis().setValueFormatter(new com.github.mikephil.charting.formatter.IndexAxisValueFormatter(labels));
+
+        disposables.add(viewModel.getAppDao().getFoodLogsFromDate(startDate)
+                .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
+                .observeOn(io.reactivex.rxjava3.android.schedulers.AndroidSchedulers.mainThread())
+                .subscribe(logs -> {
+                    if (binding == null) return;
+                    float[] totals = new float[7];
+                    for (com.vitalflow.app.data.entity.FoodLog log : logs) {
+                        Integer idx = dayIndex.get(log.date);
+                        if (idx != null) totals[idx] += log.calories;
+                    }
+                    java.util.List<com.github.mikephil.charting.data.BarEntry> entries = new java.util.ArrayList<>();
+                    for (int i = 0; i < 7; i++)
+                        entries.add(new com.github.mikephil.charting.data.BarEntry(i, totals[i]));
+
+                    com.github.mikephil.charting.data.BarDataSet ds = new com.github.mikephil.charting.data.BarDataSet(entries, "Calories");
+                    ds.setColor(ContextCompat.getColor(requireContext(), R.color.primary));
+                    ds.setDrawValues(false);
+                    chart.setData(new com.github.mikephil.charting.data.BarData(ds));
+                    chart.animateY(600);
+                    chart.invalidate();
+
+                    double sum = 0;
+                    int count = 0;
+                    for (float v : totals) {
+                        if (v > 0) {
+                            sum += v;
+                            count++;
+                        }
+                    }
+                    double avg = count > 0 ? sum / count : 0;
+                    binding.tvCalorieAvg.setText(String.format("Avg %.0f kcal/day", avg));
+                    binding.cardCalorieChart.setVisibility(android.view.View.VISIBLE);
+                }, throwable -> {
+                }));
     }
 
     private void showImageSourceDialog() {
@@ -1352,13 +1420,23 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         binding.lottieWaterSplash.setVisibility(View.VISIBLE);
         binding.lottieWaterSplash.playAnimation();
         binding.lottieWaterSplash.addAnimatorListener(new android.animation.Animator.AnimatorListener() {
-            @Override public void onAnimationStart(android.animation.Animator a) {}
-            @Override public void onAnimationEnd(android.animation.Animator a) {
+            @Override
+            public void onAnimationStart(android.animation.Animator a) {
+            }
+
+            @Override
+            public void onAnimationEnd(android.animation.Animator a) {
                 if (binding != null) binding.lottieWaterSplash.setVisibility(View.GONE);
                 binding.lottieWaterSplash.removeAllAnimatorListeners();
             }
-            @Override public void onAnimationCancel(android.animation.Animator a) {}
-            @Override public void onAnimationRepeat(android.animation.Animator a) {}
+
+            @Override
+            public void onAnimationCancel(android.animation.Animator a) {
+            }
+
+            @Override
+            public void onAnimationRepeat(android.animation.Animator a) {
+            }
         });
     }
 
@@ -1840,18 +1918,20 @@ public class HomeFragment extends Fragment implements SensorEventListener {
 
     private void startHomeStatsShimmer() {
         if (binding == null) return;
-        binding.shimmerHomeContainer.setVisibility(View.VISIBLE);
-        if (binding.shimmerHomeContainer instanceof com.facebook.shimmer.ShimmerFrameLayout) {
-            ((com.facebook.shimmer.ShimmerFrameLayout) binding.shimmerHomeContainer).startShimmer();
+        android.view.View shimmerRoot = binding.shimmerHomeContainer.getRoot();
+        shimmerRoot.setVisibility(View.VISIBLE);
+        if (shimmerRoot instanceof com.facebook.shimmer.ShimmerFrameLayout) {
+            ((com.facebook.shimmer.ShimmerFrameLayout) shimmerRoot).startShimmer();
         }
     }
 
     private void stopHomeStatsShimmer() {
         if (binding == null) return;
-        if (binding.shimmerHomeContainer instanceof com.facebook.shimmer.ShimmerFrameLayout) {
-            ((com.facebook.shimmer.ShimmerFrameLayout) binding.shimmerHomeContainer).stopShimmer();
+        android.view.View shimmerRoot = binding.shimmerHomeContainer.getRoot();
+        if (shimmerRoot instanceof com.facebook.shimmer.ShimmerFrameLayout) {
+            ((com.facebook.shimmer.ShimmerFrameLayout) shimmerRoot).stopShimmer();
         }
-        binding.shimmerHomeContainer.setVisibility(View.GONE);
+        shimmerRoot.setVisibility(View.GONE);
         binding.rowStats.setVisibility(View.VISIBLE);
         binding.rowStats2.setVisibility(View.VISIBLE);
     }

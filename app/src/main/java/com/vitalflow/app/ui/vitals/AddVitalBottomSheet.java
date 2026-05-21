@@ -155,6 +155,28 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
             }
         });
 
+        // Auto-reconnect last paired BLE device
+        android.content.SharedPreferences blePrefs = requireContext()
+                .getSharedPreferences("ble_prefs", android.content.Context.MODE_PRIVATE);
+        String savedAddress = blePrefs.getString("last_device_address", null);
+        String savedName    = blePrefs.getString("last_device_name", "Last Device");
+        if (savedAddress != null) {
+            android.bluetooth.BluetoothManager bm = (android.bluetooth.BluetoothManager)
+                    requireContext().getSystemService(android.content.Context.BLUETOOTH_SERVICE);
+            if (bm != null) {
+                android.bluetooth.BluetoothAdapter ba = bm.getAdapter();
+                if (ba != null) {
+                    try {
+                        android.bluetooth.BluetoothDevice saved = ba.getRemoteDevice(savedAddress);
+                        binding.tvBtStatus.setText("Reconnecting to " + savedName + "…");
+                        binding.layoutBtInitial.setVisibility(View.GONE);
+                        binding.layoutBtScanning.setVisibility(View.VISIBLE);
+                        connectGatt(saved);
+                    } catch (Exception ignored) { }
+                }
+            }
+        }
+
         // Bluetooth Actions
         binding.cardBluetoothContainer.setOnClickListener(v -> {
             binding.layoutBtInitial.setVisibility(View.GONE);
@@ -344,6 +366,12 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
             @Override
             public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
+                    // Persist this device for next session
+                    requireContext().getSharedPreferences("ble_prefs", android.content.Context.MODE_PRIVATE)
+                            .edit()
+                            .putString("last_device_address", device.getAddress())
+                            .putString("last_device_name", device.getName() != null ? device.getName() : "BLE Device")
+                            .apply();
                     handler.post(() -> {
                         if (binding != null)
                             binding.tvBtStatus.setText("Connected! Discovering Services...");
