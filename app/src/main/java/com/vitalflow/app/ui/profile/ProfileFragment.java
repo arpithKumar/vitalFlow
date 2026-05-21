@@ -61,36 +61,44 @@ public class ProfileFragment extends Fragment {
     private final Handler timeHandler = new Handler(Looper.getMainLooper());
     private Runnable timeRunnable;
 
-    // Excel import file picker — must be registered before onCreate
-    private final ActivityResultLauncher<String> importFileLauncher =
-            registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
-                if (uri == null || !isAdded()) return;
-                Toast.makeText(requireContext(), "Importing…", Toast.LENGTH_SHORT).show();
-                DataImportHelper.restoreFromExcel(requireContext(), uri, appDao,
-                        new DataImportHelper.ImportCallback() {
-                            @Override
-                            public void onSuccess(int itemsRestored) {
-                                if (!isAdded()) return;
-                                requireActivity().runOnUiThread(() ->
-                                        Toast.makeText(requireContext(),
-                                                "✅ Restored " + itemsRestored + " records",
-                                                Toast.LENGTH_LONG).show());
-                            }
-                            @Override
-                            public void onError(String error) {
-                                if (!isAdded()) return;
-                                requireActivity().runOnUiThread(() ->
-                                        Toast.makeText(requireContext(),
-                                                "❌ " + error, Toast.LENGTH_LONG).show());
-                            }
-                        });
-            });
+    // Initialized in onCreate() — after Hilt injects appDao, before onStart()
+    private ActivityResultLauncher<String> importFileLauncher;
 
     @Inject
     SyncRepository syncRepository;
 
     @Inject
     AppDao appDao;
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        // appDao is injected by Hilt in onAttach(), so it is safe to capture here
+        importFileLauncher = registerForActivityResult(
+                new ActivityResultContracts.GetContent(), uri -> {
+                    if (uri == null || !isAdded()) return;
+                    Toast.makeText(requireContext(), "Importing…", Toast.LENGTH_SHORT).show();
+                    DataImportHelper.restoreFromExcel(requireContext(), uri, appDao,
+                            new DataImportHelper.ImportCallback() {
+                                @Override
+                                public void onSuccess(int itemsRestored) {
+                                    if (!isAdded()) return;
+                                    requireActivity().runOnUiThread(() ->
+                                            Toast.makeText(requireContext(),
+                                                    "✅ Restored " + itemsRestored + " records",
+                                                    Toast.LENGTH_LONG).show());
+                                }
+
+                                @Override
+                                public void onError(String error) {
+                                    if (!isAdded()) return;
+                                    requireActivity().runOnUiThread(() ->
+                                            Toast.makeText(requireContext(),
+                                                    "❌ " + error, Toast.LENGTH_LONG).show());
+                                }
+                            });
+                });
+    }
 
     @Nullable
     @Override
@@ -155,7 +163,7 @@ public class ProfileFragment extends Fragment {
         // -----------------------------------------------------------
         binding.cardGeminiConfig.setOnClickListener(v -> {
             com.vitalflow.app.ui.chatbot.GeminiKeyBottomSheet sheet = new com.vitalflow.app.ui.chatbot.GeminiKeyBottomSheet();
-            sheet.setListener(() -> updateGeminiStatusUI());
+            sheet.setListener(this::updateGeminiStatusUI);
             sheet.show(getChildFragmentManager(), "GeminiKey");
         });
         updateGeminiStatusUI();
@@ -329,20 +337,21 @@ public class ProfileFragment extends Fragment {
         long interval = 1;
         TimeUnit unit = TimeUnit.DAYS;
 
-        switch (frequency) {
-            case "Daily":
+        unit = switch (frequency) {
+            case "Daily" -> {
                 interval = 1;
-                unit = TimeUnit.DAYS;
-                break;
-            case "Weekly":
+                yield TimeUnit.DAYS;
+            }
+            case "Weekly" -> {
                 interval = 7;
-                unit = TimeUnit.DAYS;
-                break;
-            case "Monthly":
+                yield TimeUnit.DAYS;
+            }
+            case "Monthly" -> {
                 interval = 30;
-                unit = TimeUnit.DAYS;
-                break;
-        }
+                yield TimeUnit.DAYS;
+            }
+            default -> unit;
+        };
 
         PeriodicWorkRequest syncRequest = new PeriodicWorkRequest.Builder(SyncWorker.class, interval, unit).build();
         workManager.enqueueUniquePeriodicWork(workName, ExistingPeriodicWorkPolicy.UPDATE, syncRequest);
@@ -562,16 +571,14 @@ public class ProfileFragment extends Fragment {
             }
         };
 
-        binding.cardAiPersona.setOnClickListener(v -> {
-            new MaterialAlertDialogBuilder(requireContext())
-                    .setTitle("Select Coach Personality")
-                    .setAdapter(adapter, (dialog, which) -> {
-                        String selectedName = personas[which].name;
-                        prefs.edit().putString("ai_persona", selectedName).apply();
-                        binding.tvCurrentPersona.setText(selectedName);
-                        Toast.makeText(getContext(), "Coach set to: " + selectedName, Toast.LENGTH_SHORT).show();
-                    })
-                    .show();
-        });
+        binding.cardAiPersona.setOnClickListener(v -> new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Select Coach Personality")
+                .setAdapter(adapter, (dialog, which) -> {
+                    String selectedName = personas[which].name;
+                    prefs.edit().putString("ai_persona", selectedName).apply();
+                    binding.tvCurrentPersona.setText(selectedName);
+                    Toast.makeText(getContext(), "Coach set to: " + selectedName, Toast.LENGTH_SHORT).show();
+                })
+                .show());
     }
 }
