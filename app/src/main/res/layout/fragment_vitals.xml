@@ -248,6 +248,54 @@
                             android:backgroundTint="@color/primary" />
                     </LinearLayout>
 
+                    <!-- Vital type selector chips -->
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/chipGroupVitalType"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        app:singleSelection="true"
+                        app:selectionRequired="true">
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipVitalHR"
+                            style="@style/Widget.MaterialComponents.Chip.Choice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true"
+                            android:text="Heart Rate"
+                            android:textColor="@color/text_chip_selector"
+                            app:chipBackgroundColor="@color/bg_chip_selector" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipVitalBP"
+                            style="@style/Widget.MaterialComponents.Chip.Choice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Blood Pressure"
+                            android:textColor="@color/text_chip_selector"
+                            app:chipBackgroundColor="@color/bg_chip_selector" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipVitalSpO2"
+                            style="@style/Widget.MaterialComponents.Chip.Choice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="SpO2"
+                            android:textColor="@color/text_chip_selector"
+                            app:chipBackgroundColor="@color/bg_chip_selector" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipVitalWeight"
+                            style="@style/Widget.MaterialComponents.Chip.Choice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Weight"
+                            android:textColor="@color/text_chip_selector"
+                            app:chipBackgroundColor="@color/bg_chip_selector" />
+
+                    </com.google.android.material.chip.ChipGroup>
+
                     <TextView
                         android:id="@+id/tvChartSummary"
                         android:layout_width="wrap_content"
@@ -381,6 +429,20 @@
                 android:textStyle="bold"
                 android:textColor="@color/text_primary" />
 
+            <!-- Shimmer skeleton shown while loading -->
+            <LinearLayout
+                android:id="@+id/shimmerVitalsContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="vertical"
+                android:visibility="visible">
+
+                <include layout="@layout/layout_skeleton_vital_item" />
+                <include layout="@layout/layout_skeleton_vital_item" />
+                <include layout="@layout/layout_skeleton_vital_item" />
+            </LinearLayout>
+
             <LinearLayout
                 android:id="@+id/layoutEmptyVitals"
                 android:layout_width="match_parent"
@@ -421,7 +483,8 @@
                 android:layout_marginTop="8dp"
                 android:clipToPadding="false"
                 android:nestedScrollingEnabled="false"
-                android:overScrollMode="never" />
+                android:overScrollMode="never"
+                android:visibility="gone" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

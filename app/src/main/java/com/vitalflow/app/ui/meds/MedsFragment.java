@@ -5,6 +5,8 @@ import static androidx.core.content.ContextCompat.getDrawable;
 import androidx.core.content.ContextCompat;
 
 import android.annotation.SuppressLint;
+import android.os.Build;
+import android.view.HapticFeedbackConstants;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -16,6 +18,7 @@ import android.transition.TransitionManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import com.facebook.shimmer.ShimmerFrameLayout;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -101,8 +104,12 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
 
         setupRecyclerView();
 
+        // Start shimmer skeleton while waiting for first data
+        startShimmer();
+
         // OBSERVE DATABASE
         viewModel.getAllMedications().observe(getViewLifecycleOwner(), meds -> {
+            stopShimmer();
             this.allMeds = meds;
             checkDailyResets(meds);
             applyFilters();
@@ -327,6 +334,14 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
 
                 viewModel.insertMedication(med);
 
+                // Haptic feedback on TAKEN
+                if ("TAKEN".equals(newStatus)) {
+                    binding.getRoot().performHapticFeedback(
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                                    ? HapticFeedbackConstants.CONFIRM
+                                    : HapticFeedbackConstants.VIRTUAL_KEY);
+                }
+
                 // NEW: Use the helper to show success snackbar
                 if ("TAKEN".equals(newStatus)) {
                     UiUtils.showCustomSnackbar(binding.getRoot(), requireContext(), "Marked as Taken",
@@ -353,7 +368,7 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
     }
 
     private void setupSwipeToDelete() {
-        ItemTouchHelper.SimpleCallback simpleItemTouchCallback = new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
+        ItemTouchHelper.SimpleCallback simpleItemTouchCallback = new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
             @Override
             public boolean onMove(@NonNull RecyclerView r, @NonNull RecyclerView.ViewHolder v, @NonNull RecyclerView.ViewHolder t) {
                 return false;
@@ -364,38 +379,84 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
                 int position = viewHolder.getBindingAdapterPosition();
                 if (position == RecyclerView.NO_POSITION) return;
 
-                final Medication deletedItem = adapter.getItem(position);
-                if (deletedItem != null) {
-                    viewModel.deleteMedication(deletedItem);
-                }
+                final Medication item = adapter.getItem(position);
+                if (item == null) return;
 
-                UiUtils.showCustomSnackbar(binding.getRoot(), requireContext(), "Medication deleted",
-                        ContextCompat.getColor(requireContext(), R.color.bg_swipe_delete),
-                        ContextCompat.getColor(requireContext(), R.color.icon_swipe_delete),
-                        android.R.drawable.ic_menu_delete, binding.fabAddMed,
-                        v -> {
-                            if (deletedItem != null) {
-                                viewModel.insertMedication(deletedItem);
-                            }
-                        });
+                if (direction == ItemTouchHelper.LEFT) {
+                    // --- SWIPE LEFT: Delete ---
+                    viewModel.deleteMedication(item);
+                    UiUtils.showCustomSnackbar(binding.getRoot(), requireContext(), "Medication deleted",
+                            ContextCompat.getColor(requireContext(), R.color.bg_swipe_delete),
+                            ContextCompat.getColor(requireContext(), R.color.icon_swipe_delete),
+                            android.R.drawable.ic_menu_delete, binding.fabAddMed,
+                            v -> viewModel.insertMedication(item));
+
+                } else {
+                    // --- SWIPE RIGHT: Mark as Taken ---
+                    String oldStatus = item.getStatus();
+                    int oldTaken = item.getTimesTakenToday();
+                    int oldStock = item.getPillsLeft();
+
+                    int current = item.getTimesTakenToday();
+                    if (current < item.getFrequencyPerDay()) {
+                        item.setTimesTakenToday(current + 1);
+                        if (item.getPillsLeft() > 0) item.setPillsLeft(item.getPillsLeft() - 1);
+                    }
+                    viewModel.insertMedication(item);
+
+                    binding.getRoot().performHapticFeedback(
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                                    ? HapticFeedbackConstants.CONFIRM
+                                    : HapticFeedbackConstants.VIRTUAL_KEY);
+
+                    UiUtils.showCustomSnackbar(binding.getRoot(), requireContext(), "Marked as Taken",
+                            ContextCompat.getColor(requireContext(), R.color.primary),
+                            ContextCompat.getColor(requireContext(), R.color.text_on_primary_soft),
+                            R.drawable.ic_check_circle, binding.fabAddMed,
+                            v -> {
+                                item.setDbStatus(oldStatus);
+                                item.setTimesTakenToday(oldTaken);
+                                item.setPillsLeft(oldStock);
+                                viewModel.insertMedication(item);
+                            });
+                }
             }
 
             @Override
             public void onChildDraw(@NonNull Canvas c, @NonNull RecyclerView r, @NonNull RecyclerView.ViewHolder v, float dX, float dY, int action, boolean isActive) {
-                if (action == ItemTouchHelper.ACTION_STATE_SWIPE && dX < 0) {
+                if (action == ItemTouchHelper.ACTION_STATE_SWIPE) {
                     View itemView = v.itemView;
-                    ColorDrawable bg = new ColorDrawable(ContextCompat.getColor(requireContext(), R.color.bg_swipe_delete));
-                    bg.setBounds(itemView.getRight() + (int) dX, itemView.getTop(), itemView.getRight(), itemView.getBottom());
-                    bg.draw(c);
-                    Drawable icon = getDrawable(requireContext(), R.drawable.ic_trash_can);
-                    if (icon != null) {
-                        icon.setTint(ContextCompat.getColor(requireContext(), R.color.icon_swipe_delete));
-                        int h = itemView.getBottom() - itemView.getTop();
-                        int m = (h - icon.getIntrinsicHeight()) / 2;
-                        int top = itemView.getTop() + m;
-                        int left = itemView.getRight() - m - icon.getIntrinsicWidth();
-                        icon.setBounds(left, top, itemView.getRight() - m, top + icon.getIntrinsicHeight());
-                        icon.draw(c);
+
+                    if (dX < 0) {
+                        // Left swipe — red delete background
+                        ColorDrawable bg = new ColorDrawable(ContextCompat.getColor(requireContext(), R.color.bg_swipe_delete));
+                        bg.setBounds(itemView.getRight() + (int) dX, itemView.getTop(), itemView.getRight(), itemView.getBottom());
+                        bg.draw(c);
+                        Drawable icon = getDrawable(requireContext(), R.drawable.ic_trash_can);
+                        if (icon != null) {
+                            icon.setTint(ContextCompat.getColor(requireContext(), R.color.icon_swipe_delete));
+                            int h = itemView.getBottom() - itemView.getTop();
+                            int m = (h - icon.getIntrinsicHeight()) / 2;
+                            int top = itemView.getTop() + m;
+                            int left = itemView.getRight() - m - icon.getIntrinsicWidth();
+                            icon.setBounds(left, top, itemView.getRight() - m, top + icon.getIntrinsicHeight());
+                            icon.draw(c);
+                        }
+                    } else if (dX > 0) {
+                        // Right swipe — green taken background
+                        ColorDrawable bg = new ColorDrawable(ContextCompat.getColor(requireContext(), R.color.med_status_taken));
+                        bg.setBounds(itemView.getLeft(), itemView.getTop(), itemView.getLeft() + (int) dX, itemView.getBottom());
+                        bg.draw(c);
+                        Drawable icon = getDrawable(requireContext(), R.drawable.ic_check_circle);
+                        if (icon != null) {
+                            icon.setTint(ContextCompat.getColor(requireContext(), R.color.text_on_primary));
+                            int h = itemView.getBottom() - itemView.getTop();
+                            int m = (h - icon.getIntrinsicHeight()) / 2;
+                            int top = itemView.getTop() + m;
+                            int left = itemView.getLeft() + m;
+                            icon.setBounds(left, top, left + icon.getIntrinsicWidth(), top + icon.getIntrinsicHeight());
+                            icon.draw(c);
+                        }
                     }
                 }
                 super.onChildDraw(c, r, v, dX, dY, action, isActive);
@@ -404,6 +465,25 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
 
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(simpleItemTouchCallback);
         itemTouchHelper.attachToRecyclerView(binding.rvMeds);
+    }
+
+    private void startShimmer() {
+        if (binding == null) return;
+        binding.shimmerMedsContainer.setVisibility(View.VISIBLE);
+        binding.rvMeds.setVisibility(View.GONE);
+        for (int i = 0; i < binding.shimmerMedsContainer.getChildCount(); i++) {
+            View child = binding.shimmerMedsContainer.getChildAt(i);
+            if (child instanceof ShimmerFrameLayout) ((ShimmerFrameLayout) child).startShimmer();
+        }
+    }
+
+    private void stopShimmer() {
+        if (binding == null) return;
+        for (int i = 0; i < binding.shimmerMedsContainer.getChildCount(); i++) {
+            View child = binding.shimmerMedsContainer.getChildAt(i);
+            if (child instanceof ShimmerFrameLayout) ((ShimmerFrameLayout) child).stopShimmer();
+        }
+        binding.shimmerMedsContainer.setVisibility(View.GONE);
     }
 
     @Override

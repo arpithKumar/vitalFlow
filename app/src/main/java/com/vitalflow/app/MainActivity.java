@@ -23,6 +23,9 @@ import androidx.work.ExistingPeriodicWorkPolicy;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 
+import com.google.android.material.badge.BadgeDrawable;
+import com.vitalflow.app.data.dao.AppDao;
+import com.vitalflow.app.data.entity.Medication;
 import com.vitalflow.app.data.repository.GeminiRepository;
 import com.vitalflow.app.databinding.ActivityMainBinding;
 import com.vitalflow.app.ui.chatbot.FloatingChatManager;
@@ -47,6 +50,8 @@ public class MainActivity extends AppCompatActivity {
 
     @Inject
     GeminiRepository geminiRepository;
+    @Inject
+    AppDao appDao;
     private FloatingChatManager chatManager;
 
     private final ActivityResultLauncher<String[]> multiplePermissionLauncher =
@@ -175,7 +180,46 @@ public class MainActivity extends AppCompatActivity {
                         id == R.id.loginFragment);
                 if (chatManager != null) chatManager.setVisibility(!hideChat);
             });
+
+            // Pending meds badge on the Meds nav tab
+            appDao.getAllMedications().observe(this, meds -> {
+                int pending = countPendingMedsNow(meds);
+                if (pending > 0) {
+                    BadgeDrawable badge = binding.bottomNav.getOrCreateBadge(R.id.medsFragment);
+                    badge.setNumber(pending);
+                    badge.setVisible(true);
+                } else {
+                    binding.bottomNav.removeBadge(R.id.medsFragment);
+                }
+            });
         }
+    }
+
+    private int countPendingMedsNow(List<Medication> meds) {
+        if (meds == null) return 0;
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        int hour = cal.get(java.util.Calendar.HOUR_OF_DAY);
+        String currentCategory = hour < 12 ? "Morning" : (hour < 17 ? "Afternoon" : "Night");
+        String today = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                .format(new java.util.Date());
+        String currentDayOfWeek = new java.text.SimpleDateFormat("EEE", java.util.Locale.getDefault())
+                .format(new java.util.Date());
+
+        int count = 0;
+        for (Medication m : meds) {
+            // Must be active today
+            if (m.getEndDate() != null && !m.getEndDate().equals("Forever")
+                    && m.getEndDate().compareTo(today) < 0) continue;
+            String days = m.getSelectedDays();
+            if (days != null && !days.equals("Everyday") && !days.contains(currentDayOfWeek)) continue;
+            // Must match current time category and be PENDING
+            if (m.getTimeCategory().equals(currentCategory)
+                    && !"TAKEN".equals(m.getStatus())
+                    && !"SKIPPED".equals(m.getStatus())) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private void showNavBar() {

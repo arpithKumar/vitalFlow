@@ -438,10 +438,20 @@
             </androidx.constraintlayout.widget.ConstraintLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Shimmer for stat rows — shown while getDailyHealth loads -->
+        <include
+            android:id="@+id/shimmerHomeContainer"
+            layout="@layout/layout_skeleton_home_stats"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="visible"
+            app:layout_constraintTop_toBottomOf="@id/cardHydration" />
+
         <LinearLayout
             android:id="@+id/rowStats"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:visibility="invisible"
             android:layout_marginHorizontal="24dp"
             android:layout_marginTop="16dp"
             android:orientation="horizontal"
@@ -582,6 +592,7 @@
             android:id="@+id/rowStats2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:visibility="invisible"
             android:layout_marginHorizontal="24dp"
             android:layout_marginTop="16dp"
             android:orientation="horizontal"
@@ -931,6 +942,75 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- MEDICATION ADHERENCE CARD -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardAdherence"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="24dp"
+            android:layout_marginTop="16dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="@color/glass_card_bg_elevated"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/glass_card_stroke"
+            app:strokeWidth="1dp"
+            app:layout_constraintTop_toBottomOf="@id/cardDailyTip">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Weekly Adherence"
+                        android:textAppearance="@style/TextAppearance.VitalFlow.Title"
+                        android:textColor="@color/text_primary" />
+
+                    <TextView
+                        android:id="@+id/tvAdherencePercent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0%"
+                        android:textColor="@color/primary"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+                <ProgressBar
+                    android:id="@+id/progressAdherence"
+                    style="@android:style/Widget.ProgressBar.Horizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="8dp"
+                    android:layout_marginTop="10dp"
+                    android:max="100"
+                    android:progress="0"
+                    android:progressBackgroundTint="@color/glass_card_stroke"
+                    android:progressTint="@color/primary" />
+
+                <TextView
+                    android:id="@+id/tvAdherenceLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Keep it up!"
+                    android:textAppearance="@style/TextAppearance.VitalFlow.Caption"
+                    android:textColor="@color/text_secondary" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardNutrition"
             android:layout_width="match_parent"
@@ -942,7 +1022,7 @@
             app:cardElevation="0dp"
             app:strokeColor="@color/stroke_nutrition_card"
             app:strokeWidth="1dp"
-            app:layout_constraintTop_toBottomOf="@id/cardDailyTip">
+            app:layout_constraintTop_toBottomOf="@id/cardAdherence">
 
             <LinearLayout
                 android:layout_width="match_parent"

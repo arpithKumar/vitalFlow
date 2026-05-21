@@ -42,6 +42,10 @@ public class ReportViewModel extends ViewModel {
         this.geminiRepository = geminiRepository;
     }
 
+    public AppDao getAppDao() {
+        return appDao;
+    }
+
     public LiveData<Report> getReportData() {
         return reportState;
     }

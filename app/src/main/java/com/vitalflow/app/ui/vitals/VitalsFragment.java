@@ -20,6 +20,9 @@ import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.highlight.Highlight;
+import com.github.mikephil.charting.listener.OnChartValueSelectedListener;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.vitalflow.app.R;
 import com.vitalflow.app.data.dao.AppDao;
 import com.vitalflow.app.data.entity.Vital;
@@ -71,7 +74,10 @@ public class VitalsFragment extends Fragment {
                                 .setInterpolator(new android.view.animation.OvershootInterpolator(2f))
                                 .withEndAction(() -> showAddVitalSheet()).start()).start());
 
+        startVitalsShimmer();
+
         viewModel.getAllVitals().observe(getViewLifecycleOwner(), vitals -> {
+            stopVitalsShimmer();
             this.vitalsList = vitals;
             adapter.updateData(vitals);
             setupGraph();
@@ -87,6 +93,7 @@ public class VitalsFragment extends Fragment {
         });
 
         binding.chipGroupTimeFrame.setOnCheckedStateChangeListener((group, checkedIds) -> setupGraph());
+        binding.chipGroupVitalType.setOnCheckedStateChangeListener((group, checkedIds) -> setupGraph());
     }
 
     private long calculateCutoff(int id, long now) {
@@ -106,6 +113,24 @@ public class VitalsFragment extends Fragment {
         int selectedId = binding.chipGroupTimeFrame.getCheckedChipId();
         long cutoffTime = calculateCutoff(selectedId, now);
 
+        // Resolve selected vital type
+        int typeChipId = binding.chipGroupVitalType.getCheckedChipId();
+        String selectedType;
+        String unitLabel;
+        if (typeChipId == R.id.chipVitalBP) {
+            selectedType = "Blood Pressure";
+            unitLabel = "mmHg (systolic)";
+        } else if (typeChipId == R.id.chipVitalSpO2) {
+            selectedType = "Oxygen (SpO2)";
+            unitLabel = "%";
+        } else if (typeChipId == R.id.chipVitalWeight) {
+            selectedType = "Weight";
+            unitLabel = "kg";
+        } else {
+            selectedType = "Heart Rate";
+            unitLabel = "bpm";
+        }
+
         List<Entry> entries = new ArrayList<>();
         int index = 0;
 
@@ -114,7 +139,7 @@ public class VitalsFragment extends Fragment {
         Collections.reverse(chronologicalList);
 
         for (Vital v : chronologicalList) {
-            if (v.getType().equals("Heart Rate") && v.getTimestamp() >= cutoffTime) {
+            if (v.getType().equals(selectedType) && v.getTimestamp() >= cutoffTime) {
                 try {
                     entries.add(new Entry(index++, Float.parseFloat(v.getValue1())));
                 } catch (NumberFormatException ignored) {
@@ -128,7 +153,7 @@ public class VitalsFragment extends Fragment {
             return;
         }
 
-        LineDataSet dataSet = new LineDataSet(entries, "Heart Rate");
+        LineDataSet dataSet = new LineDataSet(entries, selectedType);
 
         // 1. THEME COLOR
         int themeColor = ContextCompat.getColor(requireContext(), R.color.primary);
@@ -164,7 +189,7 @@ public class VitalsFragment extends Fragment {
             }
             float avg = sum / entries.size();
             binding.tvChartSummary.setText(
-                    "Avg " + (int) avg + "  ·  Min " + (int) min + "  ·  Max " + (int) max + " bpm");
+                    "Avg " + (int) avg + "  ·  Min " + (int) min + "  ·  Max " + (int) max + " " + unitLabel);
             binding.tvChartSummary.setVisibility(View.VISIBLE);
         } else {
             binding.tvChartSummary.setVisibility(View.GONE);
@@ -196,27 +221,104 @@ public class VitalsFragment extends Fragment {
         // 7. REFERENCE BANDS (normal HR range 60–100)
         chart.getAxisLeft().removeAllLimitLines();
 
-        LimitLine llMin = new LimitLine(60f, "Min");
-        llMin.setLineColor(ContextCompat.getColor(requireContext(), R.color.trend_up));
-        llMin.setLineWidth(1f);
-        llMin.setTextColor(ContextCompat.getColor(requireContext(), R.color.trend_up));
-        llMin.setTextSize(9f);
-        llMin.enableDashedLine(8f, 4f, 0f);
-        llMin.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_BOTTOM);
-        chart.getAxisLeft().addLimitLine(llMin);
+        // HR-specific reference bands (60–100 bpm normal range)
+        if ("Heart Rate".equals(selectedType)) {
+            LimitLine llMin = new LimitLine(60f, "Min");
+            llMin.setLineColor(ContextCompat.getColor(requireContext(), R.color.trend_up));
+            llMin.setLineWidth(1f);
+            llMin.setTextColor(ContextCompat.getColor(requireContext(), R.color.trend_up));
+            llMin.setTextSize(9f);
+            llMin.enableDashedLine(8f, 4f, 0f);
+            llMin.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_BOTTOM);
+            chart.getAxisLeft().addLimitLine(llMin);
 
-        LimitLine llMax = new LimitLine(100f, "Max");
-        llMax.setLineColor(ContextCompat.getColor(requireContext(), R.color.med_status_pending));
-        llMax.setLineWidth(1f);
-        llMax.setTextColor(ContextCompat.getColor(requireContext(), R.color.med_status_pending));
-        llMax.setTextSize(9f);
-        llMax.enableDashedLine(8f, 4f, 0f);
-        llMax.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_TOP);
-        chart.getAxisLeft().addLimitLine(llMax);
+            LimitLine llMax = new LimitLine(100f, "Max");
+            llMax.setLineColor(ContextCompat.getColor(requireContext(), R.color.med_status_pending));
+            llMax.setLineWidth(1f);
+            llMax.setTextColor(ContextCompat.getColor(requireContext(), R.color.med_status_pending));
+            llMax.setTextSize(9f);
+            llMax.enableDashedLine(8f, 4f, 0f);
+            llMax.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_TOP);
+            chart.getAxisLeft().addLimitLine(llMax);
+        } else if ("Oxygen (SpO2)".equals(selectedType)) {
+            // SpO2 reference: 95% threshold
+            LimitLine llSpO2 = new LimitLine(95f, "95%");
+            llSpO2.setLineColor(ContextCompat.getColor(requireContext(), R.color.med_status_pending));
+            llSpO2.setLineWidth(1f);
+            llSpO2.setTextColor(ContextCompat.getColor(requireContext(), R.color.med_status_pending));
+            llSpO2.setTextSize(9f);
+            llSpO2.enableDashedLine(8f, 4f, 0f);
+            llSpO2.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_BOTTOM);
+            chart.getAxisLeft().addLimitLine(llSpO2);
+        } else if ("Blood Pressure".equals(selectedType)) {
+            // BP systolic normal range 90–120
+            LimitLine llBPLow = new LimitLine(90f, "Low");
+            llBPLow.setLineColor(ContextCompat.getColor(requireContext(), R.color.trend_up));
+            llBPLow.setLineWidth(1f);
+            llBPLow.setTextColor(ContextCompat.getColor(requireContext(), R.color.trend_up));
+            llBPLow.setTextSize(9f);
+            llBPLow.enableDashedLine(8f, 4f, 0f);
+            llBPLow.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_BOTTOM);
+            chart.getAxisLeft().addLimitLine(llBPLow);
+
+            LimitLine llBPHigh = new LimitLine(120f, "Normal");
+            llBPHigh.setLineColor(ContextCompat.getColor(requireContext(), R.color.med_status_pending));
+            llBPHigh.setLineWidth(1f);
+            llBPHigh.setTextColor(ContextCompat.getColor(requireContext(), R.color.med_status_pending));
+            llBPHigh.setTextSize(9f);
+            llBPHigh.enableDashedLine(8f, 4f, 0f);
+            llBPHigh.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_TOP);
+            chart.getAxisLeft().addLimitLine(llBPHigh);
+        }
 
         chart.getAxisLeft().setDrawLimitLinesBehindData(true);
 
-        // 8. ANIMATE
+        // TAP-TO-DETAIL: build an index map of chart entries → source vitals
+        final List<Vital> chartVitals = new ArrayList<>();
+        final String tapUnitLabel = unitLabel;
+        for (Vital v : chronologicalList) {
+            if (v.getType().equals(selectedType) && v.getTimestamp() >= cutoffTime) {
+                try {
+                    Float.parseFloat(v.getValue1());
+                    chartVitals.add(v);
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+
+        chart.setOnChartValueSelectedListener(new OnChartValueSelectedListener() {
+            @Override
+            public void onValueSelected(Entry e, Highlight h) {
+                int idx = (int) e.getX();
+                if (idx < 0 || idx >= chartVitals.size()) return;
+                Vital tapped = chartVitals.get(idx);
+
+                String displayDate = tapped.getDate();
+                try {
+                    java.text.SimpleDateFormat parser = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault());
+                    java.text.SimpleDateFormat display = new java.text.SimpleDateFormat("dd MMM yyyy, h:mm a", java.util.Locale.getDefault());
+                    displayDate = display.format(parser.parse(tapped.getDate()));
+                } catch (Exception ignored) {}
+
+                String value = tapped.getValue2() != null && !tapped.getValue2().isEmpty()
+                        ? tapped.getValue1() + "/" + tapped.getValue2()
+                        : tapped.getValue1();
+                String msg = "📊  " + value + " " + tapUnitLabel + "\n📅  " + displayDate;
+                if (tapped.getContextTags() != null && !tapped.getContextTags().isEmpty()) {
+                    msg += "\n🏷️  " + tapped.getContextTags().replace(", ", " · ");
+                }
+
+                new MaterialAlertDialogBuilder(requireContext())
+                        .setTitle(tapped.getType() + " Reading")
+                        .setMessage(msg)
+                        .setPositiveButton("OK", null)
+                        .show();
+            }
+
+            @Override
+            public void onNothingSelected() {}
+        });
+
+        // 9. ANIMATE
         chart.setData(new LineData(dataSet));
         chart.animateXY(1500, 1500, com.github.mikephil.charting.animation.Easing.EaseOutQuart, com.github.mikephil.charting.animation.Easing.EaseOutQuart);
         chart.invalidate();
@@ -290,5 +392,27 @@ public class VitalsFragment extends Fragment {
     public void onDestroyView() {
         super.onDestroyView();
         binding = null;
+    }
+
+    private void startVitalsShimmer() {
+        if (binding == null) return;
+        binding.shimmerVitalsContainer.setVisibility(View.VISIBLE);
+        for (int i = 0; i < binding.shimmerVitalsContainer.getChildCount(); i++) {
+            View child = binding.shimmerVitalsContainer.getChildAt(i);
+            if (child instanceof com.facebook.shimmer.ShimmerFrameLayout) {
+                ((com.facebook.shimmer.ShimmerFrameLayout) child).startShimmer();
+            }
+        }
+    }
+
+    private void stopVitalsShimmer() {
+        if (binding == null) return;
+        for (int i = 0; i < binding.shimmerVitalsContainer.getChildCount(); i++) {
+            View child = binding.shimmerVitalsContainer.getChildAt(i);
+            if (child instanceof com.facebook.shimmer.ShimmerFrameLayout) {
+                ((com.facebook.shimmer.ShimmerFrameLayout) child).stopShimmer();
+            }
+        }
+        binding.shimmerVitalsContainer.setVisibility(View.GONE);
     }
 }

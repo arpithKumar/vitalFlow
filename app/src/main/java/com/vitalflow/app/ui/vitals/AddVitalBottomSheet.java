@@ -21,6 +21,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.view.HapticFeedbackConstants;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -216,6 +217,10 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
         Vital nv = new Vital(type, val1, val2.isEmpty() ? null : val2, unit, date, System.currentTimeMillis(), ctx.toString().trim(), symptoms.toString().trim());
 
         if (listener != null) listener.onVitalAdded(nv);
+        binding.getRoot().performHapticFeedback(
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                        ? HapticFeedbackConstants.CONFIRM
+                        : HapticFeedbackConstants.VIRTUAL_KEY);
         stopScan(); // Ensure cleanup
         dismiss();
     }

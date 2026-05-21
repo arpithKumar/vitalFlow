@@ -112,6 +112,23 @@
         </com.google.android.material.chip.ChipGroup>
     </HorizontalScrollView>
 
+    <!-- Shimmer skeleton shown while loading -->
+    <LinearLayout
+        android:id="@+id/shimmerMedsContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/scrollFilters">
+
+        <include layout="@layout/layout_skeleton_med_item" />
+        <include layout="@layout/layout_skeleton_med_item" />
+        <include layout="@layout/layout_skeleton_med_item" />
+        <include layout="@layout/layout_skeleton_med_item" />
+    </LinearLayout>
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvMeds"
         android:layout_width="match_parent"
@@ -120,6 +137,7 @@
         android:paddingHorizontal="16dp"
         android:clipToPadding="false"
         android:paddingBottom="100dp"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintTop_toBottomOf="@id/scrollFilters" />
 

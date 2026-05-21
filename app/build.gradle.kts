@@ -122,6 +122,9 @@ dependencies {
     implementation(libs.poi)
     implementation(libs.poi.ooxml)
 
+    // Shimmer skeleton loading
+    implementation(libs.shimmer)
+
 //    debugImplementation(libs.leakcanary.android)
 }
 

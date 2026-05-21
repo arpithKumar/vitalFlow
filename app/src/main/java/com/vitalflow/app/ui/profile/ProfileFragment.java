@@ -83,6 +83,7 @@ public class ProfileFragment extends Fragment {
 //        animateEntry(binding.cardPro, 50);
         animateEntry(binding.lblCloud, 50);
         animateEntry(binding.cardSync, 100);
+        animateEntry(binding.cardViewReport, 130);
 
         animateEntry(binding.lblAi, 150);
         animateEntry(binding.cardGeminiConfig, 200);
@@ -115,6 +116,8 @@ public class ProfileFragment extends Fragment {
         setupSyncDropdown();
         setupPersonaSelector();
         binding.cardSync.setOnClickListener(v -> startSync());
+        binding.cardViewReport.setOnClickListener(v ->
+                Navigation.findNavController(v).navigate(R.id.action_profile_to_report));
 
         // -----------------------------------------------------------
         // 8. GEMINI AI CONFIGURATION

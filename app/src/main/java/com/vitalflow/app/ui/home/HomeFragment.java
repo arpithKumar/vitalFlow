@@ -23,6 +23,7 @@ import android.hardware.SensorManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.HapticFeedbackConstants;
 import android.speech.RecognizerIntent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -602,7 +603,10 @@ public class HomeFragment extends Fragment implements SensorEventListener {
     }
 
     private void setupAdditionalView(View view) {
+        startHomeStatsShimmer();
+
         viewModel.getDailyHealth().observe(getViewLifecycleOwner(), dailyHealth -> {
+            stopHomeStatsShimmer();
             if (dailyHealth == null) {
                 DailyHealth newEntry = new DailyHealth(todayDateKey, 0, 2000, 0, "0h 0m", 0);
                 viewModel.insertDailyHealth(newEntry);
@@ -644,6 +648,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         viewModel.getAllMedications().observe(getViewLifecycleOwner(), meds -> {
             this.activeMedsList = meds;
             calculateNextMedicationSmart(meds);
+            updateAdherenceCard(meds);
         });
 
         binding.btnVoiceLog.setOnClickListener(v -> launchSpeechRecognizer());
@@ -1246,6 +1251,50 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         scaleDown.start();
     }
 
+    private void updateAdherenceCard(List<Medication> meds) {
+        if (binding == null || meds == null || meds.isEmpty()) {
+            if (binding != null) binding.cardAdherence.setVisibility(View.GONE);
+            return;
+        }
+
+        int totalExpected = 0;
+        int totalTaken = 0;
+        for (Medication m : meds) {
+            if (m.getFrequencyPerDay() > 0) {
+                totalExpected += m.getFrequencyPerDay();
+                totalTaken += Math.min(m.getTimesTakenToday(), m.getFrequencyPerDay());
+            }
+        }
+
+        if (totalExpected == 0) {
+            binding.cardAdherence.setVisibility(View.GONE);
+            return;
+        }
+
+        int percent = (int) ((totalTaken / (float) totalExpected) * 100);
+        binding.cardAdherence.setVisibility(View.VISIBLE);
+        binding.tvAdherencePercent.setText(percent + "%");
+
+        android.animation.ObjectAnimator progressAnim = android.animation.ObjectAnimator
+                .ofInt(binding.progressAdherence, "progress", 0, percent);
+        progressAnim.setDuration(800);
+        progressAnim.setInterpolator(new android.view.animation.DecelerateInterpolator());
+        progressAnim.start();
+
+        String label;
+        if (percent == 100) {
+            label = "Perfect today! 🎉";
+            playCelebration();
+        } else if (percent >= 75) {
+            label = "Great job, almost there!";
+        } else if (percent >= 50) {
+            label = totalExpected - totalTaken + " dose(s) remaining today";
+        } else {
+            label = "Don't forget your medications";
+        }
+        binding.tvAdherenceLabel.setText(label);
+    }
+
     private void updateGreeting() {
         int timeOfDay = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
         String greeting;
@@ -1284,6 +1333,10 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         currentDayData.setWaterIntakeMl(newTotal);
         saveToDb();
         playWaterSplash();
+        binding.getRoot().performHapticFeedback(
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                        ? HapticFeedbackConstants.CONFIRM
+                        : HapticFeedbackConstants.VIRTUAL_KEY);
     }
 
     private void springChip(View v, Runnable action) {
@@ -1783,5 +1836,23 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         super.onDestroyView();
         disposables.clear();
         binding = null;
+    }
+
+    private void startHomeStatsShimmer() {
+        if (binding == null) return;
+        binding.shimmerHomeContainer.setVisibility(View.VISIBLE);
+        if (binding.shimmerHomeContainer instanceof com.facebook.shimmer.ShimmerFrameLayout) {
+            ((com.facebook.shimmer.ShimmerFrameLayout) binding.shimmerHomeContainer).startShimmer();
+        }
+    }
+
+    private void stopHomeStatsShimmer() {
+        if (binding == null) return;
+        if (binding.shimmerHomeContainer instanceof com.facebook.shimmer.ShimmerFrameLayout) {
+            ((com.facebook.shimmer.ShimmerFrameLayout) binding.shimmerHomeContainer).stopShimmer();
+        }
+        binding.shimmerHomeContainer.setVisibility(View.GONE);
+        binding.rowStats.setVisibility(View.VISIBLE);
+        binding.rowStats2.setVisibility(View.VISIBLE);
     }
 }

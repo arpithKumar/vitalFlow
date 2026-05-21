@@ -582,6 +582,34 @@ public class PeriodFragment extends Fragment {
         binding.tvSummaryAvgCycle.setText(String.valueOf(avgCycle));
         long daysUntilNext = avgCycle - currentDay;
         binding.tvSummaryNextIn.setText(daysUntilNext > 0 ? String.valueOf(daysUntilNext) : "Late");
+
+        updateTodayInCycleCard(currentDay);
+    }
+
+    private void updateTodayInCycleCard(long day) {
+        binding.cardTodayInCycle.setVisibility(View.VISIBLE);
+        binding.tvTodayCycleDay.setText("Day " + day);
+
+        String phase, desc;
+        if (day <= 5) {
+            phase = "Menstrual Phase";
+            desc = "Rest & recover 🌸";
+        } else if (day <= 13) {
+            phase = "Follicular Phase";
+            desc = "Energy rising ⚡";
+        } else if (day == 14) {
+            phase = "Ovulation";
+            desc = "Peak fertility 🌟";
+        } else if (day <= 28) {
+            phase = "Luteal Phase";
+            desc = "Wind down 🍂";
+        } else {
+            phase = "Late Cycle";
+            desc = "Period may be due 📅";
+        }
+
+        binding.tvTodayCyclePhase.setText(phase);
+        binding.tvTodayCycleDesc.setText(desc);
     }
 
     private void updateSymptomChart(List<PeriodLog> logs) {
