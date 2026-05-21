@@ -209,7 +209,7 @@ public class AddMedBottomSheet extends BottomSheetDialogFragment {
         binding.btnSaveMed.setEnabled(true);
         binding.btnSaveMed.setText("Save Schedule");
 
-        if (response.toUpperCase().startsWith("YES")) {
+        if (response.toUpperCase(java.util.Locale.ROOT).startsWith("YES")) {
             String warning = response.replaceFirst("YES:", "").trim();
 
             new MaterialAlertDialogBuilder(requireContext())

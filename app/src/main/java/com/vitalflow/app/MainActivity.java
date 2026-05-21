@@ -6,6 +6,8 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.view.animation.AccelerateInterpolator;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -41,8 +43,6 @@ import dagger.hilt.android.AndroidEntryPoint;
 public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding binding;
-
-    // Store the ID of the selected tab to calculate slide direction
     private int currentTabId = R.id.homeFragment;
 
     @Inject
@@ -59,12 +59,9 @@ public class MainActivity extends AppCompatActivity {
                         deniedPermissions.add(entry.getKey());
                     }
                 }
-
                 if (allGranted) {
-                    // Initialize things that need permissions
                     NotificationHelper.createNotificationChannel(this);
                 } else {
-                    // Optional: Show a message if critical permissions are denied
                     Toast.makeText(this, "Some features may not work without permissions.", Toast.LENGTH_SHORT).show();
                     handleDeniedPermissions(deniedPermissions);
                 }
@@ -72,23 +69,20 @@ public class MainActivity extends AppCompatActivity {
 
     private void handleDeniedPermissions(List<String> deniedPermissions) {
         var message = new StringBuilder("The following permissions are required for this app to function correctly:\n\n");
-
         for (String perm : deniedPermissions) {
-            // Convert "android.permission.BODY_SENSORS" -> "BODY_SENSORS"
-            String name = perm.substring(perm.lastIndexOf(".") + 1);
-            name = name.replace("_", " ");
+            String name = perm.substring(perm.lastIndexOf(".") + 1).replace("_", " ");
             message.append("• ").append(name).append("\n");
         }
-
         message.append("\nPlease enable them in Settings to continue.");
 
         new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setTitle("Permissions Required")
                 .setMessage(message.toString())
-                .setCancelable(false) // Force user to read
+                .setCancelable(false)
                 .setPositiveButton("Open Settings", (dialog, which) -> {
                     try {
-                        android.content.Intent intent = new android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                        android.content.Intent intent = new android.content.Intent(
+                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
                         intent.setData(android.net.Uri.fromParts("package", getPackageName(), null));
                         startActivity(intent);
                     } catch (Exception e) {
@@ -111,7 +105,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         checkAndRequestAllPermissions();
-
         startMedicationScheduler();
 
         chatManager = new FloatingChatManager(this, geminiRepository);
@@ -129,7 +122,10 @@ public class MainActivity extends AppCompatActivity {
         if (navHostFragment != null) {
             NavController navController = navHostFragment.getNavController();
 
-            // Bottom Navigation Logic
+            binding.bottomNav.setItemActiveIndicatorColor(
+                    android.content.res.ColorStateList.valueOf(
+                            ContextCompat.getColor(this, R.color.primary)));
+
             binding.bottomNav.setOnItemSelectedListener(item -> {
                 int destId = item.getItemId();
                 if (destId == currentTabId) return false;
@@ -139,7 +135,6 @@ public class MainActivity extends AppCompatActivity {
                         .setRestoreState(true)
                         .setPopUpTo(navController.getGraph().getStartDestinationId(), false);
 
-                // Animation Direction Logic
                 if (getTabIndex(destId) > getTabIndex(currentTabId)) {
                     builder.setEnterAnim(R.anim.slide_in_right)
                             .setExitAnim(R.anim.slide_out_left)
@@ -157,13 +152,16 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             });
 
-            // Visibility Logic (Hide Nav/Chat on specific screens)
             navController.addOnDestinationChangedListener((controller, destination, arguments) -> {
                 int id = destination.getId();
                 boolean isMainScreen = (id == R.id.homeFragment || id == R.id.medsFragment ||
                         id == R.id.vitalsFragment || id == R.id.periodFragment);
 
-                binding.bottomNav.setVisibility(isMainScreen ? View.VISIBLE : View.GONE);
+                if (isMainScreen) {
+                    showNavBar();
+                } else {
+                    hideNavBar();
+                }
 
                 if (isMainScreen) {
                     currentTabId = id;
@@ -172,52 +170,70 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
 
-                // Chatbot Visibility
-                boolean hideChat = (id == R.id.onboardingFragment || id == R.id.splashFragment || id == R.id.loginFragment);
+                boolean hideChat = (id == R.id.onboardingFragment ||
+                        id == R.id.splashFragment ||
+                        id == R.id.loginFragment);
                 if (chatManager != null) chatManager.setVisibility(!hideChat);
             });
         }
+    }
+
+    private void showNavBar() {
+        if (binding.navCard.getVisibility() == View.VISIBLE) return;
+        binding.navCard.setAlpha(0f);
+        binding.navCard.setTranslationY(100f);
+        binding.navCard.setVisibility(View.VISIBLE);
+        binding.navCard.animate()
+                .translationY(0f)
+                .alpha(1f)
+                .setDuration(300)
+                .setInterpolator(new DecelerateInterpolator())
+                .start();
+    }
+
+    private void hideNavBar() {
+        if (binding.navCard.getVisibility() == View.GONE) return;
+        binding.navCard.animate()
+                .translationY(binding.navCard.getHeight() > 0 ? binding.navCard.getHeight() + 32f : 300f)
+                .alpha(0f)
+                .setDuration(250)
+                .setInterpolator(new AccelerateInterpolator())
+                .withEndAction(() -> binding.navCard.setVisibility(View.GONE))
+                .start();
     }
 
     private void startMedicationScheduler() {
         PeriodicWorkRequest medRequest =
                 new PeriodicWorkRequest.Builder(MedicationWorker.class, 15, TimeUnit.MINUTES)
                         .build();
-
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
                 "MedicationCheck",
-                ExistingPeriodicWorkPolicy.KEEP, // Don't restart if already running
+                ExistingPeriodicWorkPolicy.KEEP,
                 medRequest);
     }
 
     private void checkAndRequestAllPermissions() {
         List<String> permissionsToRequest = new ArrayList<>();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) { // Android 10+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
                 permissionsToRequest.add(Manifest.permission.ACTIVITY_RECOGNITION);
             }
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BODY_SENSORS) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.BODY_SENSORS);
-            }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BODY_SENSORS) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.BODY_SENSORS);
         }
 
-        // 1. NOTIFICATIONS (Android 13+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS);
             }
         } else {
-            // Pre-13, we just create the channel
             NotificationHelper.createNotificationChannel(this);
         }
 
-        // 2. BLUETOOTH (For Vitals/Devices)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Android 12+: Scan & Connect
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
                 permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN);
             }
@@ -225,44 +241,36 @@ public class MainActivity extends AppCompatActivity {
                 permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT);
             }
         } else {
-            // Android 11 and below need Location for Bluetooth
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION);
             }
         }
 
-        // 3. STORAGE / MEDIA (For Chatbot Attachments & Profile)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            // Android 14+
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
                 permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES);
             }
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) != PackageManager.PERMISSION_GRANTED) {
                 permissionsToRequest.add(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED);
             }
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Android 13
+        } else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
                 permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES);
             }
         } else {
-            // Android 12 and below
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE);
             }
         }
 
-        // EXECUTE REQUEST
         if (!permissionsToRequest.isEmpty()) {
             PermissionBottomSheet sheet = new PermissionBottomSheet();
-            sheet.setOnAllowClicked(() -> {
-                multiplePermissionLauncher.launch(permissionsToRequest.toArray(new String[0]));
-            });
+            sheet.setOnAllowClicked(() ->
+                    multiplePermissionLauncher.launch(permissionsToRequest.toArray(new String[0])));
             sheet.show(getSupportFragmentManager(), "PermissionSheet");
         }
     }
 
-    // Helper to order the tabs: Home(0) -> Meds(1) -> Vitals(2)
     private int getTabIndex(int itemId) {
         if (itemId == R.id.homeFragment) return 0;
         if (itemId == R.id.medsFragment) return 1;

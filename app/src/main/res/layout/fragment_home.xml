@@ -4,7 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/app_background"
+    android:background="@drawable/bg_page_gradient"
+    tools:ignore="TooManyViews"
     android:fillViewport="true"
     android:overScrollMode="never">
 
@@ -13,25 +14,30 @@
         android:layout_height="wrap_content"
         android:paddingBottom="0dp">
 
-        <View
-            android:id="@+id/headerBackground"
-            android:layout_width="match_parent"
-            android:layout_height="220dp"
-            android:background="@drawable/bg_header_gradient"
-            app:layout_constraintTop_toTopOf="parent" />
-
         <TextView
             android:id="@+id/tvGreeting"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="24dp"
             android:layout_marginTop="48dp"
-            android:fontFamily="sans-serif-medium"
+            android:fontFamily="@font/custom_font"
             android:text="Good Morning,"
-            android:textColor="@color/text_on_primary"
+            android:textColor="@color/text_secondary"
             android:textSize="18sp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
+
+        <com.airbnb.lottie.LottieAnimationView
+            android:id="@+id/lottieGreeting"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="8dp"
+            app:lottie_rawRes="@raw/anim_greeting_day"
+            app:lottie_autoPlay="true"
+            app:lottie_loop="true"
+            app:layout_constraintStart_toEndOf="@id/tvGreeting"
+            app:layout_constraintTop_toTopOf="@id/tvGreeting"
+            app:layout_constraintBottom_toBottomOf="@id/tvGreeting" />
 
         <LinearLayout
             android:id="@+id/layoutUserHeader"
@@ -49,10 +55,11 @@
                 android:id="@+id/tvUserName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-black"
+                android:fontFamily="@font/custom_font"
                 android:text="User"
-                android:textColor="@color/text_on_primary"
-                android:textSize="28sp" />
+                android:textColor="@color/text_primary"
+                android:textSize="28sp"
+                android:textStyle="bold" />
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardStreak"
@@ -85,7 +92,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:padding="4dp"
             android:src="@drawable/ic_more_vert"
-            app:tint="@color/white"
+            app:tint="@color/text_primary"
             app:layout_constraintBottom_toBottomOf="@id/layoutUserHeader"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="@id/tvGreeting" />
@@ -106,7 +113,7 @@
             app:layout_constraintTop_toTopOf="@id/tvGreeting"
             app:shapeAppearanceOverlay="@style/CircleImageStyle"
             android:contentDescription="Profile Picture"
-            app:strokeColor="@color/text_on_primary"
+            app:strokeColor="@color/primary"
             app:strokeWidth="1dp" />
 
         <com.google.android.material.imageview.ShapeableImageView
@@ -121,7 +128,7 @@
             app:layout_constraintBottom_toBottomOf="@id/imgProfile"
             app:layout_constraintEnd_toStartOf="@id/imgProfile"
             app:layout_constraintTop_toTopOf="@id/imgProfile"
-            app:tint="@color/text_on_primary" />
+            app:tint="@color/text_primary" />
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardHealthPet"
@@ -129,10 +136,10 @@
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="24dp"
             android:layout_marginTop="16dp"
-            app:cardBackgroundColor="@color/app_surface"
+            app:cardBackgroundColor="@color/glass_card_bg_elevated"
             app:cardCornerRadius="16dp"
-            app:cardElevation="2dp"
-            app:strokeColor="@color/divider_color"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/glass_card_stroke"
             app:strokeWidth="1dp"
             app:layout_constraintTop_toBottomOf="@id/layoutUserHeader">
 
@@ -161,6 +168,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Health Companion"
+                        android:textAppearance="@style/TextAppearance.VitalFlow.Caption"
                         android:textColor="@color/text_secondary"
                         android:textSize="12sp"
                         android:textStyle="bold" />
@@ -170,6 +178,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Waking up..."
+                        android:textAppearance="@style/TextAppearance.VitalFlow.Body"
                         android:textColor="@color/text_primary"
                         android:textSize="14sp" />
                 </LinearLayout>
@@ -182,9 +191,11 @@
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="24dp"
             android:layout_marginTop="24dp"
-            app:cardBackgroundColor="@color/app_surface"
+            app:cardBackgroundColor="@color/glass_card_bg_elevated"
             app:cardCornerRadius="24dp"
-            app:cardElevation="8dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/glass_card_stroke"
+            app:strokeWidth="1dp"
             app:layout_constraintTop_toBottomOf="@id/cardHealthPet">
 
             <androidx.constraintlayout.widget.ConstraintLayout
@@ -197,6 +208,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Daily Hydration"
+                    android:textAppearance="@style/TextAppearance.VitalFlow.Subheading"
                     android:textColor="@color/text_primary"
                     android:textSize="16sp"
                     android:textStyle="bold"
@@ -261,7 +273,7 @@
                         android:includeFontPadding="false"
                         android:text="0"
                         android:textColor="@color/text_on_primary"
-                        android:shadowColor="#004D40"
+                        android:shadowColor="@color/text_on_primary_dark"
                         android:shadowDx="1"
                         android:shadowDy="1"
                         android:shadowRadius="2"
@@ -275,7 +287,7 @@
                         android:includeFontPadding="false"
                         android:text="ml"
                         android:textColor="@color/text_on_primary_soft"
-                        android:shadowColor="#004D40"
+                        android:shadowColor="@color/text_on_primary_dark"
                         android:shadowDx="1"
                         android:shadowDy="1"
                         android:shadowRadius="2"
@@ -295,6 +307,20 @@
                     app:lottie_autoPlay="false"
                     app:lottie_loop="false"
                     app:lottie_rawRes="@raw/confetti" />
+
+                <com.airbnb.lottie.LottieAnimationView
+                    android:id="@+id/lottieWaterSplash"
+                    android:layout_width="140dp"
+                    android:layout_height="140dp"
+                    android:elevation="9dp"
+                    android:visibility="gone"
+                    app:layout_constraintBottom_toBottomOf="@id/progressHydration"
+                    app:layout_constraintEnd_toEndOf="@id/progressHydration"
+                    app:layout_constraintStart_toStartOf="@id/progressHydration"
+                    app:layout_constraintTop_toTopOf="@id/progressHydration"
+                    app:lottie_autoPlay="false"
+                    app:lottie_loop="false"
+                    app:lottie_rawRes="@raw/anim_water_splash" />
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipGoal"
@@ -454,8 +480,9 @@
                         android:layout_height="wrap_content"
                         android:letterSpacing="0.1"
                         android:text="UP NEXT"
+                        android:textAppearance="@style/TextAppearance.VitalFlow.Label"
                         android:textColor="@color/primary_light"
-                        android:textSize="10sp"
+                        android:textSize="11sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -465,12 +492,14 @@
                         android:layout_marginTop="2dp"
                         android:text="Loading..."
                         tools:text="Vitamin D"
+                        android:textAppearance="@style/TextAppearance.VitalFlow.Title"
                         android:ellipsize="end"
                         android:maxLines="1"
                         android:textColor="@color/text_time_val"
                         android:textSize="18sp"
                         android:textStyle="bold" />
 
+                    <!--suppress UseCompoundDrawables: clock icon must be 12dp, compound drawables cannot be sized -->
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -532,7 +561,7 @@
                         android:letterSpacing="0.1"
                         android:text="HEART RATE"
                         android:textColor="@color/chart_limit_line"
-                        android:textSize="10sp"
+                        android:textSize="11sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -565,10 +594,10 @@
                 android:layout_height="130dp"
                 android:layout_marginEnd="8dp"
                 android:layout_weight="1"
-                app:cardBackgroundColor="@color/app_surface"
+                app:cardBackgroundColor="@color/glass_card_bg_elevated"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="0dp"
-                app:strokeColor="@color/divider_color"
+                app:strokeColor="@color/glass_card_stroke"
                 app:strokeWidth="1dp">
 
                 <LinearLayout
@@ -591,7 +620,7 @@
                         android:letterSpacing="0.1"
                         android:text="SLEEP"
                         android:textColor="@color/text_secondary"
-                        android:textSize="10sp"
+                        android:textSize="11sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -604,6 +633,15 @@
                         android:textColor="@color/text_primary"
                         android:textSize="18sp"
                         android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvSleepTrend"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -613,10 +651,10 @@
                 android:layout_height="130dp"
                 android:layout_marginStart="8dp"
                 android:layout_weight="1"
-                app:cardBackgroundColor="@color/app_surface"
+                app:cardBackgroundColor="@color/glass_card_bg_elevated"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="0dp"
-                app:strokeColor="@color/divider_color"
+                app:strokeColor="@color/glass_card_stroke"
                 app:strokeWidth="1dp">
 
                 <LinearLayout
@@ -639,7 +677,7 @@
                         android:letterSpacing="0.1"
                         android:text="STEPS"
                         android:textColor="@color/text_secondary"
-                        android:textSize="10sp"
+                        android:textSize="11sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -652,6 +690,15 @@
                         android:textColor="@color/text_primary"
                         android:textSize="18sp"
                         android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvStepsTrend"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
@@ -662,11 +709,11 @@
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="24dp"
             android:layout_marginTop="16dp"
-            app:cardBackgroundColor="@color/app_surface"
+            app:cardBackgroundColor="@color/glass_card_bg_elevated"
             app:cardCornerRadius="20dp"
             app:cardElevation="0dp"
             app:layout_constraintTop_toBottomOf="@id/rowStats2"
-            app:strokeColor="@color/divider_color"
+            app:strokeColor="@color/glass_card_stroke"
             app:strokeWidth="1dp">
 
             <LinearLayout
@@ -742,11 +789,11 @@
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="24dp"
             android:layout_marginTop="16dp"
-            app:cardBackgroundColor="@color/app_surface"
+            app:cardBackgroundColor="@color/glass_card_bg_elevated"
             app:cardCornerRadius="24dp"
             app:cardElevation="0dp"
             app:layout_constraintTop_toBottomOf="@id/cardMood"
-            app:strokeColor="@color/divider_color"
+            app:strokeColor="@color/glass_card_stroke"
             app:strokeWidth="1dp">
 
             <LinearLayout
@@ -782,6 +829,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Hydration Trend"
+                            android:textAppearance="@style/TextAppearance.VitalFlow.Subheading"
                             android:textColor="@color/text_primary"
                             android:textSize="16sp"
                             android:textStyle="bold" />
@@ -814,28 +862,18 @@
             app:cardCornerRadius="16dp"
             app:layout_constraintTop_toBottomOf="@id/cardWeeklyAnalysis">
 
-            <LinearLayout
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
                 android:padding="16dp"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Your Monthly Recap is Ready! 🎊"
-                    android:textColor="@color/text_on_primary"
-                    android:textStyle="bold"
-                    android:textSize="16sp" />
-
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@drawable/ic_chevron_right"
-                    app:tint="@color/text_on_primary" />
-            </LinearLayout>
+                android:gravity="center_vertical"
+                android:text="Your Monthly Recap is Ready! 🎊"
+                android:textColor="@color/text_on_primary"
+                android:textStyle="bold"
+                android:textSize="16sp"
+                android:drawablePadding="8dp"
+                app:drawableEndCompat="@drawable/ic_chevron_right"
+                app:drawableTint="@color/text_on_primary" />
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
@@ -876,6 +914,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="2dp"
                         android:text="Daily Health Tip"
+                        android:textAppearance="@style/TextAppearance.VitalFlow.Caption"
                         android:textColor="@color/secondary"
                         android:textSize="12sp"
                         android:textStyle="bold" />
@@ -891,7 +930,6 @@
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
-
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardNutrition"

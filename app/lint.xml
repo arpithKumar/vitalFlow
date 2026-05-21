@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Apache POI internal TrustManager — not used for network in this app -->
+    <issue id="TrustAllX509TrustManager" severity="ignore" />
+</lint>

@@ -52,16 +52,41 @@ public class HomeViewModel extends ViewModel {
         currentDate.setValue(dateKey);
     }
 
-    public GeminiRepository getGeminiRepository() { return geminiRepository; }
+    public GeminiRepository getGeminiRepository() {
+        return geminiRepository;
+    }
 
-    public LiveData<List<Medication>> getAllMedications() { return allMedications; }
-    public LiveData<Vital> getLatestHeartRate() { return latestHeartRate; }
-    public LiveData<DailyHealth> getDailyHealth() { return dailyHealth; }
-    public LiveData<List<FoodLog>> getFoodLogs() { return foodLogs; }
-    public LiveData<Integer> getTotalCalories() { return totalCalories; }
+    public AppDao getAppDao() {
+        return appDao;
+    }
 
-    public Single<List<DailyHealth>> getLastSevenDaysSync() { return appDao.getLastSevenDaysSync(); }
-    public Single<List<Medication>> getAllMedicationsSync() { return appDao.getAllMedicationsSync(); }
+    public LiveData<List<Medication>> getAllMedications() {
+        return allMedications;
+    }
+
+    public LiveData<Vital> getLatestHeartRate() {
+        return latestHeartRate;
+    }
+
+    public LiveData<DailyHealth> getDailyHealth() {
+        return dailyHealth;
+    }
+
+    public LiveData<List<FoodLog>> getFoodLogs() {
+        return foodLogs;
+    }
+
+    public LiveData<Integer> getTotalCalories() {
+        return totalCalories;
+    }
+
+    public Single<List<DailyHealth>> getLastSevenDaysSync() {
+        return appDao.getLastSevenDaysSync();
+    }
+
+    public Single<List<Medication>> getAllMedicationsSync() {
+        return appDao.getAllMedicationsSync();
+    }
 
     public void insertDailyHealth(DailyHealth dh) {
         disposables.add(appDao.insertDailyHealth(dh).subscribeOn(Schedulers.io()).subscribe());

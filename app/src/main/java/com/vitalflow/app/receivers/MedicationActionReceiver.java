@@ -13,6 +13,7 @@ import com.vitalflow.app.utils.NotificationHelper;
 import javax.inject.Inject;
 
 import dagger.hilt.android.AndroidEntryPoint;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
 @AndroidEntryPoint
@@ -20,6 +21,8 @@ public class MedicationActionReceiver extends BroadcastReceiver {
 
     @Inject
     AppDao appDao;
+
+    private final CompositeDisposable disposables = new CompositeDisposable();
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -33,19 +36,20 @@ public class MedicationActionReceiver extends BroadcastReceiver {
         // 2. Handle the action based on the intent's action
         if ("ACTION_MARK_TAKEN".equals(action) && medId != null) {
             // Update Database in Background
-            Schedulers.io().scheduleDirect(() -> {
-                // NOTE: Make sure your AppDao has a synchronous or single getter for a specific ID!
-                appDao.getMedicationById(medId).subscribe(med -> {
-                    if (med != null) {
-                        int current = med.getTimesTakenToday();
-                        if (current < med.getFrequencyPerDay()) {
-                            med.setTimesTakenToday(current + 1);
-                            if (med.getPillsLeft() > 0) med.setPillsLeft(med.getPillsLeft() - 1);
-                            appDao.insertMedication(med).subscribeOn(Schedulers.io()).subscribe();
+            disposables.add(
+                appDao.getMedicationById(medId)
+                    .subscribeOn(Schedulers.io())
+                    .subscribe(med -> {
+                        if (med != null) {
+                            int current = med.getTimesTakenToday();
+                            if (current < med.getFrequencyPerDay()) {
+                                med.setTimesTakenToday(current + 1);
+                                if (med.getPillsLeft() > 0) med.setPillsLeft(med.getPillsLeft() - 1);
+                                disposables.add(appDao.insertMedication(med).subscribeOn(Schedulers.io()).subscribe());
+                            }
                         }
-                    }
-                }, Throwable::printStackTrace);
-            });
+                    }, Throwable::printStackTrace)
+            );
             Toast.makeText(context, "Medication marked as taken!", Toast.LENGTH_SHORT).show();
 
         } else if ("ACTION_SNOOZE".equals(action) && medId != null) {

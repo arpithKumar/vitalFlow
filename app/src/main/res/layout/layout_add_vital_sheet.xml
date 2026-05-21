@@ -256,27 +256,17 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <LinearLayout
+                    <TextView
                         android:id="@+id/layoutBtInitial"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center"
-                        android:orientation="horizontal">
-
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:src="@drawable/ic_bluetooth"
-                            app:tint="@color/primary" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="12dp"
-                            android:text="Connect Device via Bluetooth"
-                            android:textColor="@color/primary"
-                            android:textStyle="bold" />
-                    </LinearLayout>
+                        android:text="Connect Device via Bluetooth"
+                        android:textColor="@color/primary"
+                        android:textStyle="bold"
+                        android:drawablePadding="12dp"
+                        app:drawableStartCompat="@drawable/ic_bluetooth"
+                        app:drawableTint="@color/primary" />
 
                     <LinearLayout
                         android:id="@+id/layoutBtScanning"
@@ -311,7 +301,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="120dp"
                             android:layout_marginTop="12dp"
-                            android:background="@color/app_surface"
+                            android:background="@color/glass_card_bg_elevated"
                             android:padding="4dp" />
 
                         <com.google.android.material.button.MaterialButton
@@ -336,7 +326,7 @@
         android:layout_marginHorizontal="24dp"
         android:elevation="4dp"
         android:text="Save Reading"
-        android:textColor="@color/white"
+        android:textColor="@color/text_on_primary"
         android:textSize="16sp"
         android:textStyle="bold"
         app:backgroundTint="@color/primary"

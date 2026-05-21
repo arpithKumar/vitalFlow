@@ -4,14 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/app_background">
-
-    <View
-        android:id="@+id/headerBg"
-        android:layout_width="match_parent"
-        android:layout_height="120dp"
-        android:background="@drawable/bg_header_gradient"
-        app:layout_constraintTop_toTopOf="parent" />
+    android:background="@drawable/bg_page_gradient">
 
     <LinearLayout
         android:id="@+id/headerContent"
@@ -30,7 +23,7 @@
             android:padding="12dp"
             android:src="@drawable/ic_arrow_back"
             android:contentDescription="back button"
-            app:tint="@color/text_on_primary"
+            app:tint="@color/text_primary"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:clickable="true"
             android:focusable="true" />
@@ -40,7 +33,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="My Medications"
-            android:textColor="@color/text_on_primary"
+            android:textAppearance="@style/TextAppearance.VitalFlow.Headline"
+            android:textColor="@color/text_primary"
             android:textSize="24sp"
             android:textStyle="bold"
             android:layout_marginStart="8dp" />
@@ -52,7 +46,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:scrollbars="none"
-        app:layout_constraintTop_toBottomOf="@id/headerBg">
+        app:layout_constraintTop_toBottomOf="@id/headerContent">
 
         <com.google.android.material.chip.ChipGroup
             android:id="@+id/chipGroupFilters"
@@ -136,22 +130,24 @@
         android:orientation="vertical"
         android:gravity="center"
         android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/headerBg"
+        app:layout_constraintTop_toBottomOf="@id/headerContent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <ImageView
-            android:layout_width="100dp"
-            android:layout_height="100dp"
-            android:src="@drawable/ic_empty_box"
-            android:alpha="0.5" />
+        <com.airbnb.lottie.LottieAnimationView
+            android:layout_width="180dp"
+            android:layout_height="180dp"
+            app:lottie_rawRes="@raw/anim_empty_meds"
+            app:lottie_autoPlay="true"
+            app:lottie_loop="true" />
 
         <TextView
             android:id="@+id/tvEmptyTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="No medications yet"
+            android:textAppearance="@style/TextAppearance.VitalFlow.Title"
             android:textColor="@color/text_secondary"
             android:textSize="18sp"
             android:textStyle="bold"
@@ -162,6 +158,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Tap + to add your first prescription"
+            android:textAppearance="@style/TextAppearance.VitalFlow.Body"
             android:textColor="@color/icon_unselected"
             android:textSize="14sp"
             android:layout_marginTop="4dp" />
@@ -189,7 +186,7 @@
         android:src="@drawable/ic_add"
         app:backgroundTint="@color/primary"
         android:contentDescription="Button to add medication"
-        app:tint="@color/white"
+        app:tint="@color/text_on_primary"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 

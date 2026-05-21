@@ -155,4 +155,66 @@
     <color name="icon_pdf">#EF4444</color>
     <color name="icon_excel">#22C55E</color>
 
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  GLASSMORPHISM — PAGE BACKGROUNDS               -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="page_gradient_start">#E0F5F3</color>
+    <color name="page_gradient_mid">#EAF4F9</color>
+    <color name="page_gradient_end">#EDE8F5</color>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  GLASSMORPHISM — CARDS                          -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- 80% white with slight teal tint — main glass card fill -->
+    <color name="glass_card_bg">#CCFFFFFF</color>
+    <!-- 25% white — glass card border -->
+    <color name="glass_card_stroke">#40FFFFFF</color>
+    <!-- 90% white — more opaque glass for elevated/overlapping cards -->
+    <color name="glass_card_bg_elevated">#E6FFFFFF</color>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  GLASSMORPHISM — BOTTOM NAV                     -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- 94% white — floating nav bar background -->
+    <color name="nav_bg">#F0FFFFFF</color>
+    <!-- Nav selected pill: reuses @color/primary (#00897B) -->
+    <!-- Nav icon active: reuses @color/primary -->
+    <!-- Nav icon inactive: reuses @color/icon_unselected -->
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  HERO CARD — TIME OF DAY GRADIENTS              -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="hero_morning_start">#FFF8E1</color>
+    <color name="hero_morning_end">#E0F2F1</color>
+    <color name="hero_afternoon_start">#E0F2F1</color>
+    <color name="hero_afternoon_end">#E3F2FD</color>
+    <color name="hero_night_start">#1A237E</color>
+    <color name="hero_night_end">#4A148C</color>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  STAT CARDS                                     -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- Icon container background on stat cards -->
+    <color name="stat_icon_bg">#E0F5F3</color>
+    <!-- Trend arrows -->
+    <color name="trend_up">#2E7D32</color>
+    <color name="trend_down">#C62828</color>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  MEDICATION STATUS STRIPS                       -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="med_status_taken">#2E7D32</color>
+    <color name="med_status_pending">#F57F17</color>
+    <color name="med_status_skipped">#757575</color>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  Health Plan chip category colors               -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <color name="chip_bg_eat">#E8F5E9</color>
+    <color name="text_chip_eat">#2E7D32</color>
+    <color name="chip_bg_avoid">#FFEBEE</color>
+    <color name="text_chip_avoid">#C62828</color>
+    <color name="chip_bg_tips">#E0F2F1</color>
+    <color name="text_chip_tips">#00695C</color>
+
 </resources>

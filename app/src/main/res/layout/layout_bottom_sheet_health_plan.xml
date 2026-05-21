@@ -39,29 +39,19 @@
                 app:cardCornerRadius="12dp"
                 app:cardElevation="0dp">
 
-                <LinearLayout
+                <TextView
+                    android:id="@+id/tvDaySummary"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:padding="16dp">
-
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@drawable/ic_ai_stars"
-                        app:tint="@color/primary" />
-
-                    <TextView
-                        android:id="@+id/tvDaySummary"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
-                        android:text="Loading..."
-                        android:textColor="@color/primary"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
+                    android:padding="16dp"
+                    android:text="Loading..."
+                    android:textColor="@color/primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:drawablePadding="12dp"
+                    app:drawableStartCompat="@drawable/ic_ai_stars"
+                    app:drawableTint="@color/primary" />
             </com.google.android.material.card.MaterialCardView>
 
             <TextView

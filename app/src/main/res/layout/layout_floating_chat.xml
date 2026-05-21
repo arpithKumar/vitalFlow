@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:fitsSystemWindows="true">
 
-    <androidx.cardview.widget.CardView
+    <com.google.android.material.card.MaterialCardView
         android:id="@+id/chatWindow"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -14,9 +14,11 @@
         android:layout_marginTop="48dp"
         android:layout_marginBottom="48dp"
         android:visibility="invisible"
+        app:cardBackgroundColor="@color/glass_card_bg_elevated"
         app:cardCornerRadius="24dp"
         app:cardElevation="12dp"
-        android:backgroundTint="@color/app_surface">
+        app:strokeColor="@color/glass_card_stroke"
+        app:strokeWidth="1dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
@@ -43,7 +45,7 @@
                     android:layout_marginStart="12dp"
                     android:layout_weight="1"
                     android:text="VitalFlow Assistant"
-                    android:textColor="@color/white"
+                    android:textColor="@color/text_on_primary"
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
@@ -53,7 +55,7 @@
                     android:layout_height="40dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@drawable/ic_close"
-                    app:tint="@color/white" />
+                    app:tint="@color/text_on_primary" />
             </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
@@ -69,7 +71,7 @@
                 android:id="@+id/attachmentPreviewContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@color/app_surface"
+                android:background="@color/glass_card_bg_elevated"
                 android:padding="12dp"
                 android:visibility="gone"
                 android:elevation="5dp"
@@ -101,7 +103,7 @@
                 android:id="@+id/inputContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@color/app_surface"
+                android:background="@color/glass_card_bg_elevated"
                 android:gravity="center_vertical"
                 android:padding="12dp"
                 android:elevation="4dp"
@@ -136,12 +138,12 @@
                     android:src="@drawable/ic_send"
                     app:backgroundTint="@color/primary"
                     app:fabSize="mini"
-                    app:tint="@color/white"
+                    app:tint="@color/text_on_primary"
                     app:elevation="0dp" />
             </LinearLayout>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
-    </androidx.cardview.widget.CardView>
+    </com.google.android.material.card.MaterialCardView>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabChatBubble"

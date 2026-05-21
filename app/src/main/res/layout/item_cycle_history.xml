@@ -5,10 +5,10 @@
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="4dp"
     android:layout_marginBottom="8dp"
-    app:cardBackgroundColor="@color/app_surface"
+    app:cardBackgroundColor="@color/glass_card_bg_elevated"
     app:cardCornerRadius="12dp"
     app:cardElevation="0dp"
-    app:strokeColor="@color/divider_color"
+    app:strokeColor="@color/glass_card_stroke"
     app:strokeWidth="1dp">
 
     <LinearLayout
@@ -63,7 +63,7 @@
                 android:layout_height="wrap_content"
                 android:text="Days"
                 android:textColor="@color/pink_500"
-                android:textSize="10sp" />
+                android:textSize="11sp" />
         </LinearLayout>
 
         <View
@@ -92,7 +92,7 @@
                 android:layout_height="wrap_content"
                 android:text="Cycle"
                 android:textColor="@color/primary"
-                android:textSize="10sp" />
+                android:textSize="11sp" />
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

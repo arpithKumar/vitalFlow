@@ -43,4 +43,12 @@
         android:background="@drawable/bg_heatmap_border"
         android:visibility="gone" />
 
+    <View
+        android:id="@+id/viewTodayRing"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_heatmap_border"
+        android:backgroundTint="@color/primary"
+        android:visibility="gone" />
+
 </FrameLayout>

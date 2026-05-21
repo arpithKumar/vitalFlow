@@ -259,6 +259,7 @@ public class PeriodFragment extends Fragment {
         });
     }
 
+    @SuppressLint("InflateParams")
     private void showDateTooltip(View anchor, Date date) {
         if (getContext() == null || anchor == null) return;
 
@@ -454,10 +455,12 @@ public class PeriodFragment extends Fragment {
                     if (data.historyList.isEmpty()) {
                         binding.tvHistoryTitleCycle.setVisibility(View.GONE);
                         binding.recyclerHistory.setVisibility(View.GONE);
+                        binding.layoutEmptyPeriod.setVisibility(View.VISIBLE);
                         updatePredictionFallback(data.flowLogs);
                     } else {
                         binding.tvHistoryTitleCycle.setVisibility(View.VISIBLE);
                         binding.recyclerHistory.setVisibility(View.VISIBLE);
+                        binding.layoutEmptyPeriod.setVisibility(View.GONE);
                         updatePredictionUI(data.historyList);
                     }
 
@@ -542,6 +545,9 @@ public class PeriodFragment extends Fragment {
             binding.tvDayCount.setText("Day\n--");
             binding.tvCycleStatus.setText("Log your first period");
             binding.progressCycle.setProgress(0);
+            binding.tvSummaryFlowDays.setText("--");
+            binding.tvSummaryAvgCycle.setText("--");
+            binding.tvSummaryNextIn.setText("--");
             return;
         }
 
@@ -571,6 +577,11 @@ public class PeriodFragment extends Fragment {
         animation.setDuration(1000);
         animation.setInterpolator(new DecelerateInterpolator());
         animation.start();
+
+        binding.tvSummaryFlowDays.setText(String.valueOf(lastCycle.durationDays > 0 ? lastCycle.durationDays : 5));
+        binding.tvSummaryAvgCycle.setText(String.valueOf(avgCycle));
+        long daysUntilNext = avgCycle - currentDay;
+        binding.tvSummaryNextIn.setText(daysUntilNext > 0 ? String.valueOf(daysUntilNext) : "Late");
     }
 
     private void updateSymptomChart(List<PeriodLog> logs) {
@@ -650,12 +661,7 @@ public class PeriodFragment extends Fragment {
         }
 
         if (adapter != null) {
-            if (binding.recyclerCalendar.getChildCount() > 0) {
-                adapter.notifyItemRangeChanged(0, daysInMonth.size());
-            } else {
-                // Fallback for first load (when grid is empty)
-                adapter.notifyDataSetChanged();
-            }
+            adapter.notifyItemRangeChanged(0, daysInMonth.size());
         }
         Calendar today = Calendar.getInstance();
         boolean isCurrentMonth = (today.get(Calendar.MONTH) == currentMonth.get(Calendar.MONTH)) &&
@@ -989,6 +995,7 @@ public class PeriodFragment extends Fragment {
             holder.binding.tvDayNumber.setTextColor(ContextCompat.getColor(ctx, R.color.text_day_normal));
             holder.binding.viewSymptomDot.setVisibility(View.GONE);
             holder.binding.viewSelectionBorder.setVisibility(View.GONE);
+            holder.binding.viewTodayRing.setVisibility(View.GONE);
 
             // Gray out non-current month days
             boolean isSameMonth = cal.get(Calendar.MONTH) == currentMonth.get(Calendar.MONTH);
@@ -1018,8 +1025,10 @@ public class PeriodFragment extends Fragment {
             if (log != null && log.isFlow) {
                 // FLOW EXISTS -> Color based on intensity
                 int color;
-                if (log.flowIntensity == 1) color = ContextCompat.getColor(ctx, R.color.bg_day_period);
-                else if (log.flowIntensity == 2) color = ContextCompat.getColor(ctx, R.color.pink_500);
+                if (log.flowIntensity == 1)
+                    color = ContextCompat.getColor(ctx, R.color.bg_day_period);
+                else if (log.flowIntensity == 2)
+                    color = ContextCompat.getColor(ctx, R.color.pink_500);
                 else color = ContextCompat.getColor(ctx, R.color.icon_ai_insight);
 
                 holder.binding.viewBackground.setBackgroundTintList(ColorStateList.valueOf(color));
@@ -1045,6 +1054,14 @@ public class PeriodFragment extends Fragment {
             // --- SELECTION LOGIC ---
             if (tempSelectedDates.contains(key)) {
                 holder.binding.viewSelectionBorder.setVisibility(View.VISIBLE);
+            }
+
+            // Today pulse ring
+            Calendar todayCal = Calendar.getInstance();
+            if (cal.get(Calendar.YEAR) == todayCal.get(Calendar.YEAR) &&
+                    cal.get(Calendar.MONTH) == todayCal.get(Calendar.MONTH) &&
+                    cal.get(Calendar.DAY_OF_MONTH) == todayCal.get(Calendar.DAY_OF_MONTH)) {
+                holder.binding.viewTodayRing.setVisibility(View.VISIBLE);
             }
         }
 

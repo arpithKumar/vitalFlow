@@ -5,6 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/bg_bottom_sheet"
+    tools:ignore="TooManyViews"
     android:paddingTop="24dp"
     android:paddingBottom="24dp">
 
@@ -104,9 +105,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                app:cardBackgroundColor="@color/app_surface"
+                app:cardBackgroundColor="@color/glass_card_bg_elevated"
                 app:cardCornerRadius="12dp"
-                app:cardElevation="4dp">
+                app:cardElevation="0dp"
+                app:strokeColor="@color/glass_card_stroke"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -163,9 +166,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                app:cardBackgroundColor="@color/app_surface"
+                app:cardBackgroundColor="@color/glass_card_bg_elevated"
                 app:cardCornerRadius="12dp"
-                app:cardElevation="4dp">
+                app:cardElevation="0dp"
+                app:strokeColor="@color/glass_card_stroke"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -222,9 +227,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                app:cardBackgroundColor="@color/app_surface"
+                app:cardBackgroundColor="@color/glass_card_bg_elevated"
                 app:cardCornerRadius="12dp"
-                app:cardElevation="4dp">
+                app:cardElevation="0dp"
+                app:strokeColor="@color/glass_card_stroke"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -282,9 +289,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                app:cardBackgroundColor="@color/app_surface"
+                app:cardBackgroundColor="@color/glass_card_bg_elevated"
                 app:cardCornerRadius="12dp"
-                app:cardElevation="4dp">
+                app:cardElevation="0dp"
+                app:strokeColor="@color/glass_card_stroke"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -344,9 +353,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                app:cardBackgroundColor="@color/app_surface"
+                app:cardBackgroundColor="@color/glass_card_bg_elevated"
                 app:cardCornerRadius="12dp"
-                app:cardElevation="4dp">
+                app:cardElevation="0dp"
+                app:strokeColor="@color/glass_card_stroke"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -662,7 +673,7 @@
         android:layout_marginTop="16dp"
         android:elevation="4dp"
         android:text="Save Schedule"
-        android:textColor="@color/white"
+        android:textColor="@color/text_on_primary"
         android:textSize="16sp"
         android:textStyle="bold"
         app:backgroundTint="@color/primary"

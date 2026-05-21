@@ -14,7 +14,7 @@
         android:maxWidth="260dp"
         android:paddingHorizontal="18dp"
         android:paddingVertical="8dp"
-        android:textColor="@color/white"
+        android:textColor="@color/text_on_primary"
         android:textSize="14sp"
         android:layout_marginHorizontal="8dp"
         android:lineSpacingExtra="2dp"

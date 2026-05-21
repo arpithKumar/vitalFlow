@@ -8,10 +8,10 @@
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground"
-    app:cardBackgroundColor="@color/app_surface"
+    app:cardBackgroundColor="@color/glass_card_bg_elevated"
     app:cardCornerRadius="12dp"
-    app:cardElevation="2dp"
-    app:strokeColor="@color/divider_color"
+    app:cardElevation="0dp"
+    app:strokeColor="@color/glass_card_stroke"
     app:strokeWidth="1dp">
 
     <LinearLayout
@@ -71,7 +71,7 @@
             android:text="Connect"
             android:textAllCaps="true"
             android:textColor="@color/primary"
-            android:textSize="10sp"
+            android:textSize="11sp"
             android:textStyle="bold"
             android:letterSpacing="0.05" />
 

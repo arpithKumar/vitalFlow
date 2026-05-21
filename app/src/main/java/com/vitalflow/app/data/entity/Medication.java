@@ -110,7 +110,7 @@ public class Medication {
     // Helper Logic: Categorize time for the UI
     public String getTimeCategory() {
         if (time == null) return "Night";
-        String t = time.toUpperCase();
+        String t = time.toUpperCase(java.util.Locale.ROOT);
         if (t.contains("AM")) return "Morning";
         if (t.contains("PM")) {
             try {

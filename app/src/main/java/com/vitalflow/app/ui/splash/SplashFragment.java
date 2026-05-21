@@ -17,6 +17,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.NavController;
 import androidx.navigation.NavOptions;
@@ -43,20 +44,25 @@ public class SplashFragment extends Fragment {
 
         TextView tvAppName = view.findViewById(R.id.tvAppName);
         TextView tvTagline = view.findViewById(R.id.tvTagline);
+        View progressIndicator = view.findViewById(R.id.progressIndicator);
 
         animateTextSmoothly(tvAppName, "VitalFlow");
 
         if (tvTagline != null) {
             tvTagline.setAlpha(0f);
-            tvTagline.animate().alpha(1f).setStartDelay(1000).setDuration(500).start();
+            tvTagline.animate().alpha(1f).setStartDelay(600).setDuration(500).start();
             Animation popBounce = AnimationUtils.loadAnimation(requireContext(), R.anim.pop_bounce);
             popBounce.setStartOffset(300);
             tvTagline.startAnimation(popBounce);
         }
 
+        if (progressIndicator != null) {
+            progressIndicator.animate().alpha(1f).setStartDelay(800).setDuration(400).start();
+        }
+
         SharedPreferences prefs = requireContext().getSharedPreferences("vital_prefs", Context.MODE_PRIVATE);
         boolean isFirstRun = prefs.getBoolean("IS_FIRST_RUN", true);
-        boolean isBiometricEnabled = prefs.getBoolean("biometric_enabled", false); // Lock Setting
+        boolean isBiometricEnabled = prefs.getBoolean("biometric_enabled", false);
 
         Runnable navigationRunnable = () -> {
             int destination = getDestination(isFirstRun);
@@ -87,7 +93,8 @@ public class SplashFragment extends Fragment {
 
     private void navigate(View view, int destinationId) {
         NavController navController = Navigation.findNavController(view);
-        if (navController.getCurrentDestination() == null || navController.getCurrentDestination().getId() != R.id.splashFragment) {
+        if (navController.getCurrentDestination() == null ||
+                navController.getCurrentDestination().getId() != R.id.splashFragment) {
             return;
         }
 
@@ -114,10 +121,12 @@ public class SplashFragment extends Fragment {
     }
 
     private void animateTextSmoothly(TextView textView, String fullText) {
-        SpannableString spannableString = new SpannableString(fullText);
-        ForegroundColorSpan transparentSpan = new ForegroundColorSpan(Color.TRANSPARENT);
-        spannableString.setSpan(transparentSpan, 0, fullText.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        // Resolve from color token so it respects light / dark mode
+        int revealColor = ContextCompat.getColor(requireContext(), R.color.primary);
 
+        SpannableString spannableString = new SpannableString(fullText);
+        spannableString.setSpan(new ForegroundColorSpan(Color.TRANSPARENT),
+                0, fullText.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         textView.setText(spannableString);
         textView.setVisibility(View.VISIBLE);
 
@@ -128,8 +137,10 @@ public class SplashFragment extends Fragment {
         animator.addUpdateListener(animation -> {
             int index = (int) animation.getAnimatedValue();
             SpannableString newSpannable = new SpannableString(fullText);
-            newSpannable.setSpan(new ForegroundColorSpan(Color.WHITE), 0, index, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            newSpannable.setSpan(new ForegroundColorSpan(Color.TRANSPARENT), index, fullText.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            newSpannable.setSpan(new ForegroundColorSpan(revealColor),
+                    0, index, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            newSpannable.setSpan(new ForegroundColorSpan(Color.TRANSPARENT),
+                    index, fullText.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             textView.setText(newSpannable);
         });
 

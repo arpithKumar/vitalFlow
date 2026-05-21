@@ -10,6 +10,10 @@ android {
         version = release(36)
     }
 
+    lint {
+        lintConfig = file("lint.xml")
+    }
+
     defaultConfig {
         applicationId = "com.vitalflow.app"
         minSdk = 26

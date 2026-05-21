@@ -1,6 +1,5 @@
 package com.vitalflow.app.ui.vitals;
 
-import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -65,7 +64,12 @@ public class VitalsFragment extends Fragment {
         binding.rvVitals.setAdapter(adapter);
         binding.btnBack.setOnClickListener(v -> Navigation.findNavController(view).popBackStack());
 
-        binding.fabAddVital.setOnClickListener(v -> showAddVitalSheet());
+        binding.fabAddVital.setOnClickListener(v ->
+                v.animate().scaleX(0.85f).scaleY(0.85f).setDuration(100)
+                        .withEndAction(() -> v.animate().scaleX(1f).scaleY(1f)
+                                .setDuration(150)
+                                .setInterpolator(new android.view.animation.OvershootInterpolator(2f))
+                                .withEndAction(() -> showAddVitalSheet()).start()).start());
 
         viewModel.getAllVitals().observe(getViewLifecycleOwner(), vitals -> {
             this.vitalsList = vitals;
@@ -73,6 +77,13 @@ public class VitalsFragment extends Fragment {
             setupGraph();
             updateEmergencyCards();
             runInsightEngine();
+            if (vitals.isEmpty()) {
+                binding.layoutEmptyVitals.setVisibility(View.VISIBLE);
+                binding.rvVitals.setVisibility(View.GONE);
+            } else {
+                binding.layoutEmptyVitals.setVisibility(View.GONE);
+                binding.rvVitals.setVisibility(View.VISIBLE);
+            }
         });
 
         binding.chipGroupTimeFrame.setOnCheckedStateChangeListener((group, checkedIds) -> setupGraph());
@@ -143,6 +154,22 @@ public class VitalsFragment extends Fragment {
         Drawable drawable = ContextCompat.getDrawable(requireContext(), R.drawable.fade_teal);
         dataSet.setFillDrawable(drawable);
 
+        // Summary chips
+        if (!entries.isEmpty()) {
+            float min = Float.MAX_VALUE, max = -Float.MAX_VALUE, sum = 0;
+            for (Entry e : entries) {
+                sum += e.getY();
+                if (e.getY() < min) min = e.getY();
+                if (e.getY() > max) max = e.getY();
+            }
+            float avg = sum / entries.size();
+            binding.tvChartSummary.setText(
+                    "Avg " + (int) avg + "  ·  Min " + (int) min + "  ·  Max " + (int) max + " bpm");
+            binding.tvChartSummary.setVisibility(View.VISIBLE);
+        } else {
+            binding.tvChartSummary.setVisibility(View.GONE);
+        }
+
         // 6. CHART CONFIGURATION
         LineChart chart = binding.chartVitals;
         chart.getDescription().setEnabled(false);
@@ -166,13 +193,28 @@ public class VitalsFragment extends Fragment {
 
         chart.getAxisRight().setEnabled(false); // Hide right axis
 
-        // 7. ALERT LINE (Optional, keeps medical context)
-        LimitLine ll = new LimitLine(100f, "");
-        ll.setLineColor(ContextCompat.getColor(requireContext(), R.color.chart_limit_line));
-        ll.setLineWidth(1f);
-        ll.enableDashedLine(10f, 10f, 0f);
+        // 7. REFERENCE BANDS (normal HR range 60–100)
         chart.getAxisLeft().removeAllLimitLines();
-        chart.getAxisLeft().addLimitLine(ll);
+
+        LimitLine llMin = new LimitLine(60f, "Min");
+        llMin.setLineColor(ContextCompat.getColor(requireContext(), R.color.trend_up));
+        llMin.setLineWidth(1f);
+        llMin.setTextColor(ContextCompat.getColor(requireContext(), R.color.trend_up));
+        llMin.setTextSize(9f);
+        llMin.enableDashedLine(8f, 4f, 0f);
+        llMin.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_BOTTOM);
+        chart.getAxisLeft().addLimitLine(llMin);
+
+        LimitLine llMax = new LimitLine(100f, "Max");
+        llMax.setLineColor(ContextCompat.getColor(requireContext(), R.color.med_status_pending));
+        llMax.setLineWidth(1f);
+        llMax.setTextColor(ContextCompat.getColor(requireContext(), R.color.med_status_pending));
+        llMax.setTextSize(9f);
+        llMax.enableDashedLine(8f, 4f, 0f);
+        llMax.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_TOP);
+        chart.getAxisLeft().addLimitLine(llMax);
+
+        chart.getAxisLeft().setDrawLimitLinesBehindData(true);
 
         // 8. ANIMATE
         chart.setData(new LineData(dataSet));

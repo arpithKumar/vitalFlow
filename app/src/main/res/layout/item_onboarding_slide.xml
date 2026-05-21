@@ -1,39 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:gravity="center"
     android:orientation="vertical"
     android:padding="32dp">
 
-    <ImageView
-        android:id="@+id/imgSlide"
-        android:layout_width="280dp"
-        android:layout_height="280dp"
-        android:layout_marginBottom="40dp"
-        android:src="@drawable/ic_heart"
-        android:scaleType="fitCenter" />
+    <!-- Icon in glass card -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="160dp"
+        android:layout_height="160dp"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="@color/glass_card_bg_elevated"
+        app:strokeColor="@color/glass_card_stroke"
+        app:strokeWidth="1dp">
+
+        <ImageView
+            android:id="@+id/imgSlide"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="36dp"
+            android:src="@drawable/ic_heart"
+            app:tint="@color/primary"
+            android:scaleType="fitCenter" />
+
+    </com.google.android.material.card.MaterialCardView>
 
     <TextView
         android:id="@+id/tvTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
+        android:layout_marginTop="32dp"
+        android:layout_marginBottom="12dp"
         android:text="Title Here"
-        android:textColor="@color/primary"
-        android:textSize="24sp"
-        android:textStyle="bold" />
+        android:gravity="center"
+        android:textAppearance="@style/TextAppearance.VitalFlow.Headline"
+        android:textColor="@color/primary" />
 
     <TextView
         android:id="@+id/tvDesc"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Description goes here"
+        android:textAppearance="@style/TextAppearance.VitalFlow.Body"
         android:textColor="@color/text_secondary"
-        android:textSize="16sp"
         android:gravity="center"
-        android:lineSpacingMultiplier="1.2" />
+        android:lineSpacingMultiplier="1.4" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnAction"
@@ -41,10 +55,12 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
         android:text="Connect Gemini AI"
+        android:textColor="@color/text_on_primary"
         android:visibility="gone"
-        app:backgroundTint="?attr/colorPrimary"
+        app:backgroundTint="@color/primary"
         app:cornerRadius="20dp"
         app:icon="@drawable/ic_robot_face"
-        app:iconGravity="textStart" />
+        app:iconGravity="textStart"
+        app:iconTint="@color/text_on_primary" />
 
 </LinearLayout>

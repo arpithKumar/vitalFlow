@@ -5,57 +5,69 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    android:background="@color/app_background">
+    android:background="@drawable/bg_page_gradient">
 
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPager"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@id/layoutBottom"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/layoutBottom" />
 
-    <RelativeLayout
+    <!-- Glass bottom bar: indicator + Skip + Next -->
+    <LinearLayout
         android:id="@+id/layoutBottom"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="24dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_bottom_sheet"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="20dp"
+        android:paddingBottom="32dp"
         app:layout_constraintBottom_toBottomOf="parent">
 
         <com.vitalflow.app.ui.onboarding.SmoothPageIndicator
             android:id="@+id/pageIndicator"
             android:layout_width="wrap_content"
-            android:layout_height="20dp"
-            android:layout_centerVertical="true" />
+            android:layout_height="20dp" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnNext"
-            android:layout_width="wrap_content"
-            android:layout_height="56dp"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:text="Next"
-            android:textColor="@color/white"
-            android:textStyle="bold"
-            app:backgroundTint="@color/primary"
-            app:cornerRadius="28dp"
-            app:icon="@drawable/ic_arrow_forward"
-            app:iconGravity="end"
-            app:iconTint="@color/white" />
+        <!-- Spacer pushes Skip + Next to the right -->
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
 
         <TextView
             android:id="@+id/btnSkip"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_centerVertical="true"
-            android:layout_marginEnd="24dp"
-            android:layout_toStartOf="@id/btnNext"
+            android:layout_marginEnd="16dp"
             android:clickable="true"
             android:focusable="true"
             android:padding="8dp"
             android:text="Skip"
+            android:textAppearance="@style/TextAppearance.VitalFlow.Body"
             android:textColor="@color/text_secondary"
             android:textStyle="bold"
             tools:ignore="TouchTargetSizeCheck" />
 
-    </RelativeLayout>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNext"
+            android:layout_width="wrap_content"
+            android:layout_height="52dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:text="Next"
+            android:textColor="@color/text_on_primary"
+            android:textStyle="bold"
+            app:backgroundTint="@color/primary"
+            app:cornerRadius="26dp"
+            app:icon="@drawable/ic_arrow_forward"
+            app:iconGravity="end"
+            app:iconTint="@color/text_on_primary" />
+
+    </LinearLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

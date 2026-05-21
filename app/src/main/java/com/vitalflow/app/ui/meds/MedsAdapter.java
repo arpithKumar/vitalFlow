@@ -1,17 +1,16 @@
 package com.vitalflow.app.ui.meds;
 
-import android.graphics.Color;
 import android.graphics.Paint;
-
-import androidx.core.content.ContextCompat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.vitalflow.app.R;
 import com.vitalflow.app.data.entity.Medication;
 import com.vitalflow.app.databinding.ItemMedicationBinding;
 import com.vitalflow.app.utils.NotificationHelper;
@@ -119,7 +118,7 @@ public class MedsAdapter extends RecyclerView.Adapter<MedsAdapter.MedViewHolder>
         holder.binding.tvExtraInfo.setText(extra.toString());
 
         // Refill Warning Logic
-        String medType = med.getType() != null ? med.getType().toLowerCase() : "pill";
+        String medType = med.getType() != null ? med.getType().toLowerCase(java.util.Locale.ROOT) : "pill";
         String unit;
 
         if (medType.equals("liquid")) {
@@ -196,7 +195,9 @@ public class MedsAdapter extends RecyclerView.Adapter<MedsAdapter.MedViewHolder>
             holder.binding.tvStatus.setTextColor(ContextCompat.getColor(ctx, R.color.text_success));
             holder.binding.tvStatus.setBackgroundColor(ContextCompat.getColor(ctx, R.color.bg_success));
 
-            holder.binding.cardRoot.setAlpha(0.8f);
+            holder.binding.cardRoot.animate().alpha(0.75f).setDuration(400).start();
+            holder.binding.viewStatusStrip.setBackgroundColor(
+                    ContextCompat.getColor(ctx, R.color.med_status_taken));
 
             // Strike-through
             holder.binding.tvMedName.setPaintFlags(holder.binding.tvMedName.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
@@ -214,19 +215,22 @@ public class MedsAdapter extends RecyclerView.Adapter<MedsAdapter.MedViewHolder>
 
             // Strike-through
             holder.binding.tvMedName.setPaintFlags(holder.binding.tvMedName.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
-
+            holder.binding.viewStatusStrip.setBackgroundColor(
+                    ContextCompat.getColor(ctx, R.color.med_status_skipped));
         } else {
             // PENDING (NORMAL) STATE
             holder.binding.layoutActions.setVisibility(View.VISIBLE);
 
-            holder.binding.cardRoot.setAlpha(1.0f);
+            holder.binding.cardRoot.setAlpha(1f);
+            holder.binding.viewStatusStrip.setBackgroundColor(
+                    ContextCompat.getColor(ctx, R.color.med_status_pending));
 
             // Remove Strike-through
             holder.binding.tvMedName.setPaintFlags(holder.binding.tvMedName.getPaintFlags() & (~Paint.STRIKE_THRU_TEXT_FLAG));
 
             if (total > 1 && taken > 0) {
                 holder.binding.tvStatus.setVisibility(View.VISIBLE);
-                holder.binding.tvStatus.setText(taken + " / " + total + " Taken");
+                holder.binding.tvStatus.setText(MessageFormat.format("{0} / {1} Taken", taken, total));
                 holder.binding.tvStatus.setTextColor(ContextCompat.getColor(ctx, R.color.primary));
                 holder.binding.tvStatus.setBackgroundColor(ContextCompat.getColor(ctx, R.color.chip_bg_selected));
             } else {

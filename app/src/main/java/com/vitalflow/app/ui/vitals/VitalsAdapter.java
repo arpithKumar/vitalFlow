@@ -72,7 +72,7 @@ public class VitalsAdapter extends RecyclerView.Adapter<VitalsAdapter.VitalViewH
     public void onBindViewHolder(@NonNull VitalViewHolder holder, int position) {
         Vital item = list.get(position);
 
-        holder.binding.tvTitle.setText(item.getType().toUpperCase());
+        holder.binding.tvTitle.setText(item.getType().toUpperCase(java.util.Locale.ROOT));
         try {
             Date parsed = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(item.getDate());
             holder.binding.tvDate.setText(new SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(parsed));

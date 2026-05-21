@@ -4,6 +4,7 @@ import static androidx.core.content.ContextCompat.getDrawable;
 
 import androidx.core.content.ContextCompat;
 
+import android.annotation.SuppressLint;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -107,7 +108,12 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
             applyFilters();
         });
 
-        binding.fabAddMed.setOnClickListener(v -> showAddSheet(null));
+        binding.fabAddMed.setOnClickListener(v ->
+                v.animate().scaleX(0.85f).scaleY(0.85f).setDuration(100)
+                        .withEndAction(() -> v.animate().scaleX(1f).scaleY(1f)
+                                .setDuration(150)
+                                .setInterpolator(new android.view.animation.OvershootInterpolator(2f))
+                                .withEndAction(() -> showAddSheet(null)).start()).start());
 
         setupSwipeToDelete();
 
@@ -179,6 +185,7 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
         );
     }
 
+    @SuppressLint("InflateParams")
     private void showLoadingDialog() {
         if (loadingDialog == null) {
             loadingDialog = new MaterialAlertDialogBuilder(requireContext())

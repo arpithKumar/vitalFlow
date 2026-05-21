@@ -95,8 +95,6 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import javax.inject.Inject;
-
 import dagger.hilt.android.AndroidEntryPoint;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Single;
@@ -217,7 +215,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                     if (result.getResultCode() == getActivity().RESULT_OK && result.getData() != null) {
                         ArrayList<String> matches = result.getData().getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
                         if (matches != null && !matches.isEmpty()) {
-                            String spokenText = matches.get(0).toLowerCase();
+                            String spokenText = matches.get(0).toLowerCase(java.util.Locale.ROOT);
                             processVoiceCommand(spokenText);
                         }
                     }
@@ -227,7 +225,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         documentPickerLauncher = registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
             if (uri != null) {
                 showLoadingDialog();
-                DataImportHelper.restoreFromExcel(requireContext(), uri, appDao, new DataImportHelper.ImportCallback() {
+                DataImportHelper.restoreFromExcel(requireContext(), uri, viewModel.getAppDao(), new DataImportHelper.ImportCallback() {
                     @Override
                     public void onSuccess(int itemsRestored) {
                         if (getActivity() != null) getActivity().runOnUiThread(() -> {
@@ -390,14 +388,16 @@ public class HomeFragment extends Fragment implements SensorEventListener {
     }
 
     private void startProfileHintAnimation() {
-        ObjectAnimator scaleX = ObjectAnimator.ofFloat(binding.imgProfile, "scaleX", 1.0f, 1.1f, 1.0f);
-        ObjectAnimator scaleY = ObjectAnimator.ofFloat(binding.imgProfile, "scaleY", 1.0f, 1.1f, 1.0f);
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(binding.imgProfile, "scaleX", 1.0f, 1.06f, 1.0f);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(binding.imgProfile, "scaleY", 1.0f, 1.06f, 1.0f);
 
-        scaleX.setDuration(1000);
-        scaleY.setDuration(1000);
+        scaleX.setDuration(2000);
+        scaleY.setDuration(2000);
 
-        scaleX.setRepeatCount(2);
-        scaleY.setRepeatCount(2);
+        scaleX.setRepeatCount(ObjectAnimator.INFINITE);
+        scaleY.setRepeatCount(ObjectAnimator.INFINITE);
+        scaleX.setRepeatMode(ObjectAnimator.RESTART);
+        scaleY.setRepeatMode(ObjectAnimator.RESTART);
 
         AnimatorSet animatorSet = new AnimatorSet();
         animatorSet.playTogether(scaleX, scaleY);
@@ -423,7 +423,7 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                     boolean isPro = prefs.getBoolean("is_pro_member", false);
                     if (isPro) {
                         Toast.makeText(getContext(), "Generating Excel Backup...", Toast.LENGTH_SHORT).show();
-                        DataExportHelper.exportData(requireContext(), appDao);
+                        DataExportHelper.exportData(requireContext(), viewModel.getAppDao());
                     } else {
 
                         showUpgradeDialog();
@@ -1248,12 +1248,26 @@ public class HomeFragment extends Fragment implements SensorEventListener {
 
     private void updateGreeting() {
         int timeOfDay = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
-        binding.tvGreeting.setText(
-                timeOfDay < 12 ?
-                        "Good Morning," :
-                        timeOfDay < 16 ?
-                                "Good Afternoon," :
-                                "Good Evening,");
+        String greeting;
+        int heroBgColor;
+        int lottieRes;
+        if (timeOfDay < 12) {
+            greeting = "Good Morning,";
+            heroBgColor = ContextCompat.getColor(requireContext(), R.color.bg_streak_card);
+            lottieRes = R.raw.anim_greeting_day;
+        } else if (timeOfDay < 17) {
+            greeting = "Good Afternoon,";
+            heroBgColor = ContextCompat.getColor(requireContext(), R.color.bg_insight_positive);
+            lottieRes = R.raw.anim_greeting_day;
+        } else {
+            greeting = "Good Evening,";
+            heroBgColor = ContextCompat.getColor(requireContext(), R.color.bg_date_start);
+            lottieRes = R.raw.anim_greeting_night;
+        }
+        binding.tvGreeting.setText(greeting);
+        binding.cardHealthPet.setCardBackgroundColor(heroBgColor);
+        binding.lottieGreeting.setAnimation(lottieRes);
+        binding.lottieGreeting.playAnimation();
     }
 
     private void addWater(int amount) {
@@ -1269,6 +1283,30 @@ public class HomeFragment extends Fragment implements SensorEventListener {
 
         currentDayData.setWaterIntakeMl(newTotal);
         saveToDb();
+        playWaterSplash();
+    }
+
+    private void springChip(View v, Runnable action) {
+        v.animate().scaleX(0.88f).scaleY(0.88f).setDuration(80)
+                .withEndAction(() -> v.animate().scaleX(1f).scaleY(1f)
+                        .setDuration(140)
+                        .setInterpolator(new android.view.animation.OvershootInterpolator(2f))
+                        .withEndAction(action).start()).start();
+    }
+
+    private void playWaterSplash() {
+        if (binding == null) return;
+        binding.lottieWaterSplash.setVisibility(View.VISIBLE);
+        binding.lottieWaterSplash.playAnimation();
+        binding.lottieWaterSplash.addAnimatorListener(new android.animation.Animator.AnimatorListener() {
+            @Override public void onAnimationStart(android.animation.Animator a) {}
+            @Override public void onAnimationEnd(android.animation.Animator a) {
+                if (binding != null) binding.lottieWaterSplash.setVisibility(View.GONE);
+                binding.lottieWaterSplash.removeAllAnimatorListeners();
+            }
+            @Override public void onAnimationCancel(android.animation.Animator a) {}
+            @Override public void onAnimationRepeat(android.animation.Animator a) {}
+        });
     }
 
     // UPDATED: Smooth animation logic for Ring, Drop, and Text
@@ -1488,8 +1526,50 @@ public class HomeFragment extends Fragment implements SensorEventListener {
 
     private void updateStatsUI() {
         if (currentDayData == null) return;
-        binding.tvStepsValue.setText(String.format(Locale.US, "%,d", currentDayData.getStepCount()));
+        animateCountUp(currentDayData.getStepCount());
         binding.tvSleepValue.setText(currentDayData.getSleepDuration());
+        loadYesterdayTrend();
+    }
+
+    private void animateCountUp(int targetSteps) {
+        ValueAnimator animator = ValueAnimator.ofInt(0, targetSteps);
+        animator.setDuration(1200);
+        animator.setInterpolator(new android.view.animation.DecelerateInterpolator());
+        animator.addUpdateListener(a ->
+                binding.tvStepsValue.setText(
+                        String.format(Locale.US, "%,d", (int) a.getAnimatedValue())));
+        animator.start();
+    }
+
+    private void loadYesterdayTrend() {
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.DAY_OF_YEAR, -1);
+        String yesterday = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.getTime());
+
+        disposables.add(viewModel.getAppDao().getDailyHealthSync(yesterday)
+                .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
+                .observeOn(io.reactivex.rxjava3.android.schedulers.AndroidSchedulers.mainThread())
+                .subscribe(
+                        yesterdayData -> {
+                            if (binding == null) return;
+                            int todaySteps = currentDayData.getStepCount();
+                            int yesterdaySteps = yesterdayData.getStepCount();
+                            int diff = todaySteps - yesterdaySteps;
+                            if (yesterdaySteps > 0) {
+                                binding.tvStepsTrend.setVisibility(View.VISIBLE);
+                                if (diff >= 0) {
+                                    binding.tvStepsTrend.setText("▲ " + String.format(Locale.US, "%,d", diff) + " vs yesterday");
+                                    binding.tvStepsTrend.setTextColor(ContextCompat.getColor(requireContext(), R.color.trend_up));
+                                } else {
+                                    binding.tvStepsTrend.setText("▼ " + String.format(Locale.US, "%,d", Math.abs(diff)) + " vs yesterday");
+                                    binding.tvStepsTrend.setTextColor(ContextCompat.getColor(requireContext(), R.color.trend_down));
+                                }
+                            }
+                            binding.tvSleepTrend.setVisibility(View.GONE);
+                        },
+                        error -> {
+                        }
+                ));
     }
 
     private void showSetGoalDialog() {
@@ -1517,10 +1597,10 @@ public class HomeFragment extends Fragment implements SensorEventListener {
     }
 
     private void setupHydrationChips() {
-        binding.chip250.setOnClickListener(v -> addWater(250));
-        binding.chip500.setOnClickListener(v -> addWater(500));
-        binding.chip750.setOnClickListener(v -> addWater(750));
-        binding.chipCustom.setOnClickListener(v -> showCustomWaterDialog());
+        binding.chip250.setOnClickListener(v -> springChip(v, () -> addWater(250)));
+        binding.chip500.setOnClickListener(v -> springChip(v, () -> addWater(500)));
+        binding.chip750.setOnClickListener(v -> springChip(v, () -> addWater(750)));
+        binding.chipCustom.setOnClickListener(v -> springChip(v, this::showCustomWaterDialog));
     }
 
     private void showCustomWaterDialog() {

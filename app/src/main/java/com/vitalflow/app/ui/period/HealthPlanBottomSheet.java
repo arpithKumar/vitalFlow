@@ -1,7 +1,6 @@
 package com.vitalflow.app.ui.period;
 
 import android.content.res.ColorStateList;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -9,6 +8,7 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
@@ -60,33 +60,33 @@ public class HealthPlanBottomSheet extends BottomSheetDialogFragment {
             adapter.setData(plan.workout);
         }
 
-        // 3. Nutrition (Eat) - Green Theme
+        // 3. Nutrition (Eat) — Green Theme
         if (plan.nutrition != null && plan.nutrition.eat != null) {
             for (String food : plan.nutrition.eat) {
-                addChip(binding.groupEat, food, "#E8F5E9", "#2E7D32"); // Light Green / Dark Green
+                addChip(binding.groupEat, food, R.color.chip_bg_eat, R.color.text_chip_eat);
             }
         }
 
-        // 4. Nutrition (Avoid) - Red Theme
+        // 4. Nutrition (Avoid) — Red Theme
         if (plan.nutrition != null && plan.nutrition.avoid != null) {
             for (String food : plan.nutrition.avoid) {
-                addChip(binding.groupAvoid, food, "#FFEBEE", "#C62828"); // Light Red / Dark Red
+                addChip(binding.groupAvoid, food, R.color.chip_bg_avoid, R.color.text_chip_avoid);
             }
         }
 
-        // 5. Relief Tips - Teal Theme
+        // 5. Relief Tips — Teal Theme
         if (plan.reliefTips != null) {
             for (String tip : plan.reliefTips) {
-                addChip(binding.groupTips, tip, "#E0F2F1", "#00695C"); // Light Teal / Dark Teal
+                addChip(binding.groupTips, tip, R.color.chip_bg_tips, R.color.text_chip_tips);
             }
         }
     }
 
-    private void addChip(com.google.android.material.chip.ChipGroup group, String text, String bgColorHex, String textColorHex) {
+    private void addChip(com.google.android.material.chip.ChipGroup group, String text, int bgColorRes, int textColorRes) {
         Chip chip = new Chip(getContext());
         chip.setText(text);
-        chip.setChipBackgroundColor(ColorStateList.valueOf(Color.parseColor(bgColorHex)));
-        chip.setTextColor(Color.parseColor(textColorHex));
+        chip.setChipBackgroundColor(ColorStateList.valueOf(ContextCompat.getColor(requireContext(), bgColorRes)));
+        chip.setTextColor(ContextCompat.getColor(requireContext(), textColorRes));
         chip.setTextSize(14f);
         float radiusPx = 16f * getResources().getDisplayMetrics().density;
         ShapeAppearanceModel shape = chip.getShapeAppearanceModel()

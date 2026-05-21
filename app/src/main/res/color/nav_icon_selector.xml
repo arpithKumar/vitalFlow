@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- White icon/text when sitting inside the teal active indicator pill -->
+    <item android:state_checked="true" android:color="@color/white" />
+    <!-- Grey when unselected -->
+    <item android:color="@color/icon_unselected" />
+</selector>

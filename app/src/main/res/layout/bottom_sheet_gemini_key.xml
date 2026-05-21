@@ -36,10 +36,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
-        app:cardBackgroundColor="@color/app_background"
+        app:cardBackgroundColor="@color/glass_card_bg_elevated"
         app:cardCornerRadius="12dp"
         app:strokeColor="?attr/colorPrimary"
-        app:strokeWidth="1dp">
+        app:strokeWidth="1dp"
+        app:cardElevation="0dp">
 
         <LinearLayout
             android:id="@+id/btnGetKey"
@@ -111,6 +112,7 @@
         android:layout_height="56dp"
         android:layout_marginTop="24dp"
         android:text="Connect &amp; Activate"
+        android:textColor="@color/text_on_primary"
         app:cornerRadius="12dp" />
 
 </LinearLayout>
