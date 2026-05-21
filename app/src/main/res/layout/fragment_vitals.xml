@@ -39,11 +39,12 @@
                         android:layout_marginEnd="12dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
+                        android:contentDescription="Go back"
                         android:focusable="true"
                         android:padding="8dp"
                         android:src="@drawable/ic_arrow_back"
                         app:tint="@color/text_primary"
-                        tools:ignore="TouchTargetSizeCheck,SpeakableTextPresentCheck" />
+                        tools:ignore="TouchTargetSizeCheck" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -93,6 +94,7 @@
                             <ImageView
                                 android:layout_width="20dp"
                                 android:layout_height="20dp"
+                                android:importantForAccessibility="no"
                                 android:src="@drawable/ic_heart"
                                 app:tint="@color/warning_red" />
 
@@ -137,6 +139,7 @@
                             <ImageView
                                 android:layout_width="20dp"
                                 android:layout_height="20dp"
+                                android:importantForAccessibility="no"
                                 android:src="@drawable/ic_water_drop"
                                 app:tint="@color/warning_yellow" />
 
@@ -181,6 +184,7 @@
                             <ImageView
                                 android:layout_width="20dp"
                                 android:layout_height="20dp"
+                                android:importantForAccessibility="no"
                                 android:src="@drawable/ic_water_drop"
                                 app:tint="@color/info_blue" />
 
@@ -383,6 +387,7 @@
                     <ImageView
                         android:layout_width="32dp"
                         android:layout_height="32dp"
+                        android:importantForAccessibility="no"
                         android:src="@drawable/ic_water_drop"
                         app:tint="@color/text_date_start_label"
                         android:background="@drawable/circle_shape"

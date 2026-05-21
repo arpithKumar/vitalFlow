@@ -17,6 +17,8 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatDelegate;
@@ -38,6 +40,7 @@ import com.vitalflow.app.data.dao.AppDao;
 import com.vitalflow.app.data.repository.SyncRepository;
 import com.vitalflow.app.databinding.FragmentProfileBinding;
 import com.vitalflow.app.utils.DataExportHelper;
+import com.vitalflow.app.utils.DataImportHelper;
 import com.vitalflow.app.utils.NotificationHelper;
 import com.vitalflow.app.workers.SyncWorker;
 
@@ -57,6 +60,31 @@ public class ProfileFragment extends Fragment {
     // For live "Last synced: X seconds ago" updates
     private final Handler timeHandler = new Handler(Looper.getMainLooper());
     private Runnable timeRunnable;
+
+    // Excel import file picker — must be registered before onCreate
+    private final ActivityResultLauncher<String> importFileLauncher =
+            registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
+                if (uri == null || !isAdded()) return;
+                Toast.makeText(requireContext(), "Importing…", Toast.LENGTH_SHORT).show();
+                DataImportHelper.restoreFromExcel(requireContext(), uri, appDao,
+                        new DataImportHelper.ImportCallback() {
+                            @Override
+                            public void onSuccess(int itemsRestored) {
+                                if (!isAdded()) return;
+                                requireActivity().runOnUiThread(() ->
+                                        Toast.makeText(requireContext(),
+                                                "✅ Restored " + itemsRestored + " records",
+                                                Toast.LENGTH_LONG).show());
+                            }
+                            @Override
+                            public void onError(String error) {
+                                if (!isAdded()) return;
+                                requireActivity().runOnUiThread(() ->
+                                        Toast.makeText(requireContext(),
+                                                "❌ " + error, Toast.LENGTH_LONG).show());
+                            }
+                        });
+            });
 
     @Inject
     SyncRepository syncRepository;
@@ -84,6 +112,7 @@ public class ProfileFragment extends Fragment {
         animateEntry(binding.lblCloud, 50);
         animateEntry(binding.cardSync, 100);
         animateEntry(binding.cardViewReport, 130);
+        animateEntry(binding.cardImport, 145);
 
         animateEntry(binding.lblAi, 150);
         animateEntry(binding.cardGeminiConfig, 200);
@@ -118,6 +147,8 @@ public class ProfileFragment extends Fragment {
         binding.cardSync.setOnClickListener(v -> startSync());
         binding.cardViewReport.setOnClickListener(v ->
                 Navigation.findNavController(v).navigate(R.id.action_profile_to_report));
+        binding.cardImport.setOnClickListener(v ->
+                importFileLauncher.launch("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
 
         // -----------------------------------------------------------
         // 8. GEMINI AI CONFIGURATION

@@ -1,11 +1,9 @@
 package com.vitalflow.app.utils;
 
-import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
@@ -33,14 +31,8 @@ public class ReminderWorker extends Worker {
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         int notificationId = 1;
 
-        Intent appIntent = new Intent(context, com.vitalflow.app.MainActivity.class);
-        appIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        PendingIntent appPendingIntent = PendingIntent.getActivity(
-                context,
-                0,
-                appIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
+        PendingIntent appPendingIntent = NotificationHelper.getDeepLinkIntent(
+                context, NotificationHelper.DEST_HOME, 30);
 
         // 2. Create the "Drink 250ml" Action Intent
         Intent actionIntent = new Intent(context, WaterActionReceiver.class);

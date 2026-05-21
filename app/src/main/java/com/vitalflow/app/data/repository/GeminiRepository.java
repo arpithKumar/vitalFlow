@@ -3,6 +3,8 @@ package com.vitalflow.app.data.repository;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.SharedPreferences;
+
+import com.vitalflow.app.BuildConfig;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
@@ -183,7 +185,7 @@ public class GeminiRepository {
                         int endIndex = rawText.lastIndexOf('}');
                         if (startIndex != -1 && endIndex != -1 && startIndex < endIndex) {
                             String json = rawText.substring(startIndex, endIndex + 1);
-                            Log.d("Gemini Periods Response", json);
+                            if (BuildConfig.DEBUG) Log.d("Gemini Periods Response", json);
                             HealthPlan plan = gson.fromJson(json, HealthPlan.class);
                             callback.onSuccess(plan);
                         } else {

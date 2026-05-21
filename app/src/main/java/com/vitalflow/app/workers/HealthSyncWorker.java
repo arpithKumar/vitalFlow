@@ -3,6 +3,8 @@ package com.vitalflow.app.workers;
 import android.content.Context;
 import android.util.Log;
 
+import com.vitalflow.app.BuildConfig;
+
 import androidx.annotation.NonNull;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
@@ -33,7 +35,7 @@ public class HealthSyncWorker extends Worker {
     @NonNull
     @Override
     public Result doWork() {
-        Log.d("HealthSyncWorker", "Starting health sync...");
+        if (BuildConfig.DEBUG) Log.d("HealthSyncWorker", "Starting health sync...");
 
         HealthWorkerEntryPoint entryPoint = EntryPointAccessors.fromApplication(
                 getApplicationContext(),
@@ -91,7 +93,7 @@ public class HealthSyncWorker extends Worker {
         try {
             latch.await(15, TimeUnit.SECONDS);
             appDao.insertDailyHealth(finalHealth).blockingAwait();
-            Log.d("HealthSyncWorker", "Health sync completed successfully");
+            if (BuildConfig.DEBUG) Log.d("HealthSyncWorker", "Health sync completed successfully");
             return Result.success();
         } catch (Exception e) {
             Log.e("HealthSyncWorker", "Error syncing health data", e);

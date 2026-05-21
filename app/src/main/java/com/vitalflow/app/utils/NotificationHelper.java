@@ -65,10 +65,26 @@ public class NotificationHelper {
         notificationManager.createNotificationChannel(waterChannel);
     }
 
+    public static final String EXTRA_NAVIGATE_TO = "navigate_to";
+    public static final String DEST_HOME    = "home";
+    public static final String DEST_MEDS    = "meds";
+    public static final String DEST_VITALS  = "vitals";
+    public static final String DEST_PERIOD  = "period";
+
     private static PendingIntent getOpenAppIntent(Context context) {
         Intent intent = new Intent(context, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        return PendingIntent.getActivity(context, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    /** Build a deep-link PendingIntent that navigates to a specific tab on arrival. */
+    public static PendingIntent getDeepLinkIntent(Context context, String dest, int requestCode) {
+        Intent intent = new Intent(context, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        intent.putExtra(EXTRA_NAVIGATE_TO, dest);
+        return PendingIntent.getActivity(context, requestCode, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     // --- PDF NOTIFICATIONS ---
@@ -130,7 +146,7 @@ public class NotificationHelper {
                     .setContentText("Only " + count + " pills remaining. Time to refill!")
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setAutoCancel(true)
-                    .setContentIntent(getOpenAppIntent(context));
+                    .setContentIntent(getDeepLinkIntent(context, DEST_MEDS, 20));
 
             NotificationManagerCompat.from(context).notify(medName.hashCode(), builder.build());
         } catch (SecurityException e) {
@@ -144,8 +160,6 @@ public class NotificationHelper {
     public static void sendMedicationReminder(Context context, Medication med, String displayTime) {
         try {
             int uniqueId = (med.getId() + displayTime).hashCode();
-
-            PendingIntent appPendingIntent = getOpenAppIntent(context);
 
             Intent takenIntent = new Intent(context, MedicationActionReceiver.class);
             takenIntent.setAction("ACTION_MARK_TAKEN");
@@ -169,7 +183,7 @@ public class NotificationHelper {
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setCategory(NotificationCompat.CATEGORY_REMINDER)
                     .setAutoCancel(true)
-                    .setContentIntent(appPendingIntent)
+                    .setContentIntent(getDeepLinkIntent(context, DEST_MEDS, uniqueId))
                     .addAction(R.drawable.ic_check_circle, "Mark Taken", takenPending)
                     .addAction(R.drawable.ic_clock, "Snooze 1h", snoozePending);
 

@@ -115,6 +115,9 @@ public class MainActivity extends AppCompatActivity {
         chatManager = new FloatingChatManager(this, geminiRepository);
         binding.getRoot().post(() -> chatManager.attachToActivity());
 
+        // Capture any notification deep-link from cold start
+        pendingNavigation = getIntent().getStringExtra(NotificationHelper.EXTRA_NAVIGATE_TO);
+
         setupNavigation();
         setupOfflineBanner();
     }
@@ -167,6 +170,13 @@ public class MainActivity extends AppCompatActivity {
                     showNavBar();
                 } else {
                     hideNavBar();
+                }
+
+                // Consume any pending deep-link navigation once the user reaches home
+                if (id == R.id.homeFragment && pendingNavigation != null) {
+                    String nav = pendingNavigation;
+                    pendingNavigation = null;
+                    binding.getRoot().post(() -> navigateToPending(nav));
                 }
 
                 if (isMainScreen) {
@@ -322,6 +332,55 @@ public class MainActivity extends AppCompatActivity {
         if (itemId == R.id.vitalsFragment) return 2;
         if (itemId == R.id.periodFragment) return 3;
         return 0;
+    }
+
+    // -------------------------------------------------------------------------
+    // OFFLINE BANNER
+    // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // NOTIFICATION DEEP-LINK ROUTING
+    // -------------------------------------------------------------------------
+    /** Destination set by an incoming notification intent; consumed once navigation fires. */
+    private String pendingNavigation = null;
+
+    @Override
+    protected void onNewIntent(android.content.Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String dest = intent.getStringExtra(NotificationHelper.EXTRA_NAVIGATE_TO);
+        if (dest != null) navigateToPending(dest);
+    }
+
+    /**
+     * Navigate to a tab by name if the NavController is already on a main tab
+     * (i.e., the user is authenticated and past the splash/login screens).
+     */
+    private void navigateToPending(String dest) {
+        NavHostFragment nhf = (NavHostFragment)
+                getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment);
+        if (nhf == null) return;
+        NavController nc = nhf.getNavController();
+        if (nc.getCurrentDestination() == null) return;
+        int cur = nc.getCurrentDestination().getId();
+        boolean onMainTab = cur == R.id.homeFragment || cur == R.id.medsFragment
+                || cur == R.id.vitalsFragment || cur == R.id.periodFragment;
+        if (!onMainTab) return;
+
+        switch (dest) {
+            case NotificationHelper.DEST_MEDS:
+                binding.bottomNav.setSelectedItemId(R.id.medsFragment);
+                break;
+            case NotificationHelper.DEST_VITALS:
+                binding.bottomNav.setSelectedItemId(R.id.vitalsFragment);
+                break;
+            case NotificationHelper.DEST_PERIOD:
+                binding.bottomNav.setSelectedItemId(R.id.periodFragment);
+                break;
+            case NotificationHelper.DEST_HOME:
+            default:
+                binding.bottomNav.setSelectedItemId(R.id.homeFragment);
+                break;
+        }
     }
 
     // -------------------------------------------------------------------------

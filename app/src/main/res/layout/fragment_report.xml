@@ -127,6 +127,7 @@
                         <ImageView
                             android:layout_width="20dp"
                             android:layout_height="20dp"
+                            android:importantForAccessibility="no"
                             android:src="@drawable/ic_ai_stars"
                             app:tint="@color/primary" />
 
@@ -200,6 +201,7 @@
                             <ImageView
                                 android:layout_width="28dp"
                                 android:layout_height="28dp"
+                                android:importantForAccessibility="no"
                                 android:src="@drawable/ic_water_drop"
                                 app:tint="@color/primary" />
 
@@ -239,6 +241,7 @@
                             <ImageView
                                 android:layout_width="28dp"
                                 android:layout_height="28dp"
+                                android:importantForAccessibility="no"
                                 android:src="@drawable/ic_moon"
                                 app:tint="@color/primary" />
 
@@ -278,6 +281,7 @@
                             <ImageView
                                 android:layout_width="28dp"
                                 android:layout_height="28dp"
+                                android:importantForAccessibility="no"
                                 android:src="@drawable/ic_period"
                                 app:tint="@color/primary" />
 
