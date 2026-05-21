@@ -5,6 +5,7 @@ import android.content.Context;
 import androidx.room.Room;
 
 import com.vitalflow.app.data.AppDatabase;
+import com.vitalflow.app.data.Migrations;
 import com.vitalflow.app.data.dao.AppDao;
 
 import javax.inject.Singleton;
@@ -27,7 +28,11 @@ public class DatabaseModule {
                         AppDatabase.class,
                         "vitalflow_db"
                 )
-                .fallbackToDestructiveMigration(false) // Useful for dev phase
+                .addMigrations(
+                        Migrations.MIGRATION_8_9,
+                        Migrations.MIGRATION_9_10
+                )
+                .fallbackToDestructiveMigration(false) // Crash > silent data wipe
                 .build();
     }
 

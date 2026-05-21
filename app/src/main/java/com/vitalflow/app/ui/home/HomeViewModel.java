@@ -52,6 +52,12 @@ public class HomeViewModel extends ViewModel {
         currentDate.setValue(dateKey);
     }
 
+    /** Re-triggers all date-dependent LiveData queries (used by pull-to-refresh). */
+    public void refresh() {
+        String date = currentDate.getValue();
+        if (date != null) currentDate.setValue(date);
+    }
+
     public GeminiRepository getGeminiRepository() {
         return geminiRepository;
     }

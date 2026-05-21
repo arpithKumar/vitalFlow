@@ -94,6 +94,23 @@ public class VitalsFragment extends Fragment {
 
         binding.chipGroupTimeFrame.setOnCheckedStateChangeListener((group, checkedIds) -> setupGraph());
         binding.chipGroupVitalType.setOnCheckedStateChangeListener((group, checkedIds) -> setupGraph());
+
+        setupPullToRefresh();
+    }
+
+    private void setupPullToRefresh() {
+        binding.swipeRefresh.setColorSchemeColors(
+                androidx.core.content.ContextCompat.getColor(requireContext(), R.color.primary));
+        binding.swipeRefresh.setOnRefreshListener(() -> {
+            androidx.work.OneTimeWorkRequest syncWork =
+                    new androidx.work.OneTimeWorkRequest.Builder(
+                            com.vitalflow.app.workers.SyncWorker.class).build();
+            androidx.work.WorkManager.getInstance(requireContext()).enqueue(syncWork);
+            // LiveData from Room auto-updates; just stop spinner
+            binding.swipeRefresh.postDelayed(
+                    () -> { if (binding != null) binding.swipeRefresh.setRefreshing(false); },
+                    1500);
+        });
     }
 
     private long calculateCutoff(int id, long now) {

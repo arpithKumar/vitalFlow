@@ -42,6 +42,7 @@ import com.vitalflow.app.databinding.FragmentProfileBinding;
 import com.vitalflow.app.utils.DataExportHelper;
 import com.vitalflow.app.utils.DataImportHelper;
 import com.vitalflow.app.utils.NotificationHelper;
+import com.vitalflow.app.utils.SecurePrefsHelper;
 import com.vitalflow.app.workers.SyncWorker;
 
 import java.text.MessageFormat;
@@ -431,7 +432,7 @@ public class ProfileFragment extends Fragment {
     // ------------------------------------------------------------------------
 
     private void updateGeminiStatusUI() {
-        String key = prefs.getString("user_gemini_key", null);
+        String key = SecurePrefsHelper.getGeminiKey(requireContext());
         if (key != null && !key.isEmpty()) {
             binding.tvGeminiStatus.setText("Connected");
             binding.tvGeminiStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.primary));// Success Green

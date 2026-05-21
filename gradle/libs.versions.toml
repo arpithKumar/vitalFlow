@@ -1,6 +1,8 @@
 [versions]
 agp = "9.2.1"
 biometric = "1.1.0"
+securityCrypto = "1.1.0-alpha06"
+swipeRefreshLayout = "1.1.0"
 commonsIo = "2.22.0"
 coreKtx = "1.18.0"
 desugar_jdk_libs = "2.1.5"
@@ -42,6 +44,8 @@ shimmer = "0.5.0"
 
 [libraries]
 androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
+androidx-swiperefreshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version.ref = "swipeRefreshLayout" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-room-rxjava3 = { module = "androidx.room:room-rxjava3", version.ref = "room" }

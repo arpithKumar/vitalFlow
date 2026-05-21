@@ -23,6 +23,7 @@ import com.google.android.material.button.MaterialButton;
 import com.vitalflow.app.R;
 import com.vitalflow.app.databinding.FragmentOnboardingBinding;
 import com.vitalflow.app.ui.chatbot.GeminiKeyBottomSheet;
+import com.vitalflow.app.utils.SecurePrefsHelper;
 
 public class OnboardingFragment extends Fragment {
 
@@ -190,8 +191,7 @@ public class OnboardingFragment extends Fragment {
                     });
                     sheet.show(fragment.getChildFragmentManager(), "GeminiSetup");
                 });
-                SharedPreferences prefs = fragment.requireContext().getSharedPreferences("vital_prefs", Context.MODE_PRIVATE);
-                if (prefs.getString("user_gemini_key", null) != null) {
+                if (SecurePrefsHelper.getGeminiKey(fragment.requireContext()) != null) {
                     holder.btnConnect.setText("Connected ✅");
                     holder.btnConnect.setEnabled(false);
                 }

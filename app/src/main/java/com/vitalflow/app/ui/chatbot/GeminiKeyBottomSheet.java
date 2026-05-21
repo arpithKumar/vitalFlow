@@ -4,6 +4,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
+
+import com.vitalflow.app.utils.SecurePrefsHelper;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -63,11 +65,11 @@ public class GeminiKeyBottomSheet extends BottomSheetDialogFragment {
         ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_dropdown_item_1line, MODELS);
         binding.autoCompleteModel.setAdapter(adapter);
 
+        String savedKey = SecurePrefsHelper.getGeminiKey(requireContext());
         SharedPreferences prefs = requireContext().getSharedPreferences("vital_prefs", Context.MODE_PRIVATE);
-        String savedKey = prefs.getString("user_gemini_key", "");
         String savedModel = prefs.getString("user_gemini_model", "gemini-3-flash-preview"); // Default
 
-        binding.etApiKey.setText(savedKey);
+        binding.etApiKey.setText(savedKey != null ? savedKey : "");
         binding.autoCompleteModel.setText(savedModel, false);
 
         // 1. Link to Google AI Studio
@@ -93,9 +95,9 @@ public class GeminiKeyBottomSheet extends BottomSheetDialogFragment {
     }
 
     private void saveKey(String key, String model) {
-        SharedPreferences prefs = requireContext().getSharedPreferences("vital_prefs", Context.MODE_PRIVATE);
-        prefs.edit()
-                .putString("user_gemini_model", model)
-                .putString("user_gemini_key", key).apply();
+        // API key stored encrypted; model is non-sensitive, stays in vital_prefs
+        SecurePrefsHelper.setGeminiKey(requireContext(), key);
+        requireContext().getSharedPreferences("vital_prefs", Context.MODE_PRIVATE)
+                .edit().putString("user_gemini_model", model).apply();
     }
 }

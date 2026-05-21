@@ -1,6 +1,7 @@
 package com.vitalflow.app.ui.report;
 
 import android.annotation.SuppressLint;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -87,6 +88,18 @@ public class ReportFragment extends Fragment {
 
         // AI Summary
         binding.tvAiSummary.setText(report.aiDoctorSummary);
+
+        // Share button — sends the AI summary text via any installed app
+        binding.btnShareSummary.setOnClickListener(v -> {
+            CharSequence summaryText = binding.tvAiSummary.getText();
+            if (summaryText == null || summaryText.length() == 0) return;
+            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+            shareIntent.setType("text/plain");
+            shareIntent.putExtra(Intent.EXTRA_SUBJECT, "My VitalFlow Health Report");
+            shareIntent.putExtra(Intent.EXTRA_TEXT,
+                    "VitalFlow Health Report — " + report.reportDate + "\n\n" + summaryText);
+            startActivity(Intent.createChooser(shareIntent, "Share report via…"));
+        });
 
         // 30-day stats averages
         populateStats(report.last30DaysStats, report.regularityScore);

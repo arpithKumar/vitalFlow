@@ -23,24 +23,42 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
-import javax.inject.Inject;
-
-import dagger.hilt.android.AndroidEntryPoint;
+import dagger.hilt.EntryPoint;
+import dagger.hilt.InstallIn;
+import dagger.hilt.android.EntryPointAccessors;
+import dagger.hilt.components.SingletonComponent;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
-@AndroidEntryPoint
 public class WaterWidgetProvider extends AppWidgetProvider {
 
-    public static final String ACTION_ADD_WATER = "com.vitalflow.app.ACTION_ADD_WATER";
+    // -----------------------------------------------------------------------
+    // Hilt EntryPoint — AppWidgetProvider cannot use @AndroidEntryPoint;
+    // use EntryPointAccessors instead (same pattern as MedWidgetProvider).
+    // -----------------------------------------------------------------------
+    @EntryPoint
+    @InstallIn(SingletonComponent.class)
+    interface WaterWidgetEntryPoint {
+        AppDao getAppDao();
+    }
+
+    private static AppDao getAppDao(Context context) {
+        return EntryPointAccessors.fromApplication(
+                context.getApplicationContext(), WaterWidgetEntryPoint.class).getAppDao();
+    }
+
+    // -----------------------------------------------------------------------
+    // Actions
+    // -----------------------------------------------------------------------
+    public static final String ACTION_ADD_WATER  = "com.vitalflow.app.ACTION_ADD_WATER";
     public static final String ACTION_RESET_WATER = "com.vitalflow.app.ACTION_RESET_WATER";
-    public static final String ACTION_LOG_MOOD = "com.vitalflow.app.ACTION_LOG_MOOD";
-    public static final String EXTRA_MOOD_VALUE = "extra_mood_value";
+    public static final String ACTION_LOG_MOOD   = "com.vitalflow.app.ACTION_LOG_MOOD";
+    public static final String EXTRA_MOOD_VALUE  = "extra_mood_value";
 
-    @Inject
-    AppDao appDao;
-
+    // -----------------------------------------------------------------------
+    // Lifecycle
+    // -----------------------------------------------------------------------
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
         for (int appWidgetId : appWidgetIds) {
@@ -50,37 +68,33 @@ public class WaterWidgetProvider extends AppWidgetProvider {
 
     @SuppressLint("CheckResult")
     private void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
+        AppDao appDao = getAppDao(context);
+
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_water);
         Intent appIntent = new Intent(context, MainActivity.class);
         appIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        PendingIntent appPendingIntent = PendingIntent.getActivity(context, 0, appIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent appPendingIntent = PendingIntent.getActivity(
+                context, 0, appIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         views.setOnClickPendingIntent(R.id.widget_root, appPendingIntent);
 
-        // Setup Visuals
         setupColors(context, views);
         setupActions(context, views);
 
         String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
 
-        // 2. RX CHAIN: Fetch Health + Period Log
         Single.zip(
-                        // Use .onErrorReturnItem to handle cases where data doesn't exist yet safely
                         appDao.getDailyHealthSync(today)
                                 .defaultIfEmpty(new DailyHealth(today, 0, 2000, 0, "0h", 0)),
                         appDao.getLastPeriodLogSync()
                                 .defaultIfEmpty(new PeriodLog("", false, 0, "")),
-                        (health, period) -> new WidgetData(health, period)
+                        WidgetData::new
                 )
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(data -> {
-                    // --- UPDATE UI ON MAIN THREAD ---
-
-                    // A. Hydration Logic
+                    // Hydration
                     int intake = data.health.getWaterIntakeMl();
-                    int goal = 2000;
-
-                    if (intake >= goal) {
+                    if (intake >= 2000) {
                         views.setViewVisibility(R.id.tvWidgetIntake, View.GONE);
                         views.setViewVisibility(R.id.imgTrophy, View.VISIBLE);
                         views.setTextViewText(R.id.tvTitle, "Goal Reached! 🎉");
@@ -91,7 +105,7 @@ public class WaterWidgetProvider extends AppWidgetProvider {
                         views.setTextViewText(R.id.tvTitle, "VitalFlow");
                     }
 
-                    // B. Period Logic
+                    // Period
                     if (data.period.date != null && !data.period.date.isEmpty()) {
                         try {
                             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
@@ -100,8 +114,8 @@ public class WaterWidgetProvider extends AppWidgetProvider {
                                 Calendar c = Calendar.getInstance();
                                 c.setTime(date);
                                 c.add(Calendar.DAY_OF_YEAR, 28);
-                                String nextDate = new SimpleDateFormat("MMM dd", Locale.getDefault()).format(c.getTime());
-
+                                String nextDate = new SimpleDateFormat("MMM dd", Locale.getDefault())
+                                        .format(c.getTime());
                                 views.setTextViewText(R.id.tvWidgetStatus, "Next Period: " + nextDate);
                                 views.setViewVisibility(R.id.tvWidgetStatus, View.VISIBLE);
                                 views.setViewVisibility(R.id.imgCycleIcon, View.VISIBLE);
@@ -115,70 +129,22 @@ public class WaterWidgetProvider extends AppWidgetProvider {
                         views.setViewVisibility(R.id.imgCycleIcon, View.GONE);
                     }
 
-                    // Push Update
                     appWidgetManager.updateAppWidget(appWidgetId, views);
-
                 }, Throwable::printStackTrace);
     }
 
-    private void setupColors(Context context, RemoteViews views) {
-        int nightModeFlags = context.getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
-        boolean isDarkMode = nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES;
-
-        if (isDarkMode) {
-            views.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.bg_widget_dark); // Use a darker background
-            views.setTextColor(R.id.tvTitle, Color.WHITE);
-            views.setTextColor(R.id.tvWidgetIntake, Color.parseColor("#B2DFDB")); // Softer teal
-
-            // Slightly brighter "glowy" mood colors for dark backgrounds
-            views.setInt(R.id.btnWidgetMood1, "setColorFilter", Color.parseColor("#E57373"));
-            views.setInt(R.id.btnWidgetMood5, "setColorFilter", Color.parseColor("#81C784"));
-            views.setInt(R.id.imgDrop, "setColorFilter", Color.parseColor("#4DB6AC"));
-        } else {
-            // --- LIGHT MODE COLORS (Your Original Palette) ---
-            views.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.bg_widget_light);
-            views.setTextColor(R.id.tvTitle, Color.BLACK);
-
-            views.setInt(R.id.btnWidgetMood1, "setColorFilter", Color.parseColor("#EF9A9A"));
-            views.setInt(R.id.btnWidgetMood5, "setColorFilter", Color.parseColor("#66BB6A"));
-            views.setInt(R.id.imgDrop, "setColorFilter", Color.parseColor("#00897B"));
-        }
-    }
-
-    private void setupActions(Context context, RemoteViews views) {
-        views.setOnClickPendingIntent(R.id.btnWidgetAdd, createPendingIntent(context, ACTION_ADD_WATER, 0));
-        views.setOnClickPendingIntent(R.id.btnWidgetReset, createPendingIntent(context, ACTION_RESET_WATER, 99));
-        views.setOnClickPendingIntent(R.id.btnWidgetMood1, createMoodPI(context, 1));
-        views.setOnClickPendingIntent(R.id.btnWidgetMood2, createMoodPI(context, 2));
-        views.setOnClickPendingIntent(R.id.btnWidgetMood3, createMoodPI(context, 3));
-        views.setOnClickPendingIntent(R.id.btnWidgetMood4, createMoodPI(context, 4));
-        views.setOnClickPendingIntent(R.id.btnWidgetMood5, createMoodPI(context, 5));
-    }
-
-    // Helper methods remain the same...
-    private PendingIntent createPendingIntent(Context context, String action, int reqCode) {
-        Intent intent = new Intent(context, WaterWidgetProvider.class);
-        intent.setAction(action);
-        return PendingIntent.getBroadcast(context, reqCode, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-    }
-
-    private PendingIntent createMoodPI(Context context, int value) {
-        Intent intent = new Intent(context, WaterWidgetProvider.class);
-        intent.setAction(ACTION_LOG_MOOD);
-        intent.putExtra(EXTRA_MOOD_VALUE, value);
-        return PendingIntent.getBroadcast(context, value, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-    }
-
+    // -----------------------------------------------------------------------
+    // Receive
+    // -----------------------------------------------------------------------
     @Override
     @SuppressLint("CheckResult")
     public void onReceive(Context context, Intent intent) {
         super.onReceive(context, intent);
-        if (appDao == null) return;
 
+        AppDao appDao = getAppDao(context);
         String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
 
         if (ACTION_ADD_WATER.equals(intent.getAction())) {
-            // RX LOGIC: Get -> Update -> Insert
             appDao.getDailyHealthSync(today)
                     .defaultIfEmpty(new DailyHealth(today, 0, 2000, 0, "0h", 0))
                     .flatMapCompletable(data -> {
@@ -210,11 +176,59 @@ public class WaterWidgetProvider extends AppWidgetProvider {
                         return appDao.insertDailyHealth(data);
                     })
                     .subscribeOn(Schedulers.io())
-                    .subscribe(() -> {
-                    }, Throwable::printStackTrace); // No update needed for mood visuals on widget
+                    .subscribe(() -> { }, Throwable::printStackTrace);
 
             Toast.makeText(context, "Mood Logged!", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
+    private void setupColors(Context context, RemoteViews views) {
+        int nightFlags = context.getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+        boolean isDark = nightFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+
+        if (isDark) {
+            views.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.bg_widget_dark);
+            views.setTextColor(R.id.tvTitle, Color.WHITE);
+            views.setTextColor(R.id.tvWidgetIntake, Color.parseColor("#B2DFDB"));
+            views.setInt(R.id.btnWidgetMood1, "setColorFilter", Color.parseColor("#E57373"));
+            views.setInt(R.id.btnWidgetMood5, "setColorFilter", Color.parseColor("#81C784"));
+            views.setInt(R.id.imgDrop, "setColorFilter", Color.parseColor("#4DB6AC"));
+        } else {
+            views.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.bg_widget_light);
+            views.setTextColor(R.id.tvTitle, Color.BLACK);
+            views.setInt(R.id.btnWidgetMood1, "setColorFilter", Color.parseColor("#EF9A9A"));
+            views.setInt(R.id.btnWidgetMood5, "setColorFilter", Color.parseColor("#66BB6A"));
+            views.setInt(R.id.imgDrop, "setColorFilter", Color.parseColor("#00897B"));
+        }
+    }
+
+    private void setupActions(Context context, RemoteViews views) {
+        views.setOnClickPendingIntent(R.id.btnWidgetAdd,  createPI(context, ACTION_ADD_WATER, 0));
+        views.setOnClickPendingIntent(R.id.btnWidgetReset, createPI(context, ACTION_RESET_WATER, 99));
+        views.setOnClickPendingIntent(R.id.btnWidgetMood1, createMoodPI(context, 1));
+        views.setOnClickPendingIntent(R.id.btnWidgetMood2, createMoodPI(context, 2));
+        views.setOnClickPendingIntent(R.id.btnWidgetMood3, createMoodPI(context, 3));
+        views.setOnClickPendingIntent(R.id.btnWidgetMood4, createMoodPI(context, 4));
+        views.setOnClickPendingIntent(R.id.btnWidgetMood5, createMoodPI(context, 5));
+    }
+
+    private PendingIntent createPI(Context context, String action, int reqCode) {
+        Intent intent = new Intent(context, WaterWidgetProvider.class);
+        intent.setAction(action);
+        return PendingIntent.getBroadcast(context, reqCode, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    private PendingIntent createMoodPI(Context context, int value) {
+        Intent intent = new Intent(context, WaterWidgetProvider.class);
+        intent.setAction(ACTION_LOG_MOOD);
+        intent.putExtra(EXTRA_MOOD_VALUE, value);
+        return PendingIntent.getBroadcast(context, value, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     private void triggerUpdate(Context context) {
@@ -226,10 +240,6 @@ public class WaterWidgetProvider extends AppWidgetProvider {
     private static class WidgetData {
         DailyHealth health;
         PeriodLog period;
-
-        WidgetData(DailyHealth h, PeriodLog p) {
-            this.health = h;
-            this.period = p;
-        }
+        WidgetData(DailyHealth h, PeriodLog p) { this.health = h; this.period = p; }
     }
 }

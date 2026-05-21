@@ -132,13 +132,24 @@
                             app:tint="@color/primary" />
 
                         <TextView
-                            android:layout_width="wrap_content"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
+                            android:layout_weight="1"
                             android:text="AI Doctor Summary"
                             android:textAppearance="@style/TextAppearance.VitalFlow.Title"
                             android:textColor="@color/text_primary"
                             android:textStyle="bold" />
+
+                        <ImageButton
+                            android:id="@+id/btnShareSummary"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Share AI summary"
+                            android:padding="6dp"
+                            android:src="@drawable/ic_share"
+                            app:tint="@color/primary" />
                     </LinearLayout>
 
                     <View

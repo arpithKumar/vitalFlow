@@ -143,6 +143,22 @@ public class PeriodFragment extends Fragment {
         });
 
         loadFlowData();
+        setupPullToRefresh();
+    }
+
+    private void setupPullToRefresh() {
+        binding.swipeRefresh.setColorSchemeColors(
+                androidx.core.content.ContextCompat.getColor(requireContext(), R.color.primary));
+        binding.swipeRefresh.setOnRefreshListener(() -> {
+            androidx.work.OneTimeWorkRequest syncWork =
+                    new androidx.work.OneTimeWorkRequest.Builder(
+                            com.vitalflow.app.workers.SyncWorker.class).build();
+            androidx.work.WorkManager.getInstance(requireContext()).enqueue(syncWork);
+            loadFlowData(); // Re-query period logs
+            binding.swipeRefresh.postDelayed(
+                    () -> { if (binding != null) binding.swipeRefresh.setRefreshing(false); },
+                    1500);
+        });
     }
 
     // --- 1. TOUCH & DRAG LOGIC ---
@@ -159,6 +175,10 @@ public class PeriodFragment extends Fragment {
 
             switch (action) {
                 case MotionEvent.ACTION_DOWN:
+                    // Disable pull-to-refresh for the entire duration of this touch so it
+                    // never steals the drag gesture while the user selects calendar dates.
+                    binding.swipeRefresh.setEnabled(false);
+
                     // Dismiss existing tooltip
                     if (currentTooltip != null) {
                         currentTooltip.dismiss();
@@ -201,12 +221,17 @@ public class PeriodFragment extends Fragment {
                         }
                     }
 
-                    if (isSelectionMode && pos != -1) {
-                        boolean changed = updateSelectionRange(pos);
-                        if (changed) {
-                            try {
-                                v.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);
-                            } catch (Exception e) {
+                    if (isSelectionMode) {
+                        // Keep disallowing intercept — prevents SwipeRefreshLayout from
+                        // stealing the drag when the finger crosses to the next calendar row.
+                        v.getParent().requestDisallowInterceptTouchEvent(true);
+                        if (pos != -1) {
+                            boolean changed = updateSelectionRange(pos);
+                            if (changed) {
+                                try {
+                                    v.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);
+                                } catch (Exception e) {
+                                }
                             }
                         }
                         return true;
@@ -216,6 +241,7 @@ public class PeriodFragment extends Fragment {
                 case MotionEvent.ACTION_UP:
                     handler.removeCallbacks(longPressRunnable);
                     v.getParent().requestDisallowInterceptTouchEvent(false);
+                    binding.swipeRefresh.setEnabled(true);
 
                     if (isSelectionMode) {
                         if (!tempSelectedDates.isEmpty()) {
@@ -250,6 +276,7 @@ public class PeriodFragment extends Fragment {
                     break;
                 case MotionEvent.ACTION_CANCEL:
                     handler.removeCallbacks(longPressRunnable);
+                    binding.swipeRefresh.setEnabled(true);
                     isSelectionMode = false;
                     movedTooFar = true;
                     dragStartPosition = -1;
@@ -544,6 +571,7 @@ public class PeriodFragment extends Fragment {
         if (history.isEmpty()) {
             binding.tvDayCount.setText("Day\n--");
             binding.tvCycleStatus.setText("Log your first period");
+            binding.tvCycleStatus.setVisibility(android.view.View.VISIBLE);
             binding.progressCycle.setProgress(0);
             binding.tvSummaryFlowDays.setText("--");
             binding.tvSummaryAvgCycle.setText("--");
@@ -570,6 +598,7 @@ public class PeriodFragment extends Fragment {
         } else {
             binding.tvCycleStatus.setText("Period in " + (avgCycle - currentDay) + " days");
         }
+        binding.tvCycleStatus.setVisibility(android.view.View.VISIBLE);
         binding.tvDayCount.setText("Day\n" + currentDay);
 
         binding.progressCycle.setMax(avgCycle);

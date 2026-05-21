@@ -10,6 +10,7 @@ import androidx.room.Query;
 import com.vitalflow.app.data.entity.DailyHealth;
 import com.vitalflow.app.data.entity.FoodLog;
 import com.vitalflow.app.data.entity.Medication;
+import com.vitalflow.app.data.entity.MedicationHistory;
 import com.vitalflow.app.data.entity.PeriodLog;
 import com.vitalflow.app.data.entity.Vital;
 
@@ -116,4 +117,14 @@ public interface AppDao {
 
     @Query("SELECT * FROM period_logs WHERE date LIKE :monthPrefix || '%'")
     Single<List<PeriodLog>> getPeriodLogsForMonthSync(String monthPrefix);
+
+    // --- MEDICATION HISTORY ---
+    @Insert
+    Completable insertMedicationHistory(MedicationHistory entry);
+
+    @Query("SELECT * FROM medication_history WHERE medId = :medId ORDER BY timestamp DESC LIMIT 50")
+    Single<List<MedicationHistory>> getHistoryForMed(String medId);
+
+    @Query("SELECT * FROM medication_history ORDER BY timestamp DESC LIMIT 100")
+    Single<List<MedicationHistory>> getAllMedicationHistory();
 }

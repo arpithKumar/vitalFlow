@@ -12,8 +12,11 @@ import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
+import androidx.biometric.BiometricManager;
+import androidx.biometric.BiometricPrompt;
 import androidx.core.content.ContextCompat;
 import androidx.core.splashscreen.SplashScreen;
 import androidx.navigation.NavController;
@@ -47,6 +50,8 @@ public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding binding;
     private int currentTabId = R.id.homeFragment;
+    /** True once the user has passed biometric verification in this session. */
+    private boolean isAuthenticated = false;
 
     @Inject
     GeminiRepository geminiRepository;
@@ -109,7 +114,9 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        checkAndRequestAllPermissions();
+        if (savedInstanceState == null) {
+            checkAndRequestAllPermissions();
+        }
         startMedicationScheduler();
 
         chatManager = new FloatingChatManager(this, geminiRepository);
@@ -414,6 +421,97 @@ public class MainActivity extends AppCompatActivity {
         android.net.NetworkCapabilities caps = active != null ? cm.getNetworkCapabilities(active) : null;
         boolean online = caps != null && caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET);
         binding.bannerOffline.setVisibility(online ? View.GONE : View.VISIBLE);
+    }
+
+    // -------------------------------------------------------------------------
+    // BIOMETRIC LOCK
+    // -------------------------------------------------------------------------
+    @Override
+    protected void onResume() {
+        super.onResume();
+        checkBiometricLock();
+    }
+
+    /**
+     * Shows a {@link BiometricPrompt} when the user has enabled biometric lock in Profile and
+     * has not yet authenticated in this session. Only fires while on the 4 main tabs or
+     * the profile screen — never interrupts the splash/login/onboarding flow.
+     */
+    private void checkBiometricLock() {
+        if (isAuthenticated) return;
+
+        SharedPreferences prefs = getSharedPreferences("vital_prefs", MODE_PRIVATE);
+        if (!prefs.getBoolean("biometric_enabled", false)) return;
+
+        // Only enforce once the user is past splash/login/onboarding
+        NavHostFragment nhf = (NavHostFragment)
+                getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment);
+        if (nhf == null || nhf.getNavController().getCurrentDestination() == null) return;
+        int destId = nhf.getNavController().getCurrentDestination().getId();
+        boolean onProtectedScreen = (destId == R.id.homeFragment   ||
+                                     destId == R.id.medsFragment   ||
+                                     destId == R.id.vitalsFragment ||
+                                     destId == R.id.periodFragment ||
+                                     destId == R.id.profileFragment ||
+                                     destId == R.id.reportFragment);
+        if (!onProtectedScreen) return;
+
+        // Confirm the hardware is ready before showing the prompt
+        BiometricManager biometricManager = BiometricManager.from(this);
+        int canAuth = biometricManager.canAuthenticate(
+                BiometricManager.Authenticators.BIOMETRIC_STRONG |
+                BiometricManager.Authenticators.DEVICE_CREDENTIAL);
+        if (canAuth != BiometricManager.BIOMETRIC_SUCCESS) {
+            // Hardware absent or not enrolled — treat as passed so the user isn't locked out
+            isAuthenticated = true;
+            return;
+        }
+
+        BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+                .setTitle("VitalFlow Locked")
+                .setSubtitle("Verify your identity to continue")
+                .setAllowedAuthenticators(
+                        BiometricManager.Authenticators.BIOMETRIC_STRONG |
+                        BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+                .build();
+
+        BiometricPrompt biometricPrompt = new BiometricPrompt(this,
+                new BiometricPrompt.AuthenticationCallback() {
+                    @Override
+                    public void onAuthenticationSucceeded(
+                            @NonNull BiometricPrompt.AuthenticationResult result) {
+                        isAuthenticated = true;
+                    }
+
+                    @Override
+                    public void onAuthenticationError(int errorCode,
+                            @NonNull CharSequence errString) {
+                        // User explicitly cancelled or pressed Back — send to login
+                        if (errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON ||
+                                errorCode == BiometricPrompt.ERROR_USER_CANCELED) {
+                            navigateToLogin();
+                        }
+                        // Hardware lockout or other errors: let the user retry on next resume
+                    }
+
+                    @Override
+                    public void onAuthenticationFailed() {
+                        // Single failed attempt — let the prompt handle retries naturally
+                    }
+                });
+
+        biometricPrompt.authenticate(promptInfo);
+    }
+
+    /** Pops the entire back stack and lands the user on the login screen. */
+    private void navigateToLogin() {
+        NavHostFragment nhf = (NavHostFragment)
+                getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment);
+        if (nhf == null) return;
+        nhf.getNavController().navigate(R.id.loginFragment, null,
+                new NavOptions.Builder()
+                        .setPopUpTo(R.id.nav_graph, true)
+                        .build());
     }
 
     @Override

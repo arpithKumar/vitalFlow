@@ -205,6 +205,28 @@ public class NotificationHelper {
                 .build();
 
         androidx.work.WorkManager.getInstance(context).enqueue(snoozeRequest);
+
+        // Confirmation notification — tells the user exactly when the reminder will re-fire
+        sendSnoozeConfirmation(context, medName);
+    }
+
+    private static void sendSnoozeConfirmation(Context context, String medName) {
+        java.util.Calendar fireTime = java.util.Calendar.getInstance();
+        fireTime.add(java.util.Calendar.HOUR_OF_DAY, 1);
+        String timeLabel = new java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                .format(fireTime.getTime());
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID_MEDS)
+                .setSmallIcon(R.drawable.ic_clock)
+                .setContentTitle("Reminder snoozed 💤")
+                .setContentText((medName != null ? medName : "Medication") + " — fires at " + timeLabel)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setAutoCancel(true)
+                .setTimeoutAfter(TimeUnit.HOURS.toMillis(1)); // auto-dismiss when the real reminder fires
+
+        NotificationManagerCompat manager = NotificationManagerCompat.from(context);
+        //noinspection MissingPermission — permission checked before the action intent is built
+        manager.notify(9001, builder.build());
     }
 
     public static void triggerImmediateMedicationCheck(Context context) {
@@ -212,6 +234,43 @@ public class NotificationHelper {
                 new androidx.work.OneTimeWorkRequest.Builder(MedicationWorker.class)
                         .build();
         WorkManager.getInstance(context).enqueue(checkRequest);
+    }
+
+    /** Fire once at 7-, 30-, and 100-day streak milestones. */
+    public static void sendStreakMilestoneNotification(Context context, int streakDays) {
+        String emoji;
+        String title;
+        String body;
+        if (streakDays == 7) {
+            emoji = "🔥";
+            title = "One week streak!";
+            body  = "7 days in a row — you're building a great habit. Keep it up!";
+        } else if (streakDays == 30) {
+            emoji = "🏆";
+            title = "30-day streak!";
+            body  = "A whole month of consistency. You're on fire!";
+        } else if (streakDays == 100) {
+            emoji = "💯";
+            title = "100-day streak!";
+            body  = "100 days strong. You're a VitalFlow legend!";
+        } else {
+            return;
+        }
+
+        try {
+            NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID_WATER)
+                    .setSmallIcon(R.drawable.ic_heart)
+                    .setContentTitle(emoji + " " + title)
+                    .setContentText(body)
+                    .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setAutoCancel(true)
+                    .setContentIntent(getDeepLinkIntent(context, DEST_HOME, 300 + streakDays));
+
+            NotificationManagerCompat.from(context).notify(("streak_" + streakDays).hashCode(), builder.build());
+        } catch (SecurityException e) {
+            // permission not granted
+        }
     }
 
 }

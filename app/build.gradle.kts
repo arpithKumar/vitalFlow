@@ -117,6 +117,8 @@ dependencies {
     implementation(libs.androidx.room.rxjava3)
 
     implementation(libs.androidx.biometric)
+    implementation(libs.androidx.security.crypto)
+    implementation(libs.androidx.swiperefreshlayout)
 
     // Apache POI
     implementation(libs.poi)

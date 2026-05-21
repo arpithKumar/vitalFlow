@@ -23,6 +23,7 @@ import com.vitalflow.app.data.entity.gemini.GeminiRequest;
 import com.vitalflow.app.data.entity.gemini.GeminiResponse;
 import com.vitalflow.app.data.network.GeminiApiService;
 import com.vitalflow.app.utils.BitmapUtils;
+import com.vitalflow.app.utils.SecurePrefsHelper;
 
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Type;
@@ -68,8 +69,7 @@ public class GeminiRepository {
     }
 
     private String getUserApiKey() {
-        SharedPreferences prefs = context.getSharedPreferences("vital_prefs", Context.MODE_PRIVATE);
-        return prefs.getString("user_gemini_key", null);
+        return SecurePrefsHelper.getGeminiKey(context);
     }
 
     private String getUserModel() {

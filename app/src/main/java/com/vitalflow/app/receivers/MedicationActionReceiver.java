@@ -8,6 +8,7 @@ import android.widget.Toast;
 import androidx.core.app.NotificationManagerCompat;
 
 import com.vitalflow.app.data.dao.AppDao;
+import com.vitalflow.app.data.entity.MedicationHistory;
 import com.vitalflow.app.utils.NotificationHelper;
 
 import javax.inject.Inject;
@@ -46,6 +47,9 @@ public class MedicationActionReceiver extends BroadcastReceiver {
                                 med.setTimesTakenToday(current + 1);
                                 if (med.getPillsLeft() > 0) med.setPillsLeft(med.getPillsLeft() - 1);
                                 disposables.add(appDao.insertMedication(med).subscribeOn(Schedulers.io()).subscribe());
+                                disposables.add(appDao.insertMedicationHistory(
+                                        new MedicationHistory(med.getId(), med.getName(), "TAKEN"))
+                                        .subscribeOn(Schedulers.io()).subscribe());
                             }
                         }
                     }, Throwable::printStackTrace)

@@ -666,6 +666,27 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         setupMoodTracker();
         startHeartPulseAnimation();
         setupNutritionSection();
+        setupPullToRefresh();
+    }
+
+    private void setupPullToRefresh() {
+        binding.swipeRefresh.setColorSchemeColors(
+                ContextCompat.getColor(requireContext(), R.color.primary));
+        binding.swipeRefresh.setOnRefreshListener(() -> {
+            // 1. Health Connect sync
+            fetchHealthConnectData();
+            // 2. Firestore sync via one-time SyncWorker
+            androidx.work.OneTimeWorkRequest syncWork =
+                    new androidx.work.OneTimeWorkRequest.Builder(
+                            com.vitalflow.app.workers.SyncWorker.class).build();
+            WorkManager.getInstance(requireContext()).enqueue(syncWork);
+            // 3. Refresh ViewModel data
+            viewModel.refresh();
+            // Stop spinner after a short delay (sync continues in background)
+            binding.swipeRefresh.postDelayed(
+                    () -> { if (binding != null) binding.swipeRefresh.setRefreshing(false); },
+                    1500);
+        });
     }
 
     private void launchSpeechRecognizer() {
@@ -813,46 +834,66 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                         Integer idx = dayIndex.get(log.date);
                         if (idx != null) totals[idx] += log.calories;
                     }
-                    java.util.List<com.github.mikephil.charting.data.BarEntry> entries = new java.util.ArrayList<>();
-                    for (int i = 0; i < 7; i++)
-                        entries.add(new com.github.mikephil.charting.data.BarEntry(i, totals[i]));
-
-                    com.github.mikephil.charting.data.BarDataSet ds = new com.github.mikephil.charting.data.BarDataSet(entries, "Calories");
-                    ds.setColor(ContextCompat.getColor(requireContext(), R.color.primary));
-                    ds.setDrawValues(false);
-                    chart.setData(new com.github.mikephil.charting.data.BarData(ds));
-                    chart.animateY(600);
-                    chart.invalidate();
-
                     double sum = 0;
                     int count = 0;
                     for (float v : totals) {
-                        if (v > 0) {
-                            sum += v;
-                            count++;
-                        }
+                        if (v > 0) { sum += v; count++; }
                     }
-                    double avg = count > 0 ? sum / count : 0;
-                    binding.tvCalorieAvg.setText(String.format("Avg %.0f kcal/day", avg));
-                    binding.cardCalorieChart.setVisibility(android.view.View.VISIBLE);
+
+                    boolean hasData = count > 0;
+                    binding.chartCalories.setVisibility(hasData ? View.VISIBLE : View.GONE);
+                    binding.layoutEmptyCalories.setVisibility(hasData ? View.GONE : View.VISIBLE);
+                    binding.cardCalorieChart.setVisibility(View.VISIBLE);
+
+                    if (hasData) {
+                        java.util.List<com.github.mikephil.charting.data.BarEntry> entries = new java.util.ArrayList<>();
+                        for (int i = 0; i < 7; i++)
+                            entries.add(new com.github.mikephil.charting.data.BarEntry(i, totals[i]));
+
+                        com.github.mikephil.charting.data.BarDataSet ds = new com.github.mikephil.charting.data.BarDataSet(entries, "Calories");
+                        ds.setColor(ContextCompat.getColor(requireContext(), R.color.primary));
+                        ds.setDrawValues(false);
+                        chart.setData(new com.github.mikephil.charting.data.BarData(ds));
+                        chart.animateY(600);
+                        chart.invalidate();
+
+                        double avg = sum / count;
+                        binding.tvCalorieAvg.setText(String.format("Avg %.0f kcal/day", avg));
+                    } else {
+                        binding.tvCalorieAvg.setText("");
+                    }
                 }, throwable -> {
                 }));
     }
 
     private void showImageSourceDialog() {
-        String[] options = {"Take Photo 📸", "Choose from Gallery 🖼️"};
+        String[] options = {"Take Photo 📸", "Choose from Gallery 🖼️", "Log Manually ✏️"};
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Log Nutrition")
                 .setItems(options, (dialog, which) -> {
                     if (which == 0) {
                         checkCameraPermissionAndLaunch();
-                    } else {
+                    } else if (which == 1) {
                         pickMediaLauncher.launch(new PickVisualMediaRequest.Builder()
                                 .setMediaType(ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE)
                                 .build());
+                    } else {
+                        showManualFoodSheet();
                     }
                 })
                 .show();
+    }
+
+    private void showManualFoodSheet() {
+        ManualFoodBottomSheet sheet = new ManualFoodBottomSheet();
+        sheet.setCallback(log -> {
+            viewModel.insertFoodLog(log);
+            if (getContext() != null) {
+                android.widget.Toast.makeText(getContext(),
+                        log.foodName + " logged ✅", android.widget.Toast.LENGTH_SHORT).show();
+            }
+        });
+        sheet.show(getChildFragmentManager(), "ManualFood");
     }
 
     private void displayStreak() {
@@ -896,6 +937,12 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                     .apply();
 
             displayStreak();
+
+            // Milestone celebrations — confetti + notification at 7 / 30 / 100 days
+            if (currentStreak == 7 || currentStreak == 30 || currentStreak == 100) {
+                playCelebration();
+                NotificationHelper.sendStreakMilestoneNotification(requireContext(), currentStreak);
+            }
         }
     }
 

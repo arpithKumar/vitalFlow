@@ -38,6 +38,7 @@ import com.google.android.material.chip.Chip;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.vitalflow.app.R;
 import com.vitalflow.app.data.entity.Medication;
+import com.vitalflow.app.data.entity.MedicationHistory;
 import com.vitalflow.app.data.repository.GeminiRepository;
 import com.vitalflow.app.databinding.FragmentMedsBinding;
 import com.vitalflow.app.utils.BitmapUtils;
@@ -123,8 +124,29 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
                                 .withEndAction(() -> showAddSheet(null)).start()).start());
 
         setupSwipeToDelete();
+        setupPullToRefresh();
+
+        binding.btnMedHistory.setOnClickListener(v ->
+                MedHistoryBottomSheet.newInstanceAll()
+                        .show(getChildFragmentManager(), "med_history"));
 
         binding.chipGroupFilters.setOnCheckedStateChangeListener((group, checkedId) -> applyFilters());
+    }
+
+    private void setupPullToRefresh() {
+        binding.swipeRefresh.setColorSchemeColors(
+                androidx.core.content.ContextCompat.getColor(requireContext(), R.color.primary));
+        binding.swipeRefresh.setOnRefreshListener(() -> {
+            androidx.work.OneTimeWorkRequest syncWork =
+                    new androidx.work.OneTimeWorkRequest.Builder(
+                            com.vitalflow.app.workers.SyncWorker.class).build();
+            androidx.work.WorkManager.getInstance(requireContext()).enqueue(syncWork);
+            // Re-trigger ViewModel LiveData
+            viewModel.getAllMedications().getValue(); // LiveData is already active; Room re-delivers
+            binding.swipeRefresh.postDelayed(
+                    () -> { if (binding != null) binding.swipeRefresh.setRefreshing(false); },
+                    1500);
+        });
     }
 
     private void launchCamera() {
@@ -334,6 +356,15 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
 
                 viewModel.insertMedication(med);
 
+                // Audit log — record TAKEN or SKIPPED events
+                if ("TAKEN".equals(newStatus) || "SKIPPED".equals(newStatus)) {
+                    disposables.add(
+                        viewModel.getAppDao().insertMedicationHistory(
+                                new MedicationHistory(med.getId(), med.getName(), newStatus))
+                            .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
+                            .subscribe(() -> {}, Throwable::printStackTrace));
+                }
+
                 // Haptic feedback on TAKEN
                 if ("TAKEN".equals(newStatus)) {
                     binding.getRoot().performHapticFeedback(
@@ -403,6 +434,11 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
                         if (item.getPillsLeft() > 0) item.setPillsLeft(item.getPillsLeft() - 1);
                     }
                     viewModel.insertMedication(item);
+                    disposables.add(
+                        viewModel.getAppDao().insertMedicationHistory(
+                                new MedicationHistory(item.getId(), item.getName(), "TAKEN"))
+                            .subscribeOn(io.reactivex.rxjava3.schedulers.Schedulers.io())
+                            .subscribe(() -> {}, Throwable::printStackTrace));
 
                     binding.getRoot().performHapticFeedback(
                             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R

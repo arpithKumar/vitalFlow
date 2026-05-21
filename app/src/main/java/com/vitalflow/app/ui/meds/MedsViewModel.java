@@ -34,6 +34,8 @@ public class MedsViewModel extends ViewModel {
 
     public GeminiRepository getGeminiRepository() { return geminiRepository; }
 
+    public AppDao getAppDao() { return appDao; }
+
     public LiveData<List<Medication>> getAllMedications() { return allMedications; }
 
     public Completable insertMedicationCompletable(Medication m) {
