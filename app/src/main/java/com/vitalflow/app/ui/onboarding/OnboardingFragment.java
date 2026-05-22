@@ -56,14 +56,19 @@ public class OnboardingFragment extends Fragment {
             @Override
             public void onPageSelected(int position) {
                 super.onPageSelected(position);
-                if (position == adapter.getItemCount() - 1) {
+                boolean isLastSlide = position == adapter.getItemCount() - 1;
+                if (isLastSlide) {
                     binding.btnNext.setText("Get Started");
                     binding.btnNext.setIcon(null);
                     binding.btnSkip.setVisibility(View.GONE);
+                    // Disable ViewPager2 swipe so it doesn't intercept touches
+                    // on the TextInputEditText fields on the form slide.
+                    binding.viewPager.setUserInputEnabled(false);
                 } else {
                     binding.btnNext.setText("Next");
                     binding.btnNext.setIconResource(R.drawable.ic_arrow_forward);
                     binding.btnSkip.setVisibility(View.VISIBLE);
+                    binding.viewPager.setUserInputEnabled(true);
                 }
             }
         });
@@ -199,11 +204,15 @@ public class OnboardingFragment extends Fragment {
                 holder.btnConnect.setVisibility(View.GONE);
             }
 
-            // Slide 4: profile form
+            // Slide 4: profile form — hide the icon card to give the fields room above keyboard
             if (position == 4) {
                 holder.layoutProfileForm.setVisibility(View.VISIBLE);
+                if (holder.cardSlideIcon != null)
+                    holder.cardSlideIcon.setVisibility(View.GONE);
             } else {
                 holder.layoutProfileForm.setVisibility(View.GONE);
+                if (holder.cardSlideIcon != null)
+                    holder.cardSlideIcon.setVisibility(View.VISIBLE);
             }
         }
 
@@ -217,6 +226,7 @@ public class OnboardingFragment extends Fragment {
             TextView title, desc;
             MaterialButton btnConnect;
             android.view.View layoutProfileForm;
+            com.google.android.material.card.MaterialCardView cardSlideIcon;
             com.google.android.material.textfield.TextInputEditText etName, etWater, etSleep;
 
             SlideHolder(View v) {
@@ -226,6 +236,7 @@ public class OnboardingFragment extends Fragment {
                 desc = v.findViewById(R.id.tvDesc);
                 btnConnect = v.findViewById(R.id.btnAction);
                 layoutProfileForm = v.findViewById(R.id.layoutProfileForm);
+                cardSlideIcon = v.findViewById(R.id.cardSlideIcon);
                 etName = v.findViewById(R.id.etOnboardName);
                 etWater = v.findViewById(R.id.etOnboardWater);
                 etSleep = v.findViewById(R.id.etOnboardSleep);

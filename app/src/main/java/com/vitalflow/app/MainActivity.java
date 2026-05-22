@@ -17,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.splashscreen.SplashScreen;
 import androidx.navigation.NavController;
@@ -275,62 +276,64 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void checkAndRequestAllPermissions() {
+        // "perm_prefs / permissions_requested" is set to true after the first ask.
+        // On subsequent cold starts we only re-request a permission when
+        // shouldShowRequestPermissionRationale() is still true — meaning the user denied
+        // it once but hasn't permanently dismissed it.  Permanently-denied permissions
+        // (BODY_SENSORS on restricted devices, etc.) are silently skipped.
+        android.content.SharedPreferences permPrefs =
+                getSharedPreferences("perm_prefs", MODE_PRIVATE);
+        boolean firstAsk = !permPrefs.getBoolean("permissions_requested", false);
+
         List<String> permissionsToRequest = new ArrayList<>();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.ACTIVITY_RECOGNITION);
-            }
+            maybeAdd(permissionsToRequest, Manifest.permission.ACTIVITY_RECOGNITION, firstAsk);
         }
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BODY_SENSORS) != PackageManager.PERMISSION_GRANTED) {
-            permissionsToRequest.add(Manifest.permission.BODY_SENSORS);
-        }
+        maybeAdd(permissionsToRequest, Manifest.permission.BODY_SENSORS, firstAsk);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS);
-            }
+            maybeAdd(permissionsToRequest, Manifest.permission.POST_NOTIFICATIONS, firstAsk);
         } else {
             NotificationHelper.createNotificationChannel(this);
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN);
-            }
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT);
-            }
+            maybeAdd(permissionsToRequest, Manifest.permission.BLUETOOTH_SCAN, firstAsk);
+            maybeAdd(permissionsToRequest, Manifest.permission.BLUETOOTH_CONNECT, firstAsk);
         } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION);
-            }
+            maybeAdd(permissionsToRequest, Manifest.permission.ACCESS_FINE_LOCATION, firstAsk);
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES);
-            }
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED);
-            }
+            maybeAdd(permissionsToRequest, Manifest.permission.READ_MEDIA_IMAGES, firstAsk);
+            maybeAdd(permissionsToRequest, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED, firstAsk);
         } else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES);
-            }
+            maybeAdd(permissionsToRequest, Manifest.permission.READ_MEDIA_IMAGES, firstAsk);
         } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE);
-            }
+            maybeAdd(permissionsToRequest, Manifest.permission.READ_EXTERNAL_STORAGE, firstAsk);
         }
 
         if (!permissionsToRequest.isEmpty()) {
+            permPrefs.edit().putBoolean("permissions_requested", true).apply();
             PermissionBottomSheet sheet = new PermissionBottomSheet();
             sheet.setOnAllowClicked(() ->
                     multiplePermissionLauncher.launch(permissionsToRequest.toArray(new String[0])));
             sheet.show(getSupportFragmentManager(), "PermissionSheet");
         }
+    }
+
+    /**
+     * Adds {@code permission} to {@code list} only if it is not yet granted AND it is still
+     * askable (either this is the first-ever ask, or the system says we should show a rationale —
+     * which means the user denied once but hasn't ticked "Don't ask again").
+     */
+    private void maybeAdd(List<String> list, String permission, boolean firstAsk) {
+        if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED)
+            return;
+        if (firstAsk || ActivityCompat.shouldShowRequestPermissionRationale(this, permission))
+            list.add(permission);
     }
 
     private int getTabIndex(int itemId) {

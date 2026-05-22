@@ -12,7 +12,9 @@ local.properties
 
 # Android Studio / IntelliJ
 *.iml
+/.idea
 /.idea/caches/
+/.idea/misc.xml
 /.idea/libraries/
 /.idea/modules.xml
 /.idea/workspace.xml
