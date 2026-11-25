@@ -5,4 +5,7 @@
     <string name="settings_crash_reports_title">Share crash reports</string>
     <string name="settings_crash_reports_summary">Anonymous. Sends the crash details, device model and Android version to help fix bugs. Off by default.</string>
     <string name="daily_reminders">Daily Reminders</string>
+
+    <!-- Gemini API key entry -->
+    <string name="gemini_key_invalid">That does not look like a Gemini API key. Copy it again from Google AI Studio.</string>
 </resources>
