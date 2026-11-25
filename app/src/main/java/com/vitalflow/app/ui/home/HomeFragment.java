@@ -147,6 +147,8 @@ public class HomeFragment extends Fragment implements SensorEventListener {
 
     private ActivityResultLauncher<Intent> speechLauncher;
     private List<Medication> activeMedsList = new ArrayList<>();
+    /** Held so we can cancel it in onDestroyView and avoid binding-null NPE mid-animation. */
+    private ValueAnimator stepsAnimator;
 
     private ActivityResultLauncher<String[]> documentPickerLauncher;
 
@@ -206,8 +208,8 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                         }
                     }
                     if (allGranted) fetchHealthConnectData();
-                    else
-                        Toast.makeText(getContext(), "Permissions needed to sync watch data", Toast.LENGTH_SHORT).show();
+                    // Silently skip if denied — Health Connect is optional.
+                    // Mark as asked so we never prompt again automatically.
                 });
 
         // Speech-to-Text Launcher
@@ -608,7 +610,10 @@ public class HomeFragment extends Fragment implements SensorEventListener {
         viewModel.getDailyHealth().observe(getViewLifecycleOwner(), dailyHealth -> {
             stopHomeStatsShimmer();
             if (dailyHealth == null) {
-                DailyHealth newEntry = new DailyHealth(todayDateKey, 0, 2000, 0, "0h 0m", 0);
+                int savedGoal = requireContext()
+                        .getSharedPreferences("vital_prefs", android.content.Context.MODE_PRIVATE)
+                        .getInt("daily_water_goal_ml", 2000);
+                DailyHealth newEntry = new DailyHealth(todayDateKey, 0, savedGoal, 0, "0h 0m", 0);
                 viewModel.insertDailyHealth(newEntry);
                 return;
             }
@@ -619,7 +624,10 @@ public class HomeFragment extends Fragment implements SensorEventListener {
                 saveToDb();
             }
 
-            boolean shouldAnimate = (displayedWaterAmount == 0 && dailyHealth.getWaterIntakeMl() > 0);
+            // Animate whenever the intake actually changed from what's on screen — not just on
+            // the first log of the session. The old (== 0) check only ever matched the very
+            // first water log after a cold start; every log after that snapped instantly.
+            boolean shouldAnimate = displayedWaterAmount != dailyHealth.getWaterIntakeMl();
             updateHydrationUI(shouldAnimate);
             updateStatsUI();
             updateMoodUI();
@@ -867,6 +875,22 @@ public class HomeFragment extends Fragment implements SensorEventListener {
     }
 
     private void showImageSourceDialog() {
+        // AI-powered options require a Gemini key — check first so we never
+        // open the camera / gallery and then crash when the key is missing.
+        String geminiKey = com.vitalflow.app.utils.SecurePrefsHelper.getGeminiKey(requireContext());
+        if (geminiKey == null || geminiKey.isEmpty()) {
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Gemini AI Key Required")
+                    .setMessage("AI food analysis needs a Gemini API key.\nAdd yours in Profile → Gemini AI, or log food manually.")
+                    .setPositiveButton("Go to Profile", (d, w) ->
+                            androidx.navigation.Navigation.findNavController(requireView())
+                                    .navigate(R.id.profileFragment))
+                    .setNeutralButton("Log Manually", (d, w) -> showManualFoodSheet())
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            return;
+        }
+
         String[] options = {"Take Photo 📸", "Choose from Gallery 🖼️", "Log Manually ✏️"};
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Log Nutrition")
@@ -1270,22 +1294,30 @@ public class HomeFragment extends Fragment implements SensorEventListener {
     }
 
     private void checkHealthConnectPermissions() {
-        if (healthConnectManager.isAvailable()) {
-            Set<String> perms = healthConnectManager.getRequiredPermissions();
+        if (!healthConnectManager.isAvailable()) return;
 
-            // Convert Set to Array for the launcher
-            String[] permsArray = perms.toArray(new String[0]);
+        Set<String> perms = healthConnectManager.getRequiredPermissions();
+        String[] permsArray = perms.toArray(new String[0]);
 
-            healthConnectManager.checkPermissions(granted -> {
-                if (granted.containsAll(perms)) {
-                    fetchHealthConnectData();
-                } else {
-                    // Request missing permissions
+        healthConnectManager.checkPermissions(granted -> {
+            if (granted.containsAll(perms)) {
+                // Already granted — fetch data immediately
+                fetchHealthConnectData();
+            } else {
+                // Only ever prompt the user once automatically.
+                // If they denied previously, respect that decision and never prompt again.
+                android.content.SharedPreferences prefs =
+                        requireContext().getSharedPreferences("vital_prefs", android.content.Context.MODE_PRIVATE);
+                boolean alreadyAsked = prefs.getBoolean("hc_perms_asked", false);
+                if (!alreadyAsked) {
+                    prefs.edit().putBoolean("hc_perms_asked", true).apply();
                     requestHealthConnectLauncher.launch(permsArray);
                 }
-                return null;
-            });
-        }
+                // If already asked once and still denied → silently skip; user can grant
+                // from Settings if they change their mind.
+            }
+            return null;
+        });
     }
 
     private void fetchHealthConnectData() {
@@ -1710,13 +1742,16 @@ public class HomeFragment extends Fragment implements SensorEventListener {
     }
 
     private void animateCountUp(int targetSteps) {
-        ValueAnimator animator = ValueAnimator.ofInt(0, targetSteps);
-        animator.setDuration(1200);
-        animator.setInterpolator(new android.view.animation.DecelerateInterpolator());
-        animator.addUpdateListener(a ->
-                binding.tvStepsValue.setText(
-                        String.format(Locale.US, "%,d", (int) a.getAnimatedValue())));
-        animator.start();
+        if (stepsAnimator != null) stepsAnimator.cancel();
+        stepsAnimator = ValueAnimator.ofInt(0, targetSteps);
+        stepsAnimator.setDuration(1200);
+        stepsAnimator.setInterpolator(new android.view.animation.DecelerateInterpolator());
+        stepsAnimator.addUpdateListener(a -> {
+            if (binding == null) return; // view destroyed before animation finished
+            binding.tvStepsValue.setText(
+                    String.format(Locale.US, "%,d", (int) a.getAnimatedValue()));
+        });
+        stepsAnimator.start();
     }
 
     private void loadYesterdayTrend() {
@@ -1960,6 +1995,10 @@ public class HomeFragment extends Fragment implements SensorEventListener {
     public void onDestroyView() {
         super.onDestroyView();
         disposables.clear();
+        if (stepsAnimator != null) {
+            stepsAnimator.cancel();
+            stepsAnimator = null;
+        }
         binding = null;
     }
 

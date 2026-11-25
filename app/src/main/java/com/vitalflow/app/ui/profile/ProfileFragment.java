@@ -309,10 +309,12 @@ public class ProfileFragment extends Fragment {
         ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_dropdown_item_1line, frequencies);
         AutoCompleteTextView dropdown = binding.dropdownSyncFreq;
 
-        String savedFreq = prefs.getString("sync_frequency", "Manual (Off)");
-        dropdown.setText(savedFreq, false);
-
+        // IMPORTANT: setAdapter FIRST, then setText(text, false).
+        // Reversed order caused the filter to run on the current text after recreation,
+        // leaving only the matching item ("Manual") visible in the dropdown.
         dropdown.setAdapter(adapter);
+        String savedFreq = prefs.getString("sync_frequency", "Manual (Off)");
+        dropdown.setText(savedFreq, false); // false = do not filter adapter
         dropdown.dismissDropDown();
         dropdown.clearFocus();
 
@@ -401,6 +403,7 @@ public class ProfileFragment extends Fragment {
         timeRunnable = new Runnable() {
             @Override
             public void run() {
+                if (binding == null || !isAdded()) return; // view already destroyed
                 // Only update if we are NOT syncing (so we don't overwrite "Syncing: 5/20")
                 if (binding.cardSync.isClickable()) {
                     updateSyncStatusUI();

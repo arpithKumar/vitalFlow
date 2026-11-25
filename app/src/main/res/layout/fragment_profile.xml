@@ -295,13 +295,13 @@
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                             android:layout_width="match_parent"
                             android:layout_height="50dp"
-                            app:boxBackgroundColor="@color/surface_variant"
+                            app:boxBackgroundColor="@android:color/transparent"
                             app:boxCornerRadiusBottomEnd="8dp"
                             app:boxCornerRadiusBottomStart="8dp"
                             app:boxCornerRadiusTopEnd="8dp"
                             app:boxCornerRadiusTopStart="8dp"
                             app:boxStrokeColor="@color/glass_card_stroke"
-                            app:boxStrokeWidth="0dp">
+                            app:boxStrokeWidth="1dp">
 
                             <AutoCompleteTextView
                                 android:id="@+id/dropdownSyncFreq"
@@ -311,9 +311,9 @@
                                 android:inputType="none"
                                 android:paddingTop="0dp"
                                 android:paddingBottom="0dp"
-                                android:text="Manual (Off)"
                                 android:textColor="@color/text_primary"
-                                android:textSize="14sp" />
+                                android:textSize="14sp"
+                                android:saveEnabled="false" />
                         </com.google.android.material.textfield.TextInputLayout>
                     </LinearLayout>
                 </LinearLayout>
