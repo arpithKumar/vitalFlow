@@ -28,6 +28,9 @@ public class SecurePrefsHelper {
     /** Legacy plaintext file — used only for migration and fallback. */
     private static final String LEGACY_PREFS_FILE  = "vital_prefs";
 
+    /** Cached instance — EncryptedSharedPreferences is expensive to construct. */
+    private static SharedPreferences cachedSecurePrefs = null;
+
     // -----------------------------------------------------------------------
     // Public API
     // -----------------------------------------------------------------------
@@ -51,8 +54,9 @@ public class SecurePrefsHelper {
                 }
             }
             return secure.getString(KEY_GEMINI_API_KEY, null);
-        } catch (GeneralSecurityException | IOException e) {
+        } catch (Exception e) {
             Log.e(TAG, "KeyStore unavailable — falling back to plaintext for read", e);
+            cachedSecurePrefs = null; // force re-init on next attempt
             return context.getSharedPreferences(LEGACY_PREFS_FILE, Context.MODE_PRIVATE)
                     .getString(KEY_GEMINI_API_KEY, null);
         }
@@ -74,8 +78,9 @@ public class SecurePrefsHelper {
             // Always scrub plaintext copy regardless of outcome above
             context.getSharedPreferences(LEGACY_PREFS_FILE, Context.MODE_PRIVATE)
                     .edit().remove(KEY_GEMINI_API_KEY).apply();
-        } catch (GeneralSecurityException | IOException e) {
+        } catch (Exception e) {
             Log.e(TAG, "KeyStore unavailable — falling back to plaintext for write", e);
+            cachedSecurePrefs = null; // force re-init on next attempt
             context.getSharedPreferences(LEGACY_PREFS_FILE, Context.MODE_PRIVATE)
                     .edit().putString(KEY_GEMINI_API_KEY, key).apply();
         }
@@ -85,17 +90,23 @@ public class SecurePrefsHelper {
     // Private
     // -----------------------------------------------------------------------
 
+    // security-crypto 1.1.0 stable deprecated MasterKey/EncryptedSharedPreferences in favor of
+    // rolling your own Tink-based storage — a much larger migration than an incidental fix here.
+    // Suppressing until that migration is deliberately scoped.
+    @SuppressWarnings("deprecation")
     private static SharedPreferences getSecurePrefs(Context context)
             throws GeneralSecurityException, IOException {
+        if (cachedSecurePrefs != null) return cachedSecurePrefs;
         MasterKey masterKey = new MasterKey.Builder(context.getApplicationContext())
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                 .build();
-        return EncryptedSharedPreferences.create(
+        cachedSecurePrefs = EncryptedSharedPreferences.create(
                 context.getApplicationContext(),
                 SECURE_PREFS_FILE,
                 masterKey,
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         );
+        return cachedSecurePrefs;
     }
 }
