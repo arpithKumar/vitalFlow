@@ -8,6 +8,10 @@ build/
 */build/
 captures/
 
+# Python bytecode (scripts/)
+__pycache__/
+*.pyc
+
 # Local configuration & secrets (DO NOT COMMIT)
 local.properties
 
