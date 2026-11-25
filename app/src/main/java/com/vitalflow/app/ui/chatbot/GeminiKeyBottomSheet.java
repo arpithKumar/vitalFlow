@@ -5,6 +5,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 
+import com.vitalflow.app.R;
+import com.vitalflow.app.utils.GeminiKeyFormat;
 import com.vitalflow.app.utils.SecurePrefsHelper;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -83,13 +85,13 @@ public class GeminiKeyBottomSheet extends BottomSheetDialogFragment {
             String key = binding.etApiKey.getText().toString().trim();
             String model = binding.autoCompleteModel.getText().toString().trim();
 
-            if (key.length() > 20 && key.startsWith("AIza")) { // Basic validation for Google Keys
+            if (GeminiKeyFormat.looksValid(key)) {
                 saveKey(key, model);
                 if (listener != null) listener.onKeySaved();
                 dismiss();
                 Toast.makeText(getContext(), "Gemini Connected! 🌟", Toast.LENGTH_SHORT).show();
             } else {
-                binding.etApiKey.setError("Invalid API Key (should start with AIza)");
+                binding.etApiKey.setError(getString(R.string.gemini_key_invalid));
             }
         });
     }
