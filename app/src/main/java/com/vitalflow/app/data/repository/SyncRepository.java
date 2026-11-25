@@ -1,7 +1,5 @@
 package com.vitalflow.app.data.repository;
 
-import static io.reactivex.rxjava3.core.Completable.fromAction;
-
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -28,6 +26,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 
 import io.reactivex.rxjava3.core.Completable;
+import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
 @Singleton
@@ -55,7 +54,9 @@ public class SyncRepository {
     public boolean syncDataBlocking() {
         if (auth.getCurrentUser() == null) return false;
         try {
-            performFullSync(null);
+            int skipped = performFullSync(null);
+            // A retry cannot fix a record that does not map to the entity, so this is not a failure.
+            if (skipped > 0) Log.w("SyncRepo", skipped + " cloud records could not be restored");
             return true;
         } catch (Exception e) {
             Log.e("SyncRepo", "Sync Failed", e);
@@ -81,10 +82,19 @@ public class SyncRepository {
             notifyComplete(listener, false, "User not logged in");
             return;
         }
-        fromAction(() -> performFullSync(listener))
+        Single.fromCallable(() -> performFullSync(listener))
                 .subscribeOn(Schedulers.io())
                 .subscribe(
-                        () -> notifyComplete(listener, true, "Sync Complete"),
+                        skipped -> {
+                            // The upload worked, but some cloud records could not be turned back into
+                            // local ones. Say so instead of reporting a clean sync.
+                            if (skipped > 0) {
+                                notifyComplete(listener, false,
+                                        skipped + " records could not be restored from the cloud");
+                            } else {
+                                notifyComplete(listener, true, "Sync Complete");
+                            }
+                        },
                         e -> {
                             Log.e("SyncRepo", "Async Sync Error", e);
                             notifyComplete(listener, false, e.getMessage());
@@ -93,17 +103,23 @@ public class SyncRepository {
     }
 
     // --- THE CORE LOGIC (Safe Order: Download -> Merge -> Upload) ---
-    private void performFullSync(OnSyncListener listener) throws ExecutionException, InterruptedException {
+    /**
+     * Downloads, merges and uploads everything.
+     *
+     * @return how many cloud documents could not be turned back into local records (0 = a clean sync)
+     */
+    private int performFullSync(OnSyncListener listener) throws ExecutionException, InterruptedException {
         String uid = auth.getCurrentUser() != null ? auth.getCurrentUser().getUid() : null;
+        int skipped = 0;
 
         notifyProgress(listener, 1, 4); // Progress 25%
-        restoreCollection(uid, "medications", Medication.class, appDao::insertMedication);
-        restoreCollection(uid, "vitals", Vital.class, appDao::insertVital);
+        skipped += restoreCollection(uid, "medications", Medication.class, appDao::insertMedication);
+        skipped += restoreCollection(uid, "vitals", Vital.class, appDao::insertVital);
 
         notifyProgress(listener, 2, 4); // Progress 50%
-        restoreCollection(uid, "daily_health", DailyHealth.class, appDao::insertDailyHealth);
-        restoreCollection(uid, "period_logs", PeriodLog.class, appDao::insertPeriodLog);
-        restoreCollection(uid, "food_logs", FoodLog.class, appDao::insertFoodLog);
+        skipped += restoreCollection(uid, "daily_health", DailyHealth.class, appDao::insertDailyHealth);
+        skipped += restoreCollection(uid, "period_logs", PeriodLog.class, appDao::insertPeriodLog);
+        skipped += restoreCollection(uid, "food_logs", FoodLog.class, appDao::insertFoodLog);
 
 
         notifyProgress(listener, 3, 4); // Progress 75%
@@ -114,6 +130,7 @@ public class SyncRepository {
         notifyProgress(listener, 4, 4); // Progress 100%
         uploadCollection(uid, "period_logs", appDao.getAllLogsSync().blockingGet());
         uploadCollection(uid, "food_logs", appDao.getAllFoodLogsSync().blockingGet());
+        return skipped;
     }
 
     // --- HELPER: UPLOAD ---
@@ -156,12 +173,14 @@ public class SyncRepository {
     }
 
     // --- HELPER: RESTORE ---
-    private <T> void restoreCollection(String uid, String collectionName, Class<T> type, InsertCallback<T> callback) throws ExecutionException, InterruptedException {
+    /** @return how many documents of this collection could not be restored */
+    private <T> int restoreCollection(String uid, String collectionName, Class<T> type, InsertCallback<T> callback) throws ExecutionException, InterruptedException {
         CollectionReference ref = firestore.collection("users").document(uid).collection(collectionName);
 
         // Fetch all documents in the collection
         var snapshot = Tasks.await(ref.get());
 
+        int skipped = 0;
         for (DocumentSnapshot doc : snapshot.getDocuments()) {
             try {
                 T item = doc.toObject(type);
@@ -169,9 +188,11 @@ public class SyncRepository {
                     callback.insert(item).blockingAwait();
                 }
             } catch (Exception e) {
-                Log.e("SyncRepo", "Skipped corrupted document: " + doc.getId(), e);
+                skipped++;
+                Log.e("SyncRepo", "Could not restore " + collectionName + "/" + doc.getId(), e);
             }
         }
+        return skipped;
     }
 
     // Extracts ID based on object type
