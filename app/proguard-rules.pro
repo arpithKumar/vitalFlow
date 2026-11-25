@@ -22,6 +22,41 @@
 -keep class com.vitalflow.app.data.repository.GeminiRepository$PrescriptionResult { *; }
 -keep class com.vitalflow.app.data.repository.GeminiRepository$VoiceAction { *; }
 
+# Apache POI: the Excel export (DataExportHelper) and restore (DataImportHelper).
+# POI's OOXML layer loads its XML schema types through XMLBeans, which works out package and resource
+# names from class names at runtime. R8 renames and repackages those classes, and the first export then
+# crashed the release build (StringIndexOutOfBoundsException in XMLBeans' static initialiser). They are
+# kept as they are. This makes the release APK larger. Remove these rules together with POI if it is
+# replaced, and remove the third-party part of scripts/check_release_mapping.py at the same time.
+-keep class org.apache.poi.** { *; }
+-keep class org.apache.xmlbeans.** { *; }
+-keep class org.openxmlformats.schemas.** { *; }
+-keep class com.microsoft.schemas.** { *; }
+-keep class schemaorg_apache_xmlbeans.** { *; }
+# Keeping all of POI also keeps code that mentions optional libraries which do not exist on Android:
+# schema classes that poi-ooxml-lite leaves out, desktop AWT and Swing, Saxon, Batik, javaparser, PDFBox.
+# The XLSX read and write paths do not use them. R8 lists them in missing_rules.txt after a failed build.
+-dontwarn org.openxmlformats.schemas.**
+-dontwarn com.microsoft.schemas.**
+-dontwarn javax.xml.crypto.**
+-dontwarn javax.xml.stream.**
+-dontwarn net.sf.saxon.**
+-dontwarn com.github.javaparser.**
+-dontwarn java.awt.**
+-dontwarn javax.imageio.**
+-dontwarn javax.swing.**
+-dontwarn org.apache.batik.**
+-dontwarn org.apache.tools.**
+-dontwarn org.apache.maven.**
+-dontwarn org.apache.pdfbox.**
+-dontwarn de.rototor.pdfbox.**
+-dontwarn org.apache.jcp.**
+-dontwarn org.apache.xml.**
+-dontwarn org.tukaani.xz.**
+-dontwarn org.ietf.jgss.**
+-dontwarn com.sun.org.**
+-dontwarn org.w3c.dom.**
+
 # Apache POI — optional desktop dependencies not present on Android
 -dontwarn aQute.bnd.annotation.baseline.BaselineIgnore
 -dontwarn aQute.bnd.annotation.spi.ServiceConsumer
