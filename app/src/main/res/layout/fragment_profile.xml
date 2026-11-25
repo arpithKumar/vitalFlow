@@ -777,7 +777,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="16dp"
                             android:layout_weight="1"
-                            android:text="Daily Reminders"
+                            android:text="@string/daily_reminders"
                             android:textColor="@color/text_primary"
                             android:textSize="15sp" />
 
