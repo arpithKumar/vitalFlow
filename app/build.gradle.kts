@@ -2,12 +2,13 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.hiltAndroid)
     alias(libs.plugins.googleServices)
+    alias(libs.plugins.firebaseCrashlytics)
 }
 
 android {
     namespace = "com.vitalflow.app"
     compileSdk {
-        version = release(36)
+        version = release(37)
     }
 
     lint {
@@ -38,6 +39,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Uploading the R8 mapping needs Firebase credentials and network access, so it is
+            // off for local and CI builds. Enable it in the real release pipeline so crash
+            // traces are de-obfuscated.
+            configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
+                mappingFileUploadEnabled = false
+            }
         }
     }
     compileOptions {
@@ -88,6 +95,7 @@ dependencies {
     // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
+    implementation(libs.firebase.crashlytics)
 
     // Lottie
     implementation(libs.lottie)

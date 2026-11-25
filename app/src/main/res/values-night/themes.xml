@@ -60,14 +60,6 @@
     <!--  TYPOGRAPHY SCALE (same definitions — @color tokens auto-switch) -->
     <!-- ═══════════════════════════════════════════════ -->
 
-    <style name="TextAppearance.VitalFlow.Display" parent="TextAppearance.Material3.DisplaySmall">
-        <item name="android:fontFamily">@font/custom_font</item>
-        <item name="android:textSize">32sp</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:letterSpacing">-0.02</item>
-        <item name="android:textColor">@color/text_primary</item>
-    </style>
-
     <style name="TextAppearance.VitalFlow.Headline" parent="TextAppearance.Material3.HeadlineMedium">
         <item name="android:fontFamily">@font/custom_font</item>
         <item name="android:textSize">24sp</item>

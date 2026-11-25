@@ -5,13 +5,24 @@ import android.content.SharedPreferences;
 
 import androidx.appcompat.app.AppCompatDelegate;
 
+import com.vitalflow.app.diagnostics.CrashReporting;
+
+import javax.inject.Inject;
+
 import dagger.hilt.android.HiltAndroidApp;
 
 @HiltAndroidApp
 public class VitalFlowApp extends Application {
+
+    @Inject
+    CrashReporting crashReporting;
+
     @Override
     public void onCreate() {
         super.onCreate();
+        // Match the crash-reporting service to the user's saved opt-in (off by default).
+        crashReporting.applySavedChoice();
+
         // Apply theme before any Activity creates its window to prevent cold-start flash
         SharedPreferences prefs = getSharedPreferences("theme_prefs", MODE_PRIVATE);
         AppCompatDelegate.setDefaultNightMode(

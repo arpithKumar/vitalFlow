@@ -2,13 +2,14 @@
 <resources>
 
     <!-- ═══════════════════════════════════════════════ -->
-    <!--  BRAND  (brighter teal for dark backgrounds)    -->
+    <!--  BRAND  ("Clinical Calm" — brighter slate blue  -->
+    <!--  + coral for dark backgrounds)                  -->
     <!-- ═══════════════════════════════════════════════ -->
-    <color name="primary">#2DD4BF</color>
-    <color name="primary_dark">#0F766E</color>
-    <color name="primary_light">#99F6E4</color>
-    <color name="secondary">#FB923C</color>
-    <color name="secondary_dark">#EA580C</color>
+    <color name="primary">#7FA8CC</color>
+    <color name="primary_dark">#4A6D8C</color>
+    <color name="primary_light">#C2DCEC</color>
+    <color name="secondary">#F08A6C</color>
+    <color name="secondary_dark">#E2643F</color>
 
     <!-- ═══════════════════════════════════════════════ -->
     <!--  SURFACES  (deep navy — premium dark)           -->
@@ -24,8 +25,8 @@
     <color name="text_secondary">#94A3B8</color>
     <color name="text_tertiary">#64748B</color>
     <color name="text_on_primary">#0A0F1A</color>
-    <color name="text_on_primary_soft">#CCFBF1</color>
-    <color name="text_on_primary_dark">#134E4A</color>
+    <color name="text_on_primary_soft">#D6E6F0</color>
+    <color name="text_on_primary_dark">#1D3A57</color>
 
     <!-- ═══════════════════════════════════════════════ -->
     <!--  SYSTEM                                         -->
@@ -38,9 +39,9 @@
     <!-- ═══════════════════════════════════════════════ -->
     <!--  CHIPS &amp; TABS                               -->
     <!-- ═══════════════════════════════════════════════ -->
-    <color name="chip_bg_selected">#134E4A</color>
+    <color name="chip_bg_selected">#1D3A57</color>
     <color name="chip_bg_unselected">#1E293B</color>
-    <color name="chip_text_selected">#5EEAD4</color>
+    <color name="chip_text_selected">#9DC3E0</color>
     <color name="chip_text_unselected">#64748B</color>
     <color name="tab_text_selected">#0A0F1A</color>
 
@@ -73,7 +74,6 @@
     <color name="text_day_fertile">#86EFAC</color>
     <color name="bg_day_ovulation">#4C1D95</color>
     <color name="text_day_ovulation">#C4B5FD</color>
-    <color name="bg_day_prediction">#7C2D12</color>
     <color name="text_day_normal">#CBD5E1</color>
     <color name="text_day_other_month">#334155</color>
 
@@ -86,15 +86,15 @@
     <color name="bg_date_end">#7F1D1D</color>
     <color name="text_date_end_label">#FCA5A5</color>
     <color name="text_date_end_val">#FEE2E2</color>
-    <color name="bg_time">#134E4A</color>
-    <color name="text_time_label">#5EEAD4</color>
-    <color name="text_time_val">#CCFBF1</color>
+    <color name="bg_time">#1D3A57</color>
+    <color name="text_time_label">#9DC3E0</color>
+    <color name="text_time_val">#D6E6F0</color>
 
     <!-- ═══════════════════════════════════════════════ -->
     <!--  THEMED CARDS                                   -->
     <!-- ═══════════════════════════════════════════════ -->
-    <color name="bg_doctor_card">#0A1F16</color>
-    <color name="stroke_doctor_card">#0F766E</color>
+    <color name="bg_doctor_card">#0F1F2E</color>
+    <color name="stroke_doctor_card">#3D5A80</color>
 
     <color name="bg_tip_card">#1C1810</color>
     <color name="stroke_tip_card">#92400E</color>
@@ -165,8 +165,6 @@
     <!-- ═══════════════════════════════════════════════ -->
     <!--  GLASSMORPHISM — CARDS                          -->
     <!-- ═══════════════════════════════════════════════ -->
-    <!-- 80% dark navy — main glass card fill -->
-    <color name="glass_card_bg">#CC0D2137</color>
     <!-- 20% white — glass card border (subtle in dark) -->
     <color name="glass_card_stroke">#33FFFFFF</color>
     <!-- 90% dark navy — more opaque glass for elevated cards -->
@@ -182,19 +180,9 @@
     <!-- Nav icon inactive: reuses @color/icon_unselected -->
 
     <!-- ═══════════════════════════════════════════════ -->
-    <!--  HERO CARD — TIME OF DAY GRADIENTS              -->
-    <!-- ═══════════════════════════════════════════════ -->
-    <color name="hero_morning_start">#1A120A</color>
-    <color name="hero_morning_end">#0A1A19</color>
-    <color name="hero_afternoon_start">#0A1A19</color>
-    <color name="hero_afternoon_end">#0A1220</color>
-    <color name="hero_night_start">#0A0D1F</color>
-    <color name="hero_night_end">#130A1F</color>
-
-    <!-- ═══════════════════════════════════════════════ -->
     <!--  STAT CARDS                                     -->
     <!-- ═══════════════════════════════════════════════ -->
-    <color name="stat_icon_bg">#0D2A27</color>
+    <color name="stat_icon_bg">#16283A</color>
     <color name="trend_up">#66BB6A</color>
     <color name="trend_down">#EF5350</color>
 
@@ -212,7 +200,7 @@
     <color name="text_chip_eat">#66BB6A</color>
     <color name="chip_bg_avoid">#3B1A1A</color>
     <color name="text_chip_avoid">#EF5350</color>
-    <color name="chip_bg_tips">#0D2A27</color>
-    <color name="text_chip_tips">#2DD4BF</color>
+    <color name="chip_bg_tips">#16283A</color>
+    <color name="text_chip_tips">#7FA8CC</color>
 
 </resources>

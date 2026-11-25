@@ -28,7 +28,10 @@ public class SyncWorker extends Worker {
         ).getSyncRepository();
 
         boolean success = repository.syncDataBlocking();
-        return success ? Result.success() : Result.retry();
+        // Return failure (not retry) so WorkManager does not loop on PERMISSION_DENIED
+        // or other persistent Firestore errors. Transient network errors are handled
+        // inside SyncRepository which catches all exceptions and returns false.
+        return success ? Result.success() : Result.failure();
     }
 
     @EntryPoint

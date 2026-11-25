@@ -1,0 +1,22 @@
+# Let Git detect text files and store them with LF line endings.
+* text=auto
+
+# Scripts: Windows batch files need CRLF, Unix scripts need LF.
+*.bat text eol=crlf
+gradlew text eol=lf
+*.sh text eol=lf
+
+# Binary files: never diff or merge as text.
+*.jar binary
+*.apk binary
+*.aab binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ttf binary
+*.otf binary
+*.xlsx binary
+*.jks binary
+*.keystore binary

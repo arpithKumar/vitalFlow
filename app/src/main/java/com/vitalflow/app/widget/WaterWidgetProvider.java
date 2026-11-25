@@ -193,16 +193,16 @@ public class WaterWidgetProvider extends AppWidgetProvider {
         if (isDark) {
             views.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.bg_widget_dark);
             views.setTextColor(R.id.tvTitle, Color.WHITE);
-            views.setTextColor(R.id.tvWidgetIntake, Color.parseColor("#B2DFDB"));
+            views.setTextColor(R.id.tvWidgetIntake, Color.parseColor("#C2DCEC"));
             views.setInt(R.id.btnWidgetMood1, "setColorFilter", Color.parseColor("#E57373"));
             views.setInt(R.id.btnWidgetMood5, "setColorFilter", Color.parseColor("#81C784"));
-            views.setInt(R.id.imgDrop, "setColorFilter", Color.parseColor("#4DB6AC"));
+            views.setInt(R.id.imgDrop, "setColorFilter", Color.parseColor("#7FA8CC"));
         } else {
             views.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.bg_widget_light);
             views.setTextColor(R.id.tvTitle, Color.BLACK);
             views.setInt(R.id.btnWidgetMood1, "setColorFilter", Color.parseColor("#EF9A9A"));
             views.setInt(R.id.btnWidgetMood5, "setColorFilter", Color.parseColor("#66BB6A"));
-            views.setInt(R.id.imgDrop, "setColorFilter", Color.parseColor("#00897B"));
+            views.setInt(R.id.imgDrop, "setColorFilter", Color.parseColor("#3D5A80"));
         }
     }
 

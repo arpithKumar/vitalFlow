@@ -125,6 +125,15 @@ app/src/main/java/com/vitalflow/app/
    Open the app → Profile → AI Configuration → paste your key.  
    Alternatively, enter it during onboarding on the "Meet Your AI Coach" slide.
 
+### Test, lint and contribute
+
+```bash
+./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
+```
+
+The same checks run in CI on every pull request. Build conventions, code organisation, naming rules and the
+release smoke test are in [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ---
 
 ## 📱 Screens

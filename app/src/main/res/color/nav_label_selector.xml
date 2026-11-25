@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Selected label: primary (teal) so it's readable on the light nav card background.
+         White is NOT used here — the icon is white (inside the teal pill), the label is below it. -->
+    <item android:state_checked="true" android:color="@color/primary" />
+    <!-- Unselected: standard muted grey -->
+    <item android:color="@color/icon_unselected" />
+</selector>

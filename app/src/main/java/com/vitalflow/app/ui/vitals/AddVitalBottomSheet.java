@@ -355,6 +355,10 @@ public class AddVitalBottomSheet extends BottomSheetDialogFragment {
         }
     };
 
+    // API 37 introduces connectGatt(BluetoothGattConnectionSettings, Executor, ...) and
+    // deprecates every Context-based overload — but minSdk is 26, where that new API
+    // doesn't exist, so the Context-based call is still required here.
+    @SuppressWarnings("deprecation")
     @SuppressLint({"MissingPermission", "SetTextI18n"})
     private void connectGatt(BluetoothDevice device) {
         if (!hasPermissions()) return;

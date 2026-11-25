@@ -295,13 +295,13 @@
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                             android:layout_width="match_parent"
                             android:layout_height="50dp"
-                            app:boxBackgroundColor="@color/surface_variant"
+                            app:boxBackgroundColor="@android:color/transparent"
                             app:boxCornerRadiusBottomEnd="8dp"
                             app:boxCornerRadiusBottomStart="8dp"
                             app:boxCornerRadiusTopEnd="8dp"
                             app:boxCornerRadiusTopStart="8dp"
                             app:boxStrokeColor="@color/glass_card_stroke"
-                            app:boxStrokeWidth="0dp">
+                            app:boxStrokeWidth="1dp">
 
                             <AutoCompleteTextView
                                 android:id="@+id/dropdownSyncFreq"
@@ -311,9 +311,9 @@
                                 android:inputType="none"
                                 android:paddingTop="0dp"
                                 android:paddingBottom="0dp"
-                                android:text="Manual (Off)"
                                 android:textColor="@color/text_primary"
-                                android:textSize="14sp" />
+                                android:textSize="14sp"
+                                android:saveEnabled="false" />
                         </com.google.android.material.textfield.TextInputLayout>
                     </LinearLayout>
                 </LinearLayout>
@@ -777,7 +777,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="16dp"
                             android:layout_weight="1"
-                            android:text="Daily Reminders"
+                            android:text="@string/daily_reminders"
                             android:textColor="@color/text_primary"
                             android:textSize="15sp" />
 
@@ -821,6 +821,58 @@
                             android:id="@+id/switchBiometric"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginHorizontal="12dp"
+                        android:background="@color/divider_color" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:padding="12dp">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:background="@drawable/circle_shape"
+                            android:backgroundTint="@color/bg_tip_card"
+                            android:importantForAccessibility="no"
+                            android:padding="6dp"
+                            android:src="@drawable/ic_warning"
+                            app:tint="@color/warning_yellow" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="16dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/settings_crash_reports_title"
+                                android:textColor="@color/text_primary"
+                                android:textSize="15sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="@string/settings_crash_reports_summary"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchCrashReports"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/settings_crash_reports_title" />
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

@@ -83,7 +83,11 @@ public class OnboardingFragment extends Fragment {
             }
         });
 
-        binding.btnSkip.setOnClickListener(v -> finishOnboarding());
+        binding.btnSkip.setOnClickListener(v -> {
+            // Jump straight to the last slide (health goals form) rather than skipping it entirely
+            int lastIndex = adapter.getItemCount() - 1;
+            binding.viewPager.setCurrentItem(lastIndex, true);
+        });
 
         requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
             @Override
@@ -116,24 +120,37 @@ public class OnboardingFragment extends Fragment {
         SharedPreferences.Editor editor = prefs.edit();
         editor.putBoolean("IS_FIRST_RUN", false);
 
-        // Save profile form values from last slide if filled in
+        // Save profile form values from last slide — use findViewHolderForAdapterPosition
+        // because findViewWithTag("page_4") never works (no tag is set on the inflated views).
         try {
-            android.view.View lastPage = binding.viewPager.findViewWithTag("page_4");
-            if (lastPage != null) {
-                com.google.android.material.textfield.TextInputEditText etName =
-                        lastPage.findViewById(R.id.etOnboardName);
-                com.google.android.material.textfield.TextInputEditText etWater =
-                        lastPage.findViewById(R.id.etOnboardWater);
-                com.google.android.material.textfield.TextInputEditText etSleep =
-                        lastPage.findViewById(R.id.etOnboardSleep);
-                if (etName != null && etName.getText() != null && etName.getText().length() > 0)
-                    editor.putString("onboard_name", etName.getText().toString().trim());
-                if (etWater != null && etWater.getText() != null && etWater.getText().length() > 0)
-                    editor.putInt("daily_water_goal_ml", Integer.parseInt(etWater.getText().toString().trim()));
-                if (etSleep != null && etSleep.getText() != null && etSleep.getText().length() > 0)
-                    editor.putFloat("sleep_goal_hours", Float.parseFloat(etSleep.getText().toString().trim()));
+            RecyclerView rv =
+                    (RecyclerView) binding.viewPager.getChildAt(0);
+            if (rv != null) {
+                RecyclerView.ViewHolder vh =
+                        rv.findViewHolderForAdapterPosition(adapter.getItemCount() - 1);
+                if (vh instanceof OnboardingAdapter.SlideHolder) {
+                    OnboardingAdapter.SlideHolder lastHolder = (OnboardingAdapter.SlideHolder) vh;
+                    if (lastHolder.etName != null
+                            && lastHolder.etName.getText() != null
+                            && lastHolder.etName.getText().length() > 0)
+                        editor.putString("onboard_name",
+                                lastHolder.etName.getText().toString().trim());
+                    if (lastHolder.etWater != null
+                            && lastHolder.etWater.getText() != null
+                            && lastHolder.etWater.getText().length() > 0) {
+                        editor.putInt("daily_water_goal_ml",
+                                Integer.parseInt(lastHolder.etWater.getText().toString().trim()));
+                    }
+                    if (lastHolder.etSleep != null
+                            && lastHolder.etSleep.getText() != null
+                            && lastHolder.etSleep.getText().length() > 0) {
+                        editor.putFloat("sleep_goal_hours",
+                                Float.parseFloat(lastHolder.etSleep.getText().toString().trim()));
+                    }
+                }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         editor.apply();
         Navigation.findNavController(requireView()).navigate(R.id.action_onboarding_to_login);

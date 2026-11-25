@@ -65,6 +65,17 @@ public class SyncRepository {
 
     // --- 2. ASYNC SYNC (For Profile UI) ---
 
+    // --- 3. DELETE PROPAGATION (called from ViewModels on local delete) ---
+    // Local Room deletes never removed the matching Firestore doc, so the next
+    // download-merge-upload sync would re-download and resurrect the deleted item.
+    public void deleteFromCloud(String collectionName, String docId) {
+        if (auth.getCurrentUser() == null || docId == null || docId.trim().isEmpty()) return;
+        String uid = auth.getCurrentUser().getUid();
+        firestore.collection("users").document(uid).collection(collectionName).document(docId)
+                .delete()
+                .addOnFailureListener(e -> Log.e("SyncRepo", "Cloud delete failed for " + collectionName + "/" + docId, e));
+    }
+
     public void syncDataToCloud(OnSyncListener listener) {
         if (auth.getCurrentUser() == null) {
             notifyComplete(listener, false, "User not logged in");
@@ -78,7 +89,7 @@ public class SyncRepository {
                             Log.e("SyncRepo", "Async Sync Error", e);
                             notifyComplete(listener, false, e.getMessage());
                         }
-                ).notifyAll();
+                );
     }
 
     // --- THE CORE LOGIC (Safe Order: Download -> Merge -> Upload) ---

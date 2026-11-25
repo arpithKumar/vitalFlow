@@ -53,6 +53,8 @@ public class MainActivity extends AppCompatActivity {
     private int currentTabId = R.id.homeFragment;
     /** True once the user has passed biometric verification in this session. */
     private boolean isAuthenticated = false;
+    /** Guard flag — prevents showing the biometric prompt a second time while it's already on screen. */
+    private boolean isPromptShowing = false;
 
     @Inject
     GeminiRepository geminiRepository;
@@ -62,47 +64,24 @@ public class MainActivity extends AppCompatActivity {
 
     private final ActivityResultLauncher<String[]> multiplePermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
-                boolean allGranted = true;
-                List<String> deniedPermissions = new ArrayList<>();
+                // Always create notification channels regardless of outcome
+                NotificationHelper.createNotificationChannel(this);
+
+                // Mark every denied permission so we never ask for it again.
+                // This prevents the "toast every cold start" loop on devices where
+                // shouldShowRequestPermissionRationale() always returns true (e.g. BODY_SENSORS
+                // on Samsung / restricted OEMs).
+                android.content.SharedPreferences permPrefs =
+                        getSharedPreferences("perm_prefs", MODE_PRIVATE);
+                android.content.SharedPreferences.Editor editor = permPrefs.edit();
                 for (Map.Entry<String, Boolean> entry : result.entrySet()) {
                     if (!entry.getValue()) {
-                        allGranted = false;
-                        deniedPermissions.add(entry.getKey());
+                        // Key: "perm_denied_<permission>" = true → never ask again
+                        editor.putBoolean("perm_denied_" + entry.getKey(), true);
                     }
                 }
-                if (allGranted) {
-                    NotificationHelper.createNotificationChannel(this);
-                } else {
-                    Toast.makeText(this, "Some features may not work without permissions.", Toast.LENGTH_SHORT).show();
-                    handleDeniedPermissions(deniedPermissions);
-                }
+                editor.apply();
             });
-
-    private void handleDeniedPermissions(List<String> deniedPermissions) {
-        var message = new StringBuilder("The following permissions are required for this app to function correctly:\n\n");
-        for (String perm : deniedPermissions) {
-            String name = perm.substring(perm.lastIndexOf(".") + 1).replace("_", " ");
-            message.append("• ").append(name).append("\n");
-        }
-        message.append("\nPlease enable them in Settings to continue.");
-
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                .setTitle("Permissions Required")
-                .setMessage(message.toString())
-                .setCancelable(false)
-                .setPositiveButton("Open Settings", (dialog, which) -> {
-                    try {
-                        android.content.Intent intent = new android.content.Intent(
-                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                        intent.setData(android.net.Uri.fromParts("package", getPackageName(), null));
-                        startActivity(intent);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                })
-                .setNegativeButton("Not Now", null)
-                .show();
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -139,9 +118,28 @@ public class MainActivity extends AppCompatActivity {
         if (navHostFragment != null) {
             NavController navController = navHostFragment.getNavController();
 
+            // BottomNavigationView auto-pads itself for the system gesture-navigation bar,
+            // which makes sense for a nav pinned flush to the screen edge — but ours already
+            // floats clear of it via nav_card's own bottom margin, so that auto-padding just
+            // shows up as unwanted empty space below the labels. Consume the insets as a no-op
+            // so the view falls back to its own (zero) padding instead.
+            androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(
+                    binding.bottomNav, (v, insets) -> insets);
+
+            // Active indicator — teal filled pill behind selected icon (the "elevated" look).
             binding.bottomNav.setItemActiveIndicatorColor(
                     android.content.res.ColorStateList.valueOf(
                             ContextCompat.getColor(this, R.color.primary)));
+            // Make the indicator a proper pill shape with generous corner radius.
+            binding.bottomNav.setItemActiveIndicatorShapeAppearance(
+                    new com.google.android.material.shape.ShapeAppearanceModel.Builder()
+                            .setAllCornerSizes(new com.google.android.material.shape.RelativeCornerSize(0.5f))
+                            .build());
+            // Slightly widen the indicator so it feels like a raised chip, not just a dot.
+            binding.bottomNav.setItemActiveIndicatorWidth(
+                    (int) (getResources().getDisplayMetrics().density * 72));
+            binding.bottomNav.setItemActiveIndicatorHeight(
+                    (int) (getResources().getDisplayMetrics().density * 36));
 
             binding.bottomNav.setOnItemSelectedListener(item -> {
                 int destId = item.getItemId();
@@ -317,10 +315,20 @@ public class MainActivity extends AppCompatActivity {
 
         if (!permissionsToRequest.isEmpty()) {
             permPrefs.edit().putBoolean("permissions_requested", true).apply();
-            PermissionBottomSheet sheet = new PermissionBottomSheet();
-            sheet.setOnAllowClicked(() ->
-                    multiplePermissionLauncher.launch(permissionsToRequest.toArray(new String[0])));
-            sheet.show(getSupportFragmentManager(), "PermissionSheet");
+
+            if (firstAsk) {
+                // Show the rationale sheet exactly once — on first launch only.
+                PermissionBottomSheet sheet = new PermissionBottomSheet();
+                final List<String> toRequest = permissionsToRequest;
+                sheet.setOnAllowClicked(() ->
+                        multiplePermissionLauncher.launch(toRequest.toArray(new String[0])));
+                sheet.show(getSupportFragmentManager(), "PermissionSheet");
+            } else {
+                // Subsequent launches: silently re-request without the sheet.
+                // If denied again, maybeAdd() will skip them forever on the next launch.
+                multiplePermissionLauncher.launch(
+                        permissionsToRequest.toArray(new String[0]));
+            }
         }
     }
 
@@ -330,8 +338,15 @@ public class MainActivity extends AppCompatActivity {
      * which means the user denied once but hasn't ticked "Don't ask again").
      */
     private void maybeAdd(List<String> list, String permission, boolean firstAsk) {
+        // Already granted — nothing to do.
         if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED)
             return;
+        // User previously denied and we recorded it — stop asking forever (avoids the loop on
+        // devices like Samsung where shouldShowRequestPermissionRationale always returns true).
+        android.content.SharedPreferences permPrefs =
+                getSharedPreferences("perm_prefs", MODE_PRIVATE);
+        if (permPrefs.getBoolean("perm_denied_" + permission, false)) return;
+        // Ask on first launch, or if the system still says we should show a rationale.
         if (firstAsk || ActivityCompat.shouldShowRequestPermissionRationale(this, permission))
             list.add(permission);
     }
@@ -442,6 +457,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void checkBiometricLock() {
         if (isAuthenticated) return;
+        if (isPromptShowing) return;
 
         SharedPreferences prefs = getSharedPreferences("vital_prefs", MODE_PRIVATE);
         if (!prefs.getBoolean("biometric_enabled", false)) return;
@@ -484,11 +500,13 @@ public class MainActivity extends AppCompatActivity {
                     public void onAuthenticationSucceeded(
                             @NonNull BiometricPrompt.AuthenticationResult result) {
                         isAuthenticated = true;
+                        isPromptShowing = false;
                     }
 
                     @Override
                     public void onAuthenticationError(int errorCode,
                             @NonNull CharSequence errString) {
+                        isPromptShowing = false;
                         // User explicitly cancelled or pressed Back — send to login
                         if (errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON ||
                                 errorCode == BiometricPrompt.ERROR_USER_CANCELED) {
@@ -503,6 +521,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
 
+        isPromptShowing = true;
         biometricPrompt.authenticate(promptInfo);
     }
 
