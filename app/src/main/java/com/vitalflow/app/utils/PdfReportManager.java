@@ -44,7 +44,7 @@ public class PdfReportManager {
     private static final int MARGIN = 50;
 
     // Colors
-    private static final int COLOR_PRIMARY = Color.parseColor("#00695C");
+    private static final int COLOR_PRIMARY = Color.parseColor("#293241");
     private static final int COLOR_TEXT_DARK = Color.BLACK;
     private static final int COLOR_TEXT_LIGHT = Color.DKGRAY;
     private static final int COLOR_WARNING = Color.parseColor("#C62828"); // Red for alerts
