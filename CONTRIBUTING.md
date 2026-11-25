@@ -33,6 +33,9 @@ artifact for diagnosing obfuscation problems.
 ## 4. Branches, commits, pull requests
 
 - Work on a branch (`feat/...`, `fix/...`, `chore/...`, `refactor/...`); do not commit straight to `main`.
+- **One branch per piece of work, always cut from the latest `main`.** Once a pull request is merged, that
+  branch is finished: update `main` (`git switch main && git pull`), then create a new branch for the next
+  piece of work. Never keep committing to a branch that has already been merged.
 - **One concern per commit.** Do not mix a bug fix, a refactor and a style change in one commit.
 - Commit messages use [Conventional Commits](https://www.conventionalcommits.org/):
   `type(scope): summary` with `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `build`, `ci`, `style`,
