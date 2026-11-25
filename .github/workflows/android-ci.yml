@@ -33,7 +33,7 @@ jobs:
       # Installs the Android command-line tools and accepts the SDK licences so Gradle can
       # download the compile SDK platform if the runner image does not ship it.
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       # Caches Gradle and verifies the checksum of gradle-wrapper.jar.
       - name: Set up Gradle
