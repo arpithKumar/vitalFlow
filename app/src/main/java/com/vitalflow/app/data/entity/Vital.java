@@ -2,6 +2,7 @@ package com.vitalflow.app.data.entity;
 
 import androidx.annotation.NonNull;
 import androidx.room.Entity;
+import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 
 import java.util.UUID;
@@ -20,6 +21,12 @@ public class Vital {
     private String contextTags;  // "Missed Meds, Stressed"
     private String symptoms;     // "Dizziness"
 
+    /** Used by Firestore when it restores a record; the values then arrive through the setters. */
+    @Ignore
+    public Vital() {
+        this.id = UUID.randomUUID().toString();
+    }
+
     public Vital(String type, String value1, String value2, String unit, String date, long timestamp, String contextTags, String symptoms) {
         this.id = UUID.randomUUID().toString();
         this.type = type;
@@ -32,9 +39,41 @@ public class Vital {
         this.symptoms = symptoms;
     }
 
-    // Explicit setter for Room
+    // Setters. Firestore restores a record through them: a property without a setter is silently left empty.
     public void setId(@NonNull String id) {
         this.id = id;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public void setValue1(String value1) {
+        this.value1 = value1;
+    }
+
+    public void setValue2(String value2) {
+        this.value2 = value2;
+    }
+
+    public void setUnit(String unit) {
+        this.unit = unit;
+    }
+
+    public void setDate(String date) {
+        this.date = date;
+    }
+
+    public void setTimestamp(long timestamp) {
+        this.timestamp = timestamp;
+    }
+
+    public void setContextTags(String contextTags) {
+        this.contextTags = contextTags;
+    }
+
+    public void setSymptoms(String symptoms) {
+        this.symptoms = symptoms;
     }
 
     // Getters

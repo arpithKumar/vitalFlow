@@ -2,6 +2,7 @@ package com.vitalflow.app.data.entity;
 
 import androidx.annotation.NonNull;
 import androidx.room.Entity;
+import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 
 @Entity(tableName = "period_logs")
@@ -14,6 +15,12 @@ public class PeriodLog {
     public boolean isFlow;    // True if period flow exists
     public int flowIntensity; // 1=Light, 2=Medium, 3=Heavy
     public String symptoms;   // "Cramps,Headache,Bloating"
+
+    /** Used by Firestore when it restores a record; the values then arrive through the public fields. */
+    @Ignore
+    public PeriodLog() {
+        this.date = "";
+    }
 
     public PeriodLog(@NonNull String date, boolean isFlow, int flowIntensity, String symptoms) {
         this.date = date;

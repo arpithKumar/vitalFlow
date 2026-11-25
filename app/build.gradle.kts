@@ -56,6 +56,13 @@ android {
         viewBinding = true
         buildConfig = true
     }
+    testOptions {
+        unitTests {
+            // Libraries that log through android.util.Log (Firestore's object mapper warns about
+            // properties it ignores) must not throw "not mocked" in JVM tests.
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 dependencies {

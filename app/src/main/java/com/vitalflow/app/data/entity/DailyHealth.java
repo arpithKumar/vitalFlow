@@ -2,6 +2,7 @@ package com.vitalflow.app.data.entity;
 
 import androidx.annotation.NonNull;
 import androidx.room.Entity;
+import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 
 @Entity(tableName = "daily_health")
@@ -15,6 +16,12 @@ public class DailyHealth {
     private int stepCount;
     private String sleepDuration; // e.g. "7h 30m"
     private int moodRating; // 1-5
+
+    /** Used by Firestore when it restores a record; the values then arrive through the setters. */
+    @Ignore
+    public DailyHealth() {
+        this.date = "";
+    }
 
     public DailyHealth(@NonNull String date, int waterIntakeMl, int waterGoalMl, int stepCount, String sleepDuration, int moodRating) {
         this.date = date;
