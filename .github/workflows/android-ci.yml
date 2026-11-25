@@ -48,6 +48,13 @@ jobs:
       - name: Build debug and release (release runs R8)
         run: ./gradlew assembleDebug assembleRelease --stacktrace
 
+      # Debug builds skip R8, so only the release mapping can show that R8 renamed or removed a model
+      # that Gson or Firestore reads by name. The reports below are still uploaded when this fails.
+      - name: Check that R8 kept the data models
+        run: |
+          python3 -m unittest discover -s scripts
+          python3 scripts/check_release_mapping.py app/build/outputs/mapping/release/mapping.txt
+
       - name: Upload test and lint reports
         if: always()
         uses: actions/upload-artifact@v4

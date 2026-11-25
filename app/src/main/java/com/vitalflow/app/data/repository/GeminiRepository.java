@@ -14,6 +14,7 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 
 import com.google.gson.Gson;
+import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
 import com.vitalflow.app.data.entity.FoodLog;
 import com.vitalflow.app.data.entity.HealthPlan;
@@ -358,10 +359,14 @@ public class GeminiRepository {
         void onError(Throwable t);
     }
 
-    // Helper Class for JSON Parsing
+    // Filled by Gson from the model's JSON reply. Names are pinned with @SerializedName and the class
+    // is kept by R8 (proguard-rules.pro); keep both in sync with the prompt that asks for this JSON.
     public static class FoodAnalysisResult {
+        @SerializedName("food_name")
         public String food_name;
+        @SerializedName("calories")
         public int calories;
+        @SerializedName("macros")
         public String macros;
     }
 
@@ -422,10 +427,15 @@ public class GeminiRepository {
         void onError(Throwable t);
     }
 
+    // Filled by Gson from the model's JSON reply (see FoodAnalysisResult).
     public static class PrescriptionResult {
+        @SerializedName("name")
         public String name;
+        @SerializedName("dosage")
         public String dosage;
+        @SerializedName("frequency")
         public int frequency;
+        @SerializedName("type")
         public String type;
     }
 
@@ -499,13 +509,21 @@ public class GeminiRepository {
         void onError(Throwable t);
     }
 
+    // Filled by Gson from the model's JSON reply (see FoodAnalysisResult).
     public static class VoiceAction {
+        @SerializedName("action")
         public String action;    // "WATER", "FOOD", "MEDICATION"
+        @SerializedName("amount_ml")
         public int amount_ml;    // For water
+        @SerializedName("food_name")
         public String food_name; // For food
+        @SerializedName("calories")
         public int calories;     // For food
+        @SerializedName("macros")
         public String macros;    // For food
+        @SerializedName("med_id")
         public String med_id;    // For medication
+        @SerializedName("med_name")
         public String med_name;  // For medication
     }
 }

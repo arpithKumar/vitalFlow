@@ -27,8 +27,9 @@ reflection.** R8 renames and removes code that is only reached by name at runtim
 ## 3. What CI checks
 
 `.github/workflows/android-ci.yml` runs on every push to `main` and every pull request: unit tests, lint, debug
-build and release build. A change is mergeable only when it is green. The release R8 mapping is uploaded as an
-artifact for diagnosing obfuscation problems.
+build, release build, and `scripts/check_release_mapping.py`, which fails the job when R8 renamed or removed a
+data model that Gson or Firestore reads by name. A change is mergeable only when it is green. The test and lint
+reports and the release R8 mapping are uploaded as artifacts (`reports`, `r8-mapping`, kept 14 days).
 
 ## 4. Branches, commits, pull requests
 
@@ -36,6 +37,7 @@ artifact for diagnosing obfuscation problems.
 - **One branch per piece of work, always cut from the latest `main`.** Once a pull request is merged, that
   branch is finished: update `main` (`git switch main && git pull`), then create a new branch for the next
   piece of work. Never keep committing to a branch that has already been merged.
+- **Branches are never deleted**, not even after they are merged. They stay as history.
 - **One concern per commit.** Do not mix a bug fix, a refactor and a style change in one commit.
 - Commit messages use [Conventional Commits](https://www.conventionalcommits.org/):
   `type(scope): summary` with `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `build`, `ci`, `style`,
@@ -69,6 +71,10 @@ Rules of thumb:
 - Dates and times that are stored or compared use `java.time` with an explicit zone and `Locale.ROOT` /
   ISO formats, never the device locale.
 - User-visible text goes in `res/values/strings.xml`, not in Java or layout literals.
+- Classes that Gson or Firestore fill by name (API request and response bodies, JSON the AI returns, synced
+  documents) live in `data/entity`, which R8 keeps as a whole. Put `@SerializedName` on every Gson field so the
+  JSON keys never depend on Java names. A model anywhere else needs its own `-keep` rule in
+  `app/proguard-rules.pro` and an entry in `scripts/check_release_mapping.py`.
 
 ## 6. Resource naming
 
@@ -97,10 +103,19 @@ Also in the wrong package: `utils/MedicationWorker` and `utils/ReminderWorker` b
 
 Delete what is no longer used; do not comment it out or leave it "just in case". Git history is the backup.
 
-1. Confirm it is unused: `./gradlew lintDebug` (rule `UnusedResources`) and a repository-wide search for the
-   name (including `getIdentifier`, XML references and the manifest).
+1. **Find candidates with evidence, not guesses.**
+   - Resources: `./gradlew lintDebug` (rule `UnusedResources`).
+   - Code: `usage.txt` in the `r8-mapping` CI artifact lists the classes and methods R8 found nothing reaching.
+     It is a list of *candidates*: ignore generated code (`R`, Hilt, Room), and read it only after the keep rules
+     are correct, because a class that is only filled by reflection looks unused until it is kept.
+   - Always confirm with a repository-wide search for the name, including `getIdentifier`, XML references, the
+     manifest and reflection (Gson, Firestore).
 2. Remove it in its **own commit**: `chore: remove unused <what>`, listing the files and the evidence.
-3. Rebuild debug **and** release and run the tests before pushing.
+3. **Replace means delete.** When something is replaced (a layout, an icon, a helper), the old one is deleted in
+   the same pull request that stops using it. Do not leave the old copy behind.
+4. Rebuild debug **and** release and run the tests before pushing.
+5. Never delete: anything reached by reflection, XML or the manifest, generated code, or code that a planned
+   phase removes on purpose (for example Bluetooth in Phase 2). Branches are never deleted either.
 
 ## 8. Tests
 

@@ -1,24 +1,26 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
+# R8 / ProGuard rules for VitalFlow. Release builds shrink, rename and optimise the code.
 #
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# R8 only sees code that is called directly. Anything reached by NAME at runtime (JSON field names,
+# Firestore property names, reflection) has to be kept here. Otherwise the release build silently
+# renames or removes it while debug builds keep working.
+# scripts/check_release_mapping.py runs in CI and fails the build if a model below is renamed or removed.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Gson reads generic types and annotations from the class files.
+-keepattributes Signature, InnerClasses, EnclosingMethod, *Annotation*
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Data models that are filled or read by reflection:
+#  - Firestore maps documents to these classes through their getters and setters
+#    (SyncRepository.restoreCollection, DocumentReference.set),
+#  - Gson builds the Gemini request body and parses the Gemini response and HealthPlan.
+# Everything in these packages is kept, including nested classes, fields, constructors and accessors.
+# A new model belongs in data/entity (or data/entity/gemini), where it is covered automatically.
+-keep class com.vitalflow.app.data.entity.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# JSON result types declared inside GeminiRepository (parsed from the model's JSON reply with Gson).
+# Move them to data/entity/gemini when GeminiRepository is split (Phase 5) and delete these three rules.
+-keep class com.vitalflow.app.data.repository.GeminiRepository$FoodAnalysisResult { *; }
+-keep class com.vitalflow.app.data.repository.GeminiRepository$PrescriptionResult { *; }
+-keep class com.vitalflow.app.data.repository.GeminiRepository$VoiceAction { *; }
 
 # Apache POI — optional desktop dependencies not present on Android
 -dontwarn aQute.bnd.annotation.baseline.BaselineIgnore
