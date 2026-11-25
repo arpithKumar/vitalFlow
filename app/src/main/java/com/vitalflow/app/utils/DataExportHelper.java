@@ -6,8 +6,6 @@ import android.net.Uri;
 import android.util.Log;
 import android.widget.Toast;
 
-import androidx.core.content.FileProvider;
-
 import com.vitalflow.app.data.dao.AppDao;
 import com.vitalflow.app.data.entity.DailyHealth;
 import com.vitalflow.app.data.entity.FoodLog;
@@ -125,7 +123,7 @@ public class DataExportHelper {
 
                 // 3. Save File
                 String fileName = "VitalFlow_Report_" + new SimpleDateFormat("yyyyMMdd", Locale.US).format(new Date()) + ".xlsx";
-                File file = new File(context.getCacheDir(), fileName);
+                File file = FileShareUtils.exportFile(context, fileName);
                 FileOutputStream fileOut = new FileOutputStream(file);
                 workbook.write(fileOut);
                 fileOut.close();
@@ -171,7 +169,7 @@ public class DataExportHelper {
 
     private static void shareFile(Context context, File file) {
         try {
-            Uri contentUri = FileProvider.getUriForFile(context, context.getPackageName() + ".fileprovider", file);
+            Uri contentUri = FileShareUtils.uriFor(context, file);
             Intent intent = new Intent(Intent.ACTION_SEND);
 
             // MIME type for .xlsx
