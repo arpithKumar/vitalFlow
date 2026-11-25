@@ -75,7 +75,6 @@
     <color name="text_day_fertile">#15803D</color>
     <color name="bg_day_ovulation">#DDD6FE</color>
     <color name="text_day_ovulation">#6D28D9</color>
-    <color name="bg_day_prediction">#FDE8D8</color>
     <color name="text_day_normal">#334155</color>
     <color name="text_day_other_month">#CBD5E1</color>
 
@@ -167,8 +166,6 @@
     <!-- ═══════════════════════════════════════════════ -->
     <!--  GLASSMORPHISM — CARDS                          -->
     <!-- ═══════════════════════════════════════════════ -->
-    <!-- 80% white with slight teal tint — main glass card fill -->
-    <color name="glass_card_bg">#CCFFFFFF</color>
     <!-- 25% white — glass card border -->
     <color name="glass_card_stroke">#40FFFFFF</color>
     <!-- 90% white — more opaque glass for elevated/overlapping cards -->
@@ -182,16 +179,6 @@
     <!-- Nav selected pill: reuses @color/primary (#00897B) -->
     <!-- Nav icon active: reuses @color/primary -->
     <!-- Nav icon inactive: reuses @color/icon_unselected -->
-
-    <!-- ═══════════════════════════════════════════════ -->
-    <!--  HERO CARD — TIME OF DAY GRADIENTS              -->
-    <!-- ═══════════════════════════════════════════════ -->
-    <color name="hero_morning_start">#FFF6E9</color>
-    <color name="hero_morning_end">#E4EEF3</color>
-    <color name="hero_afternoon_start">#E4EEF3</color>
-    <color name="hero_afternoon_end">#DCE7EE</color>
-    <color name="hero_night_start">#1A237E</color>
-    <color name="hero_night_end">#4A148C</color>
 
     <!-- ═══════════════════════════════════════════════ -->
     <!--  STAT CARDS                                     -->
