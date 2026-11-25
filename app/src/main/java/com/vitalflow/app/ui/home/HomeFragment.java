@@ -43,7 +43,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
-import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.Navigation;
@@ -75,6 +74,7 @@ import com.vitalflow.app.ui.story.WrappedDialogFragment;
 import com.vitalflow.app.utils.BitmapUtils;
 import com.vitalflow.app.utils.DataExportHelper;
 import com.vitalflow.app.utils.DataImportHelper;
+import com.vitalflow.app.utils.FileShareUtils;
 import com.vitalflow.app.utils.HealthConnectManager;
 import com.vitalflow.app.utils.InsightEngine;
 import com.vitalflow.app.utils.NotificationHelper;
@@ -980,15 +980,8 @@ public class HomeFragment extends Fragment implements SensorEventListener {
 
     private void launchCamera() {
         try {
-            // Create a temporary file
-            File photoFile = File.createTempFile("food_scan_", ".jpg", requireContext().getExternalCacheDir());
-
-            // Get URI using FileProvider
-            currentPhotoUri = FileProvider.getUriForFile(
-                    requireContext(),
-                    requireContext().getPackageName() + ".provider",
-                    photoFile
-            );
+            File photoFile = FileShareUtils.newScanFile(requireContext(), "food_scan_");
+            currentPhotoUri = FileShareUtils.uriFor(requireContext(), photoFile);
 
             takePictureLauncher.launch(currentPhotoUri);
         } catch (IOException e) {

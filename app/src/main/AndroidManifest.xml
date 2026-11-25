@@ -15,14 +15,12 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.BODY_SENSORS" />
@@ -69,11 +67,14 @@
     </queries>
 
 
+    <!-- Automatic backup and device transfer are off on purpose.
+         Android 12 and newer read res/xml/data_extraction_rules.xml. Android 8 to 11 only read allowBackup,
+         and "false" turns off every form of backup there, so no fullBackupContent file is needed. -->
     <application
         android:name=".VitalFlowApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
-        android:fullBackupContent="@xml/backup_rules"
+        tools:ignore="DataExtractionRules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -108,13 +109,14 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- Widget receivers are not exported: the system delivers APPWIDGET_UPDATE regardless, and the
+             widget's own buttons use explicit PendingIntents. Exporting them would let any app log water
+             or mood (ACTION_ADD_WATER, ACTION_RESET_WATER, ACTION_LOG_MOOD). -->
         <receiver
             android:name=".widget.WaterWidgetProvider"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.vitalflow.app.ACTION_ADD_WATER" />
-                <action android:name="com.vitalflow.app.ACTION_LOG_MOOD" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
@@ -123,7 +125,7 @@
 
         <receiver
             android:name=".widget.MedWidgetProvider"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

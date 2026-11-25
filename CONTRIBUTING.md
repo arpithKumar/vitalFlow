@@ -123,8 +123,15 @@ Delete what is no longer used; do not comment it out or leave it "just in case".
 - JUnit 4. Name tests `subject_condition_expectedResult`.
 - Unit tests must not need Android: keep logic in plain classes. Pin anything environmental
   (`Locale`, `TimeZone`, clock) inside the test.
+- Behaviour that needs a real Android runtime (the FileProvider, Room migrations) is tested in
+  `app/src/androidTest`. CI does not run these yet. Run them on an emulator with
+  `./gradlew connectedDebugAndroidTest`, which removes the app afterwards. To keep the app installed, run
+  `./gradlew assembleDebugAndroidTest`, `adb install -t` the test APK, then
+  `adb shell am instrument -w com.vitalflow.app.test/androidx.test.runner.AndroidJUnitRunner`.
 - Every Room schema change ships with a migration and a migration test.
 - Bug fixes start with a test that fails for the bug.
+- Delete the temporary files you create (downloads, screenshots, logs, test APKs) as soon as they are no
+  longer needed.
 
 ## 9. Release smoke test (run on a **release** build, on a device)
 
