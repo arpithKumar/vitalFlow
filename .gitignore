@@ -1,26 +1,18 @@
 # OS-specific files
 .DS_Store
 
-# Gradle & Build files
+# Gradle & build output
 .gradle/
 build/
 */build/
 captures/
 
-# Local configuration & Secrets (DO NOT COMMIT)
+# Local configuration & secrets (DO NOT COMMIT)
 local.properties
 
-# Android Studio / IntelliJ
+# Android Studio / IntelliJ (IDE state is personal, not source)
 *.iml
 /.idea
-/.idea/caches/
-/.idea/misc.xml
-/.idea/libraries/
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-/.idea/copilot.data.migration.ask2agent.xml
 
 # NDK / C++ build files
 .externalNativeBuild/
@@ -31,4 +23,7 @@ local.properties
 *.aab
 *.dm
 /app/release/
+
+# Local-only files: AI assistant instructions and private design/planning docs
 CLAUDE.md
+docs/
