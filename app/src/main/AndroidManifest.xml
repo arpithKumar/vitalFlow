@@ -111,13 +111,14 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- Widget receivers are not exported: the system delivers APPWIDGET_UPDATE regardless, and the
+             widget's own buttons use explicit PendingIntents. Exporting them would let any app log water
+             or mood (ACTION_ADD_WATER, ACTION_RESET_WATER, ACTION_LOG_MOOD). -->
         <receiver
             android:name=".widget.WaterWidgetProvider"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.vitalflow.app.ACTION_ADD_WATER" />
-                <action android:name="com.vitalflow.app.ACTION_LOG_MOOD" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
@@ -126,7 +127,7 @@
 
         <receiver
             android:name=".widget.MedWidgetProvider"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
