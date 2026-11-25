@@ -65,8 +65,52 @@ class CheckTest(unittest.TestCase):
                    "    1:1:java.lang.String -$$Nest$fgettype(Inner):4:4 -> a\n")
         self.assertEqual([], self.check(mapping))
 
+    def test_inlined_calls_are_not_members(self):
+        mapping = (f"{MODEL} -> {MODEL}:\n"
+                   "    3:3:org.apache.commons.io.Builder org.apache.commons.io.Builder.builder():12:12 -> save\n")
+        self.assertEqual([], self.check(mapping))
+
+    def test_r8_generated_lambda_members_may_be_renamed(self):
+        mapping = (f"{MODEL} -> {MODEL}:\n"
+                   "    1:1:void $r8$lambda$AbCdEf(java.lang.Object):7:7 -> A0\n")
+        self.assertEqual([], self.check(mapping))
+
     def test_comment_lines_in_mapping_are_ignored(self):
         mapping = f"# compiler: R8\n{MODEL} -> {MODEL}:\n    # {{\"id\":\"x\"}}\n"
+        self.assertEqual([], self.check(mapping))
+
+
+class ThirdPartyTest(unittest.TestCase):
+    POI = "org.apache.poi.xssf.usermodel.XSSFWorkbook"
+    XMLBEANS = "org.apache.xmlbeans.impl.schema.SchemaTypeSystemImpl"
+    PREFIXES = ("org.apache.poi.", "org.apache.xmlbeans.")
+
+    def check(self, mapping):
+        return guard.check(f"{MODEL} -> {MODEL}:\n" + mapping, {MODEL}, PREFIXES,
+                           self.PREFIXES, self.PREFIXES)
+
+    def kept(self):
+        return f"{self.POI} -> {self.POI}:\n{self.XMLBEANS} -> {self.XMLBEANS}:\n"
+
+    def test_kept_third_party_classes_pass(self):
+        self.assertEqual([], self.check(self.kept()))
+
+    def test_renamed_third_party_class_is_reported(self):
+        # This is what crashed the release build: XMLBeans classes were moved to the default package.
+        mapping = f"{self.POI} -> {self.POI}:\n{self.XMLBEANS} -> cp3:\n"
+        self.assertEqual([f"RENAMED  {self.XMLBEANS} -> cp3"], self.check(mapping))
+
+    def test_renamed_third_party_member_is_reported(self):
+        mapping = self.kept() + "    1:1:void load():5:5 -> a\n"
+        self.assertEqual([f"RENAMED  {self.XMLBEANS}.load -> a"], self.check(mapping))
+
+    def test_missing_third_party_library_is_reported(self):
+        problems = self.check(f"{self.POI} -> {self.POI}:\n")
+        self.assertEqual(1, len(problems))
+        self.assertTrue(problems[0].startswith("MISSING  no class under org.apache.xmlbeans."))
+
+    def test_generated_lambda_classes_may_be_renamed(self):
+        mapping = self.kept() + f"{self.POI}$$ExternalSyntheticLambda0 -> a:\n"
         self.assertEqual([], self.check(mapping))
 
 
