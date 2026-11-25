@@ -26,7 +26,6 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
-import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.Navigation;
@@ -42,6 +41,7 @@ import com.vitalflow.app.data.entity.MedicationHistory;
 import com.vitalflow.app.data.repository.GeminiRepository;
 import com.vitalflow.app.databinding.FragmentMedsBinding;
 import com.vitalflow.app.utils.BitmapUtils;
+import com.vitalflow.app.utils.FileShareUtils;
 import com.vitalflow.app.utils.NotificationHelper;
 import com.vitalflow.app.utils.UiUtils;
 
@@ -151,8 +151,8 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
 
     private void launchCamera() {
         try {
-            java.io.File photoFile = java.io.File.createTempFile("scan_", ".jpg", requireContext().getExternalCacheDir());
-            currentPhotoUri = FileProvider.getUriForFile(requireContext(), requireContext().getPackageName() + ".provider", photoFile);
+            File photoFile = FileShareUtils.newScanFile(requireContext(), "scan_");
+            currentPhotoUri = FileShareUtils.uriFor(requireContext(), photoFile);
             takePictureLauncher.launch(currentPhotoUri);
         } catch (Exception e) {
             Toast.makeText(getContext(), "Camera error", Toast.LENGTH_SHORT).show();

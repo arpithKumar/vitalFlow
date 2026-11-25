@@ -19,8 +19,6 @@ import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.widget.Toast;
 
-import androidx.core.content.FileProvider;
-
 import com.vitalflow.app.R;
 import com.vitalflow.app.data.entity.DailyHealth;
 import com.vitalflow.app.data.entity.Medication;
@@ -432,11 +430,7 @@ public class PdfReportManager {
 
                 Toast.makeText(context, "Full Report Saved to Downloads!", Toast.LENGTH_LONG).show();
                 // Return URI via FileProvider
-                return FileProvider.getUriForFile(
-                        context,
-                        context.getPackageName() + ".provider",
-                        file
-                );
+                return FileShareUtils.uriFor(context, file);
             }
         } catch (Exception e) {
             Toast.makeText(context, "Error saving PDF: " + e.getMessage(), Toast.LENGTH_SHORT).show();

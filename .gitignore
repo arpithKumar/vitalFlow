@@ -14,6 +14,8 @@ __pycache__/
 
 # Local configuration & secrets (DO NOT COMMIT)
 local.properties
+.env
+.env.*
 
 # Android Studio / IntelliJ (IDE state is personal, not source)
 *.iml

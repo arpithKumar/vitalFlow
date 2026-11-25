@@ -1,6 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Folders the FileProvider may hand to other apps. Keep this list as small as possible, and keep it in
+    sync with utils/FileShareUtils. The authority is declared in AndroidManifest.xml.
+-->
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <external-path name="external_files" path="." />
-    <external-files-path name="my_images" path="Pictures" />
-    <external-files-path name="my_docs" path="Documents" />
+    <!-- Camera captures for the food and prescription scans (FileShareUtils.newScanFile). -->
+    <cache-path
+        name="scans"
+        path="scans/" />
+
+    <!-- Excel export that is shared right after it is written (FileShareUtils.exportFile). -->
+    <cache-path
+        name="exports"
+        path="exports/" />
+
+    <!-- Android 9 and older only: PdfReportManager saves the PDF report in the public Download folder. -->
+    <external-path
+        name="legacy_downloads"
+        path="Download/" />
 </paths>
