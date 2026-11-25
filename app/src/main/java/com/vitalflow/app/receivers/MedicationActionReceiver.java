@@ -14,6 +14,7 @@ import com.vitalflow.app.utils.NotificationHelper;
 import javax.inject.Inject;
 
 import dagger.hilt.android.AndroidEntryPoint;
+import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.disposables.CompositeDisposable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
@@ -36,23 +37,30 @@ public class MedicationActionReceiver extends BroadcastReceiver {
 
         // 2. Handle the action based on the intent's action
         if ("ACTION_MARK_TAKEN".equals(action) && medId != null) {
-            // Update Database in Background
+            // Update Database in Background. goAsync() keeps the process alive past
+            // onReceive() returning — without it, the OS is free to kill the process
+            // before the IO-thread write completes, silently dropping the "taken" mark.
+            final PendingResult pendingResult = goAsync();
             disposables.add(
                 appDao.getMedicationById(medId)
                     .subscribeOn(Schedulers.io())
-                    .subscribe(med -> {
-                        if (med != null) {
-                            int current = med.getTimesTakenToday();
-                            if (current < med.getFrequencyPerDay()) {
-                                med.setTimesTakenToday(current + 1);
-                                if (med.getPillsLeft() > 0) med.setPillsLeft(med.getPillsLeft() - 1);
-                                disposables.add(appDao.insertMedication(med).subscribeOn(Schedulers.io()).subscribe());
-                                disposables.add(appDao.insertMedicationHistory(
-                                        new MedicationHistory(med.getId(), med.getName(), "TAKEN"))
-                                        .subscribeOn(Schedulers.io()).subscribe());
-                            }
+                    .flatMapCompletable(med -> {
+                        int current = med.getTimesTakenToday();
+                        if (current >= med.getFrequencyPerDay()) {
+                            return Completable.complete();
                         }
-                    }, Throwable::printStackTrace)
+                        med.setTimesTakenToday(current + 1);
+                        if (med.getPillsLeft() > 0) med.setPillsLeft(med.getPillsLeft() - 1);
+                        return appDao.insertMedication(med)
+                                .andThen(appDao.insertMedicationHistory(
+                                        new MedicationHistory(med.getId(), med.getName(), "TAKEN")));
+                    })
+                    // finish() only after the writes actually complete — not just dispatched —
+                    // so the process isn't killed mid-write.
+                    .subscribe(pendingResult::finish, throwable -> {
+                        throwable.printStackTrace();
+                        pendingResult.finish();
+                    })
             );
             Toast.makeText(context, "Medication marked as taken!", Toast.LENGTH_SHORT).show();
 

@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
@@ -180,7 +181,7 @@ public class AddMedBottomSheet extends BottomSheetDialogFragment {
     }
 
     private void checkInteractionsWithGemini(List<Medication> existingMeds, String name, String dosage) {
-        List<String> medNames = existingMeds.stream().map(Medication::getName).toList();
+        List<String> medNames = existingMeds.stream().map(Medication::getName).collect(Collectors.toList());
 
         String prompt = "I am currently taking: " + medNames.toString() +
                 ". I am about to add: " + name + " (" + dosage + "). " +

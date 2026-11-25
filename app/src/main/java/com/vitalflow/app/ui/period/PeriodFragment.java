@@ -119,6 +119,16 @@ public class PeriodFragment extends Fragment {
     }
 
     @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        disposables.clear();
+        // Cancel any pending long-press (calendar drag-select) callback — it isn't
+        // tied to the view lifecycle and would otherwise fire against a null binding.
+        handler.removeCallbacksAndMessages(null);
+        binding = null;
+    }
+
+    @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         viewModel = new ViewModelProvider(this).get(PeriodViewModel.class);

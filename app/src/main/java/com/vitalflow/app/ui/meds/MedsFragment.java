@@ -273,7 +273,7 @@ public class MedsFragment extends Fragment implements AddMedBottomSheet.OnMedica
                     String days = m.getSelectedDays();
                     return days == null || days.equals("Everyday") || days.contains(currentDayOfWeek);
                 })
-                .toList();
+                .collect(Collectors.toList());
 
         int checkedId = binding.chipGroupFilters.getCheckedChipId();
         List<Medication> filteredList;
