@@ -75,6 +75,9 @@ Rules of thumb:
   documents) live in `data/entity`, which R8 keeps as a whole. Put `@SerializedName` on every Gson field so the
   JSON keys never depend on Java names. A model anywhere else needs its own `-keep` rule in
   `app/proguard-rules.pro` and an entry in `scripts/check_release_mapping.py`.
+- An entity that is synced to Firestore needs a public no-argument constructor (mark it `@Ignore` for Room) and
+  a setter or public field for every stored property. Firestore does not fail for a property without a setter;
+  it leaves the field empty. Add the entity, with every field filled in, to `FirestoreRoundTripTest`.
 
 ## 6. Resource naming
 
