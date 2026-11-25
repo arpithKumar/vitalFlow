@@ -49,6 +49,7 @@ artifact for diagnosing obfuscation problems.
 | `data/repository` | Combine DAO / network / Firestore | touch Views |
 | `data/network` | Retrofit interfaces and API models | contain business rules |
 | `di` | Hilt modules | contain logic |
+| `diagnostics` | Crash reporting and other opt-in observability, behind small interfaces | send data before the user has opted in |
 | `ui/<feature>` | Fragments, adapters, ViewModels, sheets of one feature | access a DAO directly; hold business rules |
 | `workers` | WorkManager workers | live anywhere else |
 | `receivers` | BroadcastReceivers | do long work without `goAsync()` |
@@ -121,5 +122,6 @@ and check:
 - [ ] Sync Now succeeds; reinstall, sign in, and confirm the data comes back with correct field values
 - [ ] Notifications and the water/medication widgets update
 - [ ] Dark mode, rotation and the offline banner behave
+- [ ] Settings > "Share crash reports" is **off** on a fresh install; switching it on and off works
 - [ ] Open `app/build/outputs/mapping/release/mapping.txt` and confirm the data models you serialise
       (Firestore documents, Gson request/response classes) are kept, not renamed
