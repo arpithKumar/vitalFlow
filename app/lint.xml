@@ -2,4 +2,12 @@
 <lint>
     <!-- Apache POI internal TrustManager — not used for network in this app -->
     <issue id="TrustAllX509TrustManager" severity="ignore" />
+
+    <!-- Lint suggests merging mipmap-anydpi-v26 into mipmap-anydpi (minSdk is 26), then deleting the
+         bitmap launcher icons. Verified: that makes resource linking fail ("mipmap/ic_launcher not
+         found"). Keep the -v26 folder and the bitmap fallbacks. -->
+    <issue id="ObsoleteSdkInt">
+        <ignore path="**/res/mipmap-anydpi-v26" />
+        <ignore path="**/res/mipmap-anydpi-v26/**" />
+    </issue>
 </lint>
