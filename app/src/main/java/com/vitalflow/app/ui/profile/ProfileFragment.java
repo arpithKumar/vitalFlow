@@ -39,6 +39,7 @@ import com.vitalflow.app.R;
 import com.vitalflow.app.data.dao.AppDao;
 import com.vitalflow.app.data.repository.SyncRepository;
 import com.vitalflow.app.databinding.FragmentProfileBinding;
+import com.vitalflow.app.diagnostics.CrashReporting;
 import com.vitalflow.app.utils.DataExportHelper;
 import com.vitalflow.app.utils.DataImportHelper;
 import com.vitalflow.app.utils.NotificationHelper;
@@ -70,6 +71,9 @@ public class ProfileFragment extends Fragment {
 
     @Inject
     AppDao appDao;
+
+    @Inject
+    CrashReporting crashReporting;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -500,6 +504,11 @@ public class ProfileFragment extends Fragment {
                 Toast.makeText(getContext(), "App Lock Disabled 🔓", Toast.LENGTH_SHORT).show();
             }
         });
+
+        // 4. Anonymous crash reports (opt-in, off by default)
+        binding.switchCrashReports.setChecked(crashReporting.isEnabled());
+        binding.switchCrashReports.setOnCheckedChangeListener(
+                (buttonView, isChecked) -> crashReporting.setEnabled(isChecked));
     }
 
     private void animateEntry(View view, int delay) {

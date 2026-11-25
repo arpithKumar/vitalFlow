@@ -21,6 +21,7 @@ room = "2.8.4"
 navigation = "2.9.8"
 firebaseBom = "34.18.0"
 googleServices = "4.5.0"
+firebaseCrashlyticsPlugin = "3.0.8"
 lottie = "6.7.1"
 coreSplashscreen = "1.2.0"
 credentials = "1.6.0"
@@ -96,6 +97,7 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 # Firebase (Auth)
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
+firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
 
 # Lottie (Animation)
 lottie = { group = "com.airbnb.android", name = "lottie", version.ref = "lottie" }
@@ -113,3 +115,4 @@ rxjava = { module = "io.reactivex.rxjava3:rxjava", version.ref = "rxjava" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 hiltAndroid = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 googleServices = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+firebaseCrashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsPlugin" }

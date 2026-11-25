@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">VitalFlow</string>
+
+    <!-- Settings: crash reporting (opt-in) -->
+    <string name="settings_crash_reports_title">Share crash reports</string>
+    <string name="settings_crash_reports_summary">Anonymous. Sends the crash details, device model and Android version to help fix bugs. Off by default.</string>
 </resources>
