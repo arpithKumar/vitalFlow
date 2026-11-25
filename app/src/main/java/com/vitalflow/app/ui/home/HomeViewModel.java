@@ -11,6 +11,7 @@ import com.vitalflow.app.data.entity.FoodLog;
 import com.vitalflow.app.data.entity.Medication;
 import com.vitalflow.app.data.entity.Vital;
 import com.vitalflow.app.data.repository.GeminiRepository;
+import com.vitalflow.app.data.repository.SyncRepository;
 
 import java.util.List;
 
@@ -27,6 +28,7 @@ public class HomeViewModel extends ViewModel {
 
     private final AppDao appDao;
     private final GeminiRepository geminiRepository;
+    private final SyncRepository syncRepository;
     private final CompositeDisposable disposables = new CompositeDisposable();
 
     private final LiveData<List<Medication>> allMedications;
@@ -38,9 +40,10 @@ public class HomeViewModel extends ViewModel {
     private final LiveData<Integer> totalCalories;
 
     @Inject
-    public HomeViewModel(AppDao appDao, GeminiRepository geminiRepository) {
+    public HomeViewModel(AppDao appDao, GeminiRepository geminiRepository, SyncRepository syncRepository) {
         this.appDao = appDao;
         this.geminiRepository = geminiRepository;
+        this.syncRepository = syncRepository;
         allMedications = appDao.getAllMedications();
         latestHeartRate = appDao.getLatestVital("Heart Rate");
         dailyHealth = Transformations.switchMap(currentDate, appDao::getDailyHealth);
@@ -107,7 +110,8 @@ public class HomeViewModel extends ViewModel {
     }
 
     public Completable deleteFoodLogCompletable(FoodLog log) {
-        return appDao.deleteFoodLog(log);
+        return appDao.deleteFoodLog(log)
+                .doOnComplete(() -> syncRepository.deleteFromCloud("food_logs", log.id));
     }
 
     public void insertMedication(Medication m) {

@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel;
 import com.vitalflow.app.data.dao.AppDao;
 import com.vitalflow.app.data.entity.Medication;
 import com.vitalflow.app.data.repository.GeminiRepository;
+import com.vitalflow.app.data.repository.SyncRepository;
 
 import java.util.List;
 
@@ -21,14 +22,16 @@ public class MedsViewModel extends ViewModel {
 
     private final AppDao appDao;
     private final GeminiRepository geminiRepository;
+    private final SyncRepository syncRepository;
     private final CompositeDisposable disposables = new CompositeDisposable();
 
     private final LiveData<List<Medication>> allMedications;
 
     @Inject
-    public MedsViewModel(AppDao appDao, GeminiRepository geminiRepository) {
+    public MedsViewModel(AppDao appDao, GeminiRepository geminiRepository, SyncRepository syncRepository) {
         this.appDao = appDao;
         this.geminiRepository = geminiRepository;
+        this.syncRepository = syncRepository;
         allMedications = appDao.getAllMedications();
     }
 
@@ -47,7 +50,8 @@ public class MedsViewModel extends ViewModel {
     }
 
     public void deleteMedication(Medication m) {
-        disposables.add(appDao.deleteMedication(m).subscribeOn(Schedulers.io()).subscribe());
+        disposables.add(appDao.deleteMedication(m).subscribeOn(Schedulers.io())
+                .subscribe(() -> syncRepository.deleteFromCloud("medications", m.getId())));
     }
 
     public Completable deleteMedicationCompletable(Medication m) {
